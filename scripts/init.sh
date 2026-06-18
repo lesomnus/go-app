@@ -50,10 +50,12 @@ _find_files() {
 		-name "*.go"        \
 		-o -name "go.mod"   \
 		-o -name "*.yml"    \
+		-o -name "*.yaml"   \
 		-o -name "*.hcl"    \
 		-o -name "*.json"   \
 		-o -name "Dockerfile"     \
 		-o -name "Dockerfile.*"   \
+		-o -name ".dockerignore"  \
 	\)
 }
 
