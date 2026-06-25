@@ -1,12 +1,12 @@
 services:
   dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
+    image: ghcr.io/lesomnus/dev-golang:1.26
     command: sleep infinity
 
+    user: "1000"
     privileged: true
+    environment:
+      - SHELL=/bin/zsh
 
     volumes:
       - go.cache.mod:/home/hypnos/go/pkg/mod
