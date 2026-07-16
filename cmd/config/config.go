@@ -16,7 +16,8 @@ var DefaultConfigPaths = []string{
 type Config struct {
 	path string
 
-	Greet GreetConfig
+	Server ServerConfig
+	Greet  GreetConfig
 
 	Otel OtelConfig
 }
@@ -51,6 +52,7 @@ func (c *Config) Path() string {
 }
 
 func (c *Config) Evaluate() error {
+	z.FallbackP(&c.Server.Addr, ":50051")
 	z.FallbackP(&c.Greet.Format, "Hello, %s!")
 	return nil
 }
