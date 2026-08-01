@@ -301,9 +301,12 @@ It records that failure as well, so the database has to be dropped anyway.
 deployment has run a migration, that file is history and history is not
 rewritten. Write another migration instead.
 
-A history that grows long after that is a different problem, and Atlas answers
-it with checkpoint files rather than with a reset. This repository does not use
-them; a few dozen files cost nothing to apply.
+A history that grows long is a different problem, answered with a checkpoint
+rather than with a reset: one file holding the whole schema at a point, which a
+new database starts from and an existing one skips. `migrate apply` already
+honors one, but nothing here writes one yet; the signal to add it is planning
+getting slower, since it replays every file that was ever written onto the dev
+database.
 
 ### Applying
 
