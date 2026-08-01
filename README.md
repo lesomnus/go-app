@@ -239,7 +239,8 @@ Planning needs a **dev database**: an empty database of the same kind as the
 one the app runs on. The migrations that are already written are replayed onto
 it to work out what the current state is, and it is emptied again afterwards,
 so it must not be a database anyone cares about. `docker compose up -d db`
-brings up one alongside the local database.
+brings up one alongside the local database; the devcontainer runs an engine of
+its own, so that works from inside it as well.
 
 ```sh
 # 1. Change the schema, which means changing the proto and generating again.
