@@ -78,6 +78,9 @@ func (c *OtelConfig) Build(ctx context.Context) (context.Context, *otx.Otx, erro
 	}
 
 	o := otx.New(
+		// Instruments are attributed to this app rather than to the library
+		// that happens to create them.
+		otx.WithScopeName("github.com/lesomnus/go-app"),
 		otx.WithController(resolver),
 		otx.WithTracerProvider(tracer_provider),
 		otx.WithMeterProvider(meter_provider),
