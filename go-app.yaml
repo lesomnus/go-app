@@ -1,3 +1,14 @@
+# Database used by the gRPC services (used by the `serve` subcommand).
+db:
+  # Registered drivers are "sqlite3" (SQLite on Wasm) and "pgx" (PostgreSQL);
+  # see cmd/config/db-*.go to add another one.
+  driver: sqlite3
+  dsn: "file:go-app.db?_pragma=foreign_keys(1)"
+  # driver: pgx
+  # dsn: "postgres://postgres@localhost:5432/go-app?sslmode=disable"
+  # Run ent auto migration on startup. Prefer versioned migrations in production.
+  migrate: true
+
 # Greeting configuration (used by the `greet` subcommand).
 greet:
   # Format string; %s is replaced with the name argument.

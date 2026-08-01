@@ -7,7 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/lesomnus/go-app/cmd/config"
+	go_app "github.com/lesomnus/go-app/go_app"
+	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/otx/log"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
@@ -18,6 +23,49 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const (
+	// dbCheckInterval is how often the database is asked whether it is still
+	// there, and dbCheckTimeout is how long it is given to answer.
+	dbCheckInterval = 5 * time.Second
+	dbCheckTimeout  = 3 * time.Second
+)
+
+// watchDb reports the app as serving for as long as the database answers. The
+// empty service name stands for the server as a whole, which is what a load
+// balancer or a container runtime asks about.
+func watchDb(ctx context.Context, h *health.Server, db *config.Db) {
+	const service = ""
+
+	t := time.NewTicker(dbCheckInterval)
+	defer t.Stop()
+
+	for {
+		// The status is not ours to set once the server is shutting down.
+		if s := dbStatus(ctx, db); ctx.Err() == nil {
+			h.SetServingStatus(service, s)
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// dbStatus is SERVING for as long as the database answers.
+func dbStatus(ctx context.Context, db *config.Db) grpc_health_v1.HealthCheckResponse_ServingStatus {
+	ctx, cancel := context.WithTimeout(ctx, dbCheckTimeout)
+	defer cancel()
+
+	if err := db.Ping(ctx); err != nil {
+		log.From(ctx).WarnContext(ctx, "database is not reachable", slog.String("error", err.Error()))
+		return grpc_health_v1.HealthCheckResponse_NOT_SERVING
+	}
+
+	return grpc_health_v1.HealthCheckResponse_SERVING
+}
+
 func NewCmdServe() *xli.Command {
 	return &xli.Command{
 		Name:  "serve",
@@ -27,6 +75,8 @@ func NewCmdServe() *xli.Command {
 			&flg.String{Name: "addr", Brief: "address to listen on"},
 			&flg.String{Name: "tls-cert", Brief: "path to TLS certificate file"},
 			&flg.String{Name: "tls-key", Brief: "path to TLS private key file"},
+			&flg.String{Name: "db-dsn", Brief: "database connection string"},
+			&flg.Switch{Name: "db-migrate", Brief: "run auto migration on startup"},
 		},
 
 		Handler: xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
@@ -37,20 +87,43 @@ func NewCmdServe() *xli.Command {
 				c.Server.TLS.Enabled = true
 			}
 			flg.VisitP(cmd, "tls-key", &c.Server.TLS.KeyFile)
+			flg.VisitP(cmd, "db-dsn", &c.Db.Dsn)
+			flg.VisitP(cmd, "db-migrate", &c.Db.Migrate)
 
 			creds, err := c.Server.TLS.Credentials()
 			if err != nil {
 				return z.Err(err, "load tls credentials")
 			}
 
-			srv := grpc.NewServer(grpc.Creds(creds))
+			db, err := c.Db.Open(ctx)
+			if err != nil {
+				return z.Err(err, "open database")
+			}
+			defer db.Close()
 
-			// Register application services here as they are generated, e.g.:
-			//   go_app.RegisterUserServiceServer(srv, userService)
+			if c.Db.Migrate {
+				if err := db.Schema.Create(ctx); err != nil {
+					return z.Err(err, "migrate database")
+				}
+			}
+
+			// Canceled once this command returns, which is what stops the
+			// tasks it leaves running in the background.
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			opts := grpcx.ServerOptions(ctx)
+			opts = append(opts, grpc.Creds(creds))
+
+			srv := grpc.NewServer(opts...)
+			go_app.RegisterServer(srv, core.New(db.Client))
 
 			health_srv := health.NewServer()
 			grpc_health_v1.RegisterHealthServer(srv, health_srv)
 			reflection.Register(srv)
+
+			// The app is no healthier than the database it runs on.
+			go watchDb(ctx, health_srv, db)
 
 			lis, err := net.Listen("tcp", c.Server.Addr)
 			if err != nil {
@@ -81,6 +154,9 @@ func NewCmdServe() *xli.Command {
 
 			// Stop accepting new connections and let in-flight RPCs finish.
 			l.Info("shutting down")
+			cancel()
+			// Tell whoever is watching to send the traffic elsewhere.
+			health_srv.Shutdown()
 			go srv.GracefulStop()
 
 			// A second signal forces the server to stop immediately.

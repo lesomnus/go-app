@@ -17,6 +17,7 @@ type Config struct {
 	path string
 
 	Server ServerConfig
+	Db     DbConfig
 	Greet  GreetConfig
 
 	Otel OtelConfig
@@ -53,6 +54,8 @@ func (c *Config) Path() string {
 
 func (c *Config) Evaluate() error {
 	z.FallbackP(&c.Server.Addr, ":50051")
+	z.FallbackP(&c.Db.Driver, "sqlite3")
+	z.FallbackP(&c.Db.Dsn, "file:go-app.db?_pragma=foreign_keys(1)")
 	z.FallbackP(&c.Greet.Format, "Hello, %s!")
 	return nil
 }

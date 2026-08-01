@@ -12,7 +12,10 @@ on:
       - Dockerfile
       - go.mod
       - go.sum
+      - go_app/**
+      - internal/**
       - main.go
+      - server/**
   pull_request:
     branches:
       - main
