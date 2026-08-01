@@ -206,17 +206,23 @@ func leaf(t reflect.Type) bool {
 
 // set reads `v` into the field.
 func set(field reflect.Value, v string) error {
+	// A value that is not there yet is made and read into. The decoder is of
+	// no help here: handed a pointer to a pointer it leaves it nil and reports
+	// nothing.
+	if field.Kind() == reflect.Pointer {
+		p := reflect.New(field.Type().Elem())
+		if err := set(p.Elem(), v); err != nil {
+			return err
+		}
+
+		field.Set(p)
+		return nil
+	}
+
 	// A string is taken as it is. Reading it as YAML would give a meaning to
 	// the punctuation a data source name or a format string is full of.
-	switch {
-	case field.Kind() == reflect.String:
+	if field.Kind() == reflect.String {
 		field.SetString(v)
-		return nil
-
-	case field.Kind() == reflect.Pointer && field.Type().Elem().Kind() == reflect.String:
-		p := reflect.New(field.Type().Elem())
-		p.Elem().SetString(v)
-		field.Set(p)
 		return nil
 	}
 

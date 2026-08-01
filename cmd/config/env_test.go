@@ -17,6 +17,11 @@ type Root struct {
 	Name string `yaml:"name"`
 	Note *string
 
+	// A value that is either given or not, which is how a switch that is on
+	// unless it is turned off is spelled.
+	On    *bool `yaml:"on"`
+	Level *int  `yaml:"level"`
+
 	Nested Nested `yaml:"nested"`
 	Absent *Nested
 
@@ -59,6 +64,8 @@ func TestEnvNames(t *testing.T) {
 		x.Equal([]string{
 			"GO_APP_NAME",
 			"GO_APP_NOTE",
+			"GO_APP_ON",
+			"GO_APP_LEVEL",
 			"GO_APP_NESTED_COUNT",
 			"GO_APP_NESTED_ENABLED",
 			"GO_APP_NESTED_DEEP_VALUES",
@@ -138,12 +145,20 @@ func TestOverrideFromEnv(t *testing.T) {
 		var v Root
 		_, err := config.OverrideFromEnv(&v, []string{
 			"GO_APP_NOTE=a note",
+			"GO_APP_ON=false",
+			"GO_APP_LEVEL=3",
 			"GO_APP_ABSENT_COUNT=3",
 		})
 		x.NoError(err)
 
 		x.NotNil(v.Note)
 		x.Equal("a note", *v.Note)
+		// Not a string, so it is read rather than taken; the decoder cannot do
+		// this one on its own.
+		x.NotNil(v.On)
+		x.False(*v.On)
+		x.NotNil(v.Level)
+		x.Equal(3, *v.Level)
 		x.NotNil(v.Absent)
 		x.Equal(3, v.Absent.Count)
 	})
@@ -156,6 +171,8 @@ func TestOverrideFromEnv(t *testing.T) {
 		x.Empty(unknown)
 
 		x.Nil(v.Note)
+		x.Nil(v.On)
+		x.Nil(v.Level)
 		x.Nil(v.Absent)
 	})
 	t.Run("a value that reads itself is read as one", func(t *testing.T) {
