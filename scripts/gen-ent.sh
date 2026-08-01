@@ -15,7 +15,12 @@ __root="$(cd "$(dirname "${__dir}")" && pwd)"         # Root directory of projec
 SCHEMA_DIR="${SCHEMA_DIR:-${__root}/internal/ent/schema}"
 TARGET_DIR="${TARGET_DIR:-${__root}/internal/ent}"
 
+# `sql/versioned-migration` adds `Diff` and `NamedDiff` to the generated
+# migrate package, which is what plans the migration files against a dev
+# database. See `internal/migrate` and the migration guide in README.md.
 cd "${__root}"
-go tool ent generate "${SCHEMA_DIR}" --target "${TARGET_DIR}"
+go tool ent generate "${SCHEMA_DIR}" \
+	--target "${TARGET_DIR}" \
+	--feature sql/versioned-migration
 
 echo "Done."

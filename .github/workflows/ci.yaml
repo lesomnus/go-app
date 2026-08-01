@@ -15,6 +15,7 @@ on:
       - go_app/**
       - internal/**
       - main.go
+      - migrations/**
       - server/**
   pull_request:
     branches:

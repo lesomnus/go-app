@@ -184,7 +184,9 @@ internal error instead of taking the process down with it. Health is answered
 for as long as the database keeps answering, and turns to `NOT_SERVING` as soon
 as the server starts shutting down.
 
-The database is chosen by the configuration file:
+The database is chosen by the configuration file. SQLite is what the bundled
+configuration names because it needs nothing around it; **production runs on
+PostgreSQL**, which is what the migrations are written for.
 
 ```yaml
 db:
@@ -219,3 +221,94 @@ not registered can still be used by naming its dialect explicitly with
 $ go run . serve
 > error: open database: unknown driver "mysql": it must be one of [pgx sqlite3], or db.dialect must be given
 ```
+
+## Migration
+
+The ent schema says what the database should look like; a migration is the SQL
+that takes a database from what it is to that. They are kept in `migrations/`,
+reviewed like any other code, and applied in order.
+
+`serve --db-migrate` is the other way: ent looks at the database and changes it
+until it matches. It is quick and it is what the tests use, but it never drops
+anything, it cannot be reviewed, and it happens while the app is starting. Use
+it while developing; deploy with `migrate apply`.
+
+### Writing one
+
+Planning needs a **dev database**: an empty database of the same kind as the
+one the app runs on. The migrations that are already written are replayed onto
+it to work out what the current state is, and it is emptied again afterwards,
+so it must not be a database anyone cares about. `docker compose up -d db`
+brings up one alongside the local database.
+
+```sh
+# 1. Change the schema, which means changing the proto and generating again.
+$ ./scripts/gen-go.sh && ./scripts/gen-ent.sh
+
+# 2. Write the difference as a migration. Flags come before the name.
+$ go run . migrate plan --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" add_user_email
+> written: 20260801175803_add_user_email.sql
+> read them before they are applied to anything.
+
+# 3. Read what was written, then commit it with the schema change.
+$ cat migrations/20260801175803_add_user_email.sql
+```
+
+`db.dev_dsn` in the configuration file says the same thing as `--dev`.
+
+Destructive changes are planned, not skipped: a column that is gone from the
+schema is a `DROP COLUMN` in the file. That is the point of reading it before
+it runs anywhere.
+
+`atlas.sum` records what each file looked like when it was written, and it is
+checked every time the directory is opened. Never change a file that was
+already applied somewhere; write another migration instead.
+
+```
+$ go run . migrate apply
+> error: open migration directory: "migrations" does not match its atlas.sum: checksum mismatch
+```
+
+### Applying
+
+```sh
+# What would run, and nothing else.
+$ go run . migrate apply --dry-run
+> pending: 20260801175803_add_user_email.sql
+
+$ go run . migrate apply
+> applied: 20260801175803_add_user_email.sql
+```
+
+Which migrations a database has run is recorded in the database itself, in the
+`schema_revisions` table, so applying twice does nothing the second time.
+
+The migrations travel inside the image, so a deployment runs them with the same
+binary it is about to serve with, before the new one takes over:
+
+```sh
+$ docker run --rm ghcr.io/lesomnus/go-app:edge migrate apply
+```
+
+### Somewhere other than PostgreSQL
+
+The app itself runs on any database ent speaks, and the tests run on SQLite;
+only the migration files are tied to one, since SQL is not the same everywhere.
+To move them:
+
+- `migrate.Dialect` in `internal/migrate/migrate.go` is what the files are
+  written for, and both `plan` and `apply` refuse a database that speaks
+  something else.
+- `driver` in the same file maps a dialect to the atlas driver that reads and
+  writes it; the drivers live under `ariga.io/atlas/sql`.
+- The files that are already in `migrations/` are PostgreSQL. Replan them from
+  an empty directory rather than translating them by hand.
+
+Keeping more than one database in production means keeping a directory of
+migrations per dialect, and planning each of them against a dev database of its
+own. It is worth the trouble only if it is worth the trouble.
+
+Nothing here needs a tool of its own: the planning and the applying are done by
+the [atlas](https://atlasgo.io) packages ent already depends on, which are
+Apache-2.0. The Atlas CLI, which is licensed separately and has paid tiers, is
+not used.

@@ -17,3 +17,27 @@ services:
         reservations:
           cpus: "2"
           memory: 32M
+
+  # The database to run against locally. It also holds the dev database that
+  # `migrate plan` works the migrations out on, which db-init.sql creates.
+  db:
+    image: postgres:18-alpine
+
+    network_mode: host
+
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: go-app
+
+    volumes:
+      - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/10-dev.sql:ro
+      - db.data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db.data:

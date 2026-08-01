@@ -40,6 +40,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM scratch AS build
 COPY --from=builder /dist/ /
+# The migrations travel with the binary so that `migrate apply` can be run from
+# the image that is being deployed.
+COPY --from=builder /app/migrations/ /migrations/
 
 
 
@@ -47,6 +50,7 @@ FROM scratch AS app
 
 ARG TARGETARCH
 COPY "${TARGETARCH}" /go-app
+COPY migrations /migrations
 
 USER 65532:65532
 ENTRYPOINT ["/go-app"]

@@ -29,6 +29,11 @@ type DbConfig struct {
 	// "file:data.db?_pragma=foreign_keys(1)".
 	Dsn string `yaml:"dsn"`
 
+	// DevDsn names the dev database that `migrate plan` works out the
+	// migrations with. It is emptied every time it is used, so it must not be
+	// a database that holds anything.
+	DevDsn string `yaml:"dev_dsn"`
+
 	// MaxOpenConns limits the number of open connections to the database.
 	// Zero means unlimited.
 	MaxOpenConns int `yaml:"max_open_conns"`
@@ -75,7 +80,19 @@ func (c DbConfig) dialect() (string, error) {
 type Db struct {
 	*ent.Client
 
-	db *sql.DB
+	db      *sql.DB
+	dialect string
+}
+
+// Conn is the connection the ent client runs on. It is what the migrations are
+// applied through, since those are SQL and not ent.
+func (d *Db) Conn() *sql.DB {
+	return d.db
+}
+
+// Dialect is the SQL dialect the database speaks.
+func (d *Db) Dialect() string {
+	return d.dialect
 }
 
 // Ping reports whether the database can still be reached.
@@ -109,6 +126,8 @@ func (c DbConfig) Open(ctx context.Context) (*Db, error) {
 
 	return &Db{
 		Client: ent.NewClient(ent.Driver(entsql.OpenDB(dialect, db))),
-		db:     db,
+
+		db:      db,
+		dialect: dialect,
 	}, nil
 }
