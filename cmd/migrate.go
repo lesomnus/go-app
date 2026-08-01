@@ -56,19 +56,19 @@ func NewCmdMigratePlan() *xli.Command {
 				return z.Err(err, "open migration directory")
 			}
 
-			// The same kind of database as the app runs on, since the
-			// statements that are written are the ones it speaks.
-			dev := c.Db
-			dev.Dsn = dev.DevDsn
-			db, err := dev.Open(ctx)
+			// The dev database is the kind the migrations are written for,
+			// whatever the app itself is configured to run on; planning is
+			// about the files, not about this deployment.
+			driver, ok := config.DriverFor(migrate.Dialect)
+			if !ok {
+				return fmt.Errorf("no driver of the registered ones speaks %s: %v", migrate.Dialect, config.Drivers())
+			}
+
+			db, err := config.DbConfig{Driver: driver, Dsn: c.Db.DevDsn}.Open(ctx)
 			if err != nil {
 				return z.Err(err, "open dev database")
 			}
 			defer db.Close()
-
-			if err := speaks(db); err != nil {
-				return err
-			}
 
 			name := arg.MustGet[string](cmd, "name")
 			fs, err := migrate.Plan(ctx, dir, db.Conn(), db.Dialect(), name)

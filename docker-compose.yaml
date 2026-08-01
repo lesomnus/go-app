@@ -31,7 +31,9 @@ services:
 
     volumes:
       - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/10-dev.sql:ro
-      - db.data:/var/lib/postgresql/data
+      # Since 18, the data is a subdirectory of this rather than this itself,
+      # so that an upgrade can move between the major versions in place.
+      - db.data:/var/lib/postgresql
 
     healthcheck:
       test: [CMD-SHELL, "pg_isready -U postgres"]

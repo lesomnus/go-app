@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ariga.io/atlas/sql/migrate"
+	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/lesomnus/z"
 )
@@ -57,20 +58,39 @@ var _ migrate.RevisionReadWriter = (*Revisions)(nil)
 type Revisions struct {
 	db      *sql.DB
 	dialect string
+
+	// schema is where the table ended up, for the databases that have more
+	// than one place to put it.
+	schema string
 }
 
 // NewRevisions reads the history of `db`, creating it if this is the first
 // time the database is migrated.
-func NewRevisions(ctx context.Context, db *sql.DB, dialect string) (*Revisions, error) {
+func NewRevisions(ctx context.Context, db *sql.DB, d string) (*Revisions, error) {
+	v := &Revisions{db: db, dialect: d}
+
+	if d == dialect.Postgres {
+		// The table is created wherever the search path points. Atlas has to
+		// be told which schema that is, or the one it finds the table in is a
+		// schema it knows nothing about, and it refuses to migrate a database
+		// that holds something it did not put there.
+		var s sql.NullString
+		if err := db.QueryRowContext(ctx, "SELECT current_schema()").Scan(&s); err != nil {
+			return nil, z.Err(err, "read the current schema")
+		}
+
+		v.schema = s.String
+	}
+
 	if _, err := db.ExecContext(ctx, revisionSchema); err != nil {
 		return nil, z.Err(err, "create %s", RevisionTable)
 	}
 
-	return &Revisions{db: db, dialect: dialect}, nil
+	return v, nil
 }
 
 func (r *Revisions) Ident() *migrate.TableIdent {
-	return &migrate.TableIdent{Name: RevisionTable}
+	return &migrate.TableIdent{Name: RevisionTable, Schema: r.schema}
 }
 
 func (r *Revisions) ReadRevisions(ctx context.Context) ([]*migrate.Revision, error) {

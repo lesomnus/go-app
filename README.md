@@ -255,7 +255,10 @@ $ go run . migrate plan --dev "postgres://postgres:postgres@localhost:5432/dev?s
 $ cat migrations/20260801175803_add_user_email.sql
 ```
 
-`db.dev_dsn` in the configuration file says the same thing as `--dev`.
+`db.dev_dsn` in the configuration file says the same thing as `--dev`. Either
+way it is opened with whichever registered driver speaks the dialect the
+migrations are written in, so what `db.driver` says does not come into it;
+planning is about the files, not about this deployment.
 
 Destructive changes are planned, not skipped: a column that is gone from the
 schema is a `DROP COLUMN` in the file. That is the point of reading it before

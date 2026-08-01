@@ -61,6 +61,20 @@ func Drivers() []string {
 	return slices.Sorted(maps.Keys(dialects))
 }
 
+// DriverFor names a registered driver that speaks the given dialect, which is
+// how a command that works on one kind of database only, such as `migrate`,
+// finds what to open it with. The first one in lexical order is taken if more
+// than one speaks it.
+func DriverFor(dialect string) (string, bool) {
+	for _, v := range Drivers() {
+		if dialects[v] == dialect {
+			return v, true
+		}
+	}
+
+	return "", false
+}
+
 func (c DbConfig) dialect() (string, error) {
 	if c.Dialect != "" {
 		return c.Dialect, nil
