@@ -3,6 +3,7 @@ module github.com/lesomnus/go-app
 go 1.26.2
 
 require (
+	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1
 	entgo.io/ent v0.14.6
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/uuid v1.6.0
@@ -23,7 +24,6 @@ require (
 )
 
 require (
-	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
