@@ -273,6 +273,38 @@ $ go run . migrate apply
 > error: open migration directory: "migrations" does not match its atlas.sum: checksum mismatch
 ```
 
+### Starting over
+
+Before the first release the schema moves every day, and a history of twenty
+files that describe a table nobody ever had is worth nothing. While no database
+that matters has run them, throw them away and plan again:
+
+```sh
+$ rm -f migrations/*.sql migrations/atlas.sum
+$ docker compose down -v db && docker compose up -d db
+$ go run . migrate plan init
+$ go run . migrate apply
+```
+
+The second line is the one that is forgotten. A database records which versions
+it ran, so one that ran the migrations that were just deleted is left claiming a
+history that no longer exists, and the next apply tries to create what is
+already there:
+
+```
+$ go run . migrate apply
+> error: apply: execute: ... ERROR: relation "tenant" already exists (SQLSTATE 42P07)
+```
+
+It records that failure as well, so the database has to be dropped anyway.
+**Anything that cannot be dropped is the reason not to start over**: once a
+deployment has run a migration, that file is history and history is not
+rewritten. Write another migration instead.
+
+A history that grows long after that is a different problem, and Atlas answers
+it with checkpoint files rather than with a reset. This repository does not use
+them; a few dozen files cost nothing to apply.
+
 ### Applying
 
 ```sh
