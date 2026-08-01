@@ -1,22 +1,49 @@
 services:
+  # Runs the migrations the database has not run yet, then exits. It runs from
+  # the image that is about to serve, so the schema a deployment applies is the
+  # one the code it ships was written against.
+  migrate:
+    image: ghcr.io/lesomnus/go-app:${REVISION:-local}
+    command: [migrate, apply]
+
+    network_mode: host
+
+    environment: &db
+      GO_APP_DB_DRIVER: pgx
+      GO_APP_DB_DSN: postgres://postgres:postgres@localhost:5432/go-app?sslmode=disable
+
+    depends_on:
+      db:
+        condition: service_healthy
+
   app:
     image: ghcr.io/lesomnus/go-app:${REVISION:-local}
-    command: [greet, lesomnus]
+    command: [serve]
 
     network_mode: host
     privileged: true
 
+    # What is not a secret is written here; the database is named by the
+    # environment instead, since the connection string holds a password.
     volumes:
       - ./go-app.yaml:/go-app.yaml:ro
+
+    environment: *db
+
+    # Serving a database that is behind the code is how a deployment breaks
+    # quietly, so it waits for the migrations to have run.
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
     deploy:
       resources:
         limits:
           cpus: "4"
-          memory: 64M
+          memory: 256M
         reservations:
           cpus: "2"
-          memory: 32M
+          memory: 64M
 
   # The database to run against locally. It also holds the dev database that
   # `migrate plan` works the migrations out on, which db-init.sql creates.

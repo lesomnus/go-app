@@ -177,6 +177,22 @@ $ go run . serve --db-migrate
 `--db-migrate` runs ent's auto migration on startup, which is handy in
 development; prefer versioned migrations in production.
 
+The compose file is the shape of a deployment: the database, then the
+migrations, then the server. `migrate` runs from the image that is about to
+serve and `app` waits for it to have finished, so a server never answers on a
+database that is behind the code it ships.
+
+```sh
+$ docker buildx bake build && docker buildx bake app --load
+$ docker compose up -d app
+> ✔ Container workspace-db-1       Healthy
+> ✔ Container workspace-migrate-1  Exited
+> ✔ Container workspace-app-1      Started
+```
+
+The connection string is given to both by the environment rather than written
+in `go-app.yaml`, since it holds a password; everything else stays in the file.
+
 Every call goes through `internal/grpcx` before it reaches a service: it is
 traced and measured with the providers the app was started with, it is logged
 with its code and how long it took, and a handler that panics is reported as an
