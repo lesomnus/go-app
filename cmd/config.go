@@ -58,6 +58,13 @@ func UseConfigInit(ctx context.Context, cmd *xli.Command) (context.Context, *con
 		}
 	}
 
+	// Before the telemetry is built, since that is configured as well. What is
+	// unknown is told about once there is something to tell it to.
+	unknown, err := config.OverrideFromEnv(c, os.Environ())
+	if err != nil {
+		return nil, nil, z.Err(err, "read config from environment")
+	}
+
 	ctx, o, err := c.Otel.Build(ctx)
 	if err != nil {
 		return nil, nil, z.Err(err, "build otel")
@@ -71,6 +78,11 @@ func UseConfigInit(ctx context.Context, cmd *xli.Command) (context.Context, *con
 		l.Info("use default config")
 	} else {
 		l.Info("config loaded", slog.String("path", p))
+	}
+	if len(unknown) > 0 {
+		l.Warn("no configuration is read from these, so they were ignored",
+			slog.Any("env", unknown),
+		)
 	}
 
 	if err := c.Evaluate(); err != nil {
