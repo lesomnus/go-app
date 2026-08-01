@@ -184,6 +184,27 @@ internal error instead of taking the process down with it. Health is answered
 for as long as the database keeps answering, and turns to `NOT_SERVING` as soon
 as the server starts shutting down.
 
+### Whose trace is it
+
+A call that arrives with a trace context is taken to be part of that trace, so
+a request that crosses several services reads as one thing. That context is the
+caller's word, though, and a caller anyone can be is a caller that can:
+
+- **name the trace.** Two unrelated requests can be made to look like one, and
+  a trace of yours can be joined from outside.
+- **decide that it is sampled**, if the sampler honours the parent. The bundled
+  one does not: `always_on` records everything regardless. Reach for
+  `parent_based` and the decision becomes the caller's, which is worth knowing
+  before it is made at the edge.
+- **carry baggage**, which is arbitrary text that travels with the request and
+  may end up as attributes wherever the telemetry is kept.
+
+None of this is a way into the app; it is a way into what the app records about
+itself. Where it matters, the answer is at the boundary: a gateway or a mesh
+that strips the trace headers of callers it does not know, and mutual TLS so
+that "does not know" means something. Behind that boundary, believing the
+caller is the whole point.
+
 The database is chosen by the configuration file. SQLite is what the bundled
 configuration names because it needs nothing around it; **production runs on
 PostgreSQL**, which is what the migrations are written for.
