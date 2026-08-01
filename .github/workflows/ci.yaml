@@ -5,8 +5,16 @@ on:
   push:
     branches:
       - main
+      # This repository keeps a branch per kind of app, and they are worth
+      # checking too. An app made from one of them has no such branches and
+      # can drop this line.
+      - kind/**
     paths: &paths
       - .github/workflows/ci.yaml
+      - buf.gen.svc.yaml
+      - buf.gen.yaml
+      - buf.lock
+      - buf.yaml
       - cmd/**
       - docker-bake.hcl
       - Dockerfile
@@ -16,6 +24,9 @@ on:
       - internal/**
       - main.go
       - migrations/**
+      - proto/**
+      - proto.svc/**
+      - scripts/**
       - server/**
   pull_request:
     branches:
@@ -27,6 +38,59 @@ permissions:
   packages: write
 
 jobs:
+  # Everything here answers one question: is what is committed still what the
+  # sources say it should be? The entities are declared once, in proto/, and
+  # the Go code, the ent runtime and the migrations are all derived from them.
+  # A change to the declaration that stops there is what this catches.
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      # The dev database the migrations are planned against. It is emptied by
+      # the planning, so it holds nothing to begin with.
+      dev:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.66.0"
+          github_token: ${{ github.token }}
+
+      - name: Lint the protobuf definitions
+        run: buf lint
+
+      - name: Generated code is what the definitions say
+        run: |
+          buf generate --template buf.gen.svc.yaml
+          ./scripts/gen-service.sh
+          ./scripts/gen-go.sh
+          ./scripts/gen-ent.sh
+          git diff --exit-code
+
+      - name: Migrations are what the schema says
+        run: |
+          go run . migrate plan \
+            --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" \
+            ci
+          # Planning writes a file only if the schema moved without one.
+          test -z "$(git status --porcelain migrations/)" \
+            || { git status --short migrations/; exit 1; }
+
   build:
     runs-on: ubuntu-latest
     env:

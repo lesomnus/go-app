@@ -7,4 +7,14 @@ lint:
   use:
     - STANDARD
   except:
+    # This is a template, not a published API; the package is versioned by the
+    # repository it lives in.
     - PACKAGE_VERSION_SUFFIX
+
+    # The service contracts are generated from the messages by
+    # protoc-gen-orm-service, which names a request after the message it is
+    # about and answers with the message itself. That is the whole point of
+    # the stack and it is not what buf expects of a hand written service.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
