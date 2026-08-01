@@ -113,6 +113,7 @@ func NewCmdServe() *xli.Command {
 			defer cancel()
 
 			opts := grpcx.ServerOptions(ctx)
+			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, grpc.Creds(creds))
 
 			srv := grpc.NewServer(opts...)
@@ -120,7 +121,10 @@ func NewCmdServe() *xli.Command {
 
 			health_srv := health.NewServer()
 			grpc_health_v1.RegisterHealthServer(srv, health_srv)
-			reflection.Register(srv)
+
+			if c.Server.ServesReflection() {
+				reflection.Register(srv)
+			}
 
 			// The app is no healthier than the database it runs on.
 			go watchDb(ctx, health_srv, db)

@@ -1,3 +1,25 @@
+# The gRPC server (used by the `serve` subcommand).
+server:
+  addr: ":50051"
+  # Left to gRPC when it is not said: 4 MiB in, no limit out, its own stream
+  # limit. Sizes are bytes.
+  # max_recv_msg_size: 4194304
+  # max_send_msg_size: 0
+  # max_concurrent_streams: 0
+  #
+  # Serves the reflection service, which is what lets grpcurl ask the server
+  # what it offers. On unless it is turned off.
+  # reflection: true
+  #
+  # keepalive:
+  #   # Behind a load balancer that only balances new connections, this is what
+  #   # makes it balance anything at all.
+  #   max_connection_age: 30m
+  #   max_connection_age_grace: 30s
+  #   # Hang up on a client that pings more often than this. Keep it below what
+  #   # the clients are configured with.
+  #   min_time: 10s
+
 # Database used by the gRPC services (used by the `serve` subcommand).
 db:
   # Registered drivers are "sqlite3" (SQLite on Wasm) and "pgx" (PostgreSQL);
