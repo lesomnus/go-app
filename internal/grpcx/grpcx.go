@@ -55,11 +55,20 @@ func (ctxHandler) HandleRPC(context.Context, stats.RPCStats) {}
 func (ctxHandler) HandleConn(context.Context, stats.ConnStats) {}
 
 // Otel instruments the calls with the providers held by `ctx`.
+//
+// The propagator comes from `ctx` as well, and it is what continues the trace
+// a caller started rather than beginning one of its own. Note that this is the
+// caller's word: see the note on trust in README.md before putting the server
+// where anyone can reach it.
 func Otel(ctx context.Context) grpc.ServerOption {
 	ps := otx.Providers(ctx)
 	return grpc.StatsHandler(otelgrpc.NewServerHandler(
 		otelgrpc.WithTracerProvider(ps.Tracer()),
 		otelgrpc.WithMeterProvider(ps.Meter()),
+		// Without this the global propagator is used, which is an empty
+		// composite unless something set it, so every call would start a trace
+		// of its own and nothing would ever join up.
+		otelgrpc.WithPropagators(otx.Propagator(ctx)),
 	))
 }
 
