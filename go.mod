@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/lesomnus/mkot v0.0.0-20260801183340-9c83100aa7c2
+	github.com/lesomnus/mkot/mkotx v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/mkot/pretty v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/otx v0.0.0-20260801181427-44ac698b8971
 	github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7

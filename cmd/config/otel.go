@@ -2,13 +2,13 @@ package config
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/lesomnus/go-app/cmd/version"
 	"github.com/lesomnus/mkot"
+	"github.com/lesomnus/mkot/mkotx"
 	"github.com/lesomnus/mkot/pretty"
 	"github.com/lesomnus/otx"
+	"github.com/lesomnus/z"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -60,31 +60,16 @@ func (c *OtelConfig) Build(ctx context.Context) (context.Context, *otx.Otx, erro
 		}
 	}
 
-	resolver := mkot.Make(ctx, otc)
-
-	tracer_provider, err := resolver.Tracer(ctx, "")
-	if err != nil && !errors.Is(err, mkot.ErrNotExist) {
-		return nil, nil, fmt.Errorf("resolve tracer provider: %w", err)
-	}
-
-	meter_provider, err := resolver.Meter(ctx, "")
-	if err != nil && !errors.Is(err, mkot.ErrNotExist) {
-		return nil, nil, fmt.Errorf("resolve meter provider: %w", err)
-	}
-
-	logger_provider, err := resolver.Logger(ctx, "")
-	if err != nil && !errors.Is(err, mkot.ErrNotExist) {
-		return nil, nil, fmt.Errorf("resolve logger provider: %w", err)
-	}
-
-	o := otx.New(
+	// Every signal the configuration describes, in one value. A signal it says
+	// nothing about is off rather than an error.
+	o, err := mkotx.FromConfig(ctx, otc, "",
 		// Instruments are attributed to this app rather than to the library
 		// that happens to create them.
 		otx.WithScopeName("github.com/lesomnus/go-app"),
-		otx.WithController(resolver),
-		otx.WithTracerProvider(tracer_provider),
-		otx.WithMeterProvider(meter_provider),
-		otx.WithLoggerProvider(logger_provider),
 	)
+	if err != nil {
+		return nil, nil, z.Err(err, "build telemetry")
+	}
+
 	return otx.Into(ctx, o), o, nil
 }
