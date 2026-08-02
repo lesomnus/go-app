@@ -11,12 +11,12 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/lesomnus/go-app/internal/ent/holder"
 	"github.com/lesomnus/go-app/internal/ent/tenant"
-	"github.com/lesomnus/go-app/internal/ent/user"
 )
 
-// User is the model entity for the User schema.
-type User struct {
+// Holder is the model entity for the Holder schema.
+type Holder struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
@@ -31,14 +31,14 @@ type User struct {
 	// DateCreated holds the value of the "date_created" field.
 	DateCreated time.Time `json:"date_created,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the UserQuery when eager-loading is set.
-	Edges        UserEdges `json:"edges"`
-	user_tenant  *uuid.UUID
-	selectValues sql.SelectValues
+	// The values are being populated by the HolderQuery when eager-loading is set.
+	Edges         HolderEdges `json:"edges"`
+	holder_tenant *uuid.UUID
+	selectValues  sql.SelectValues
 }
 
-// UserEdges holds the relations/edges for other nodes in the graph.
-type UserEdges struct {
+// HolderEdges holds the relations/edges for other nodes in the graph.
+type HolderEdges struct {
 	// Tenant holds the value of the tenant edge.
 	Tenant *Tenant `json:"tenant,omitempty"`
 	// loadedTypes holds the information for reporting if a
@@ -48,7 +48,7 @@ type UserEdges struct {
 
 // TenantOrErr returns the Tenant value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e UserEdges) TenantOrErr() (*Tenant, error) {
+func (e HolderEdges) TenantOrErr() (*Tenant, error) {
 	if e.Tenant != nil {
 		return e.Tenant, nil
 	} else if e.loadedTypes[0] {
@@ -58,19 +58,19 @@ func (e UserEdges) TenantOrErr() (*Tenant, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*User) scanValues(columns []string) ([]any, error) {
+func (*Holder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldLabels:
+		case holder.FieldLabels:
 			values[i] = new([]byte)
-		case user.FieldAlias, user.FieldName, user.FieldDesc:
+		case holder.FieldAlias, holder.FieldName, holder.FieldDesc:
 			values[i] = new(sql.NullString)
-		case user.FieldDateCreated:
+		case holder.FieldDateCreated:
 			values[i] = new(sql.NullTime)
-		case user.FieldID:
+		case holder.FieldID:
 			values[i] = new(uuid.UUID)
-		case user.ForeignKeys[0]: // user_tenant
+		case holder.ForeignKeys[0]: // holder_tenant
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
@@ -80,38 +80,38 @@ func (*User) scanValues(columns []string) ([]any, error) {
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the User fields.
-func (_m *User) assignValues(columns []string, values []any) error {
+// to the Holder fields.
+func (_m *Holder) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID:
+		case holder.FieldID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value != nil {
 				_m.ID = *value
 			}
-		case user.FieldAlias:
+		case holder.FieldAlias:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field alias", values[i])
 			} else if value.Valid {
 				_m.Alias = value.String
 			}
-		case user.FieldName:
+		case holder.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
 			}
-		case user.FieldDesc:
+		case holder.FieldDesc:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field desc", values[i])
 			} else if value.Valid {
 				_m.Desc = value.String
 			}
-		case user.FieldLabels:
+		case holder.FieldLabels:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field labels", values[i])
 			} else if value != nil && len(*value) > 0 {
@@ -119,18 +119,18 @@ func (_m *User) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field labels: %w", err)
 				}
 			}
-		case user.FieldDateCreated:
+		case holder.FieldDateCreated:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field date_created", values[i])
 			} else if value.Valid {
 				_m.DateCreated = value.Time
 			}
-		case user.ForeignKeys[0]:
+		case holder.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_tenant", values[i])
+				return fmt.Errorf("unexpected type %T for field holder_tenant", values[i])
 			} else if value.Valid {
-				_m.user_tenant = new(uuid.UUID)
-				*_m.user_tenant = *value.S.(*uuid.UUID)
+				_m.holder_tenant = new(uuid.UUID)
+				*_m.holder_tenant = *value.S.(*uuid.UUID)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -139,39 +139,39 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	return nil
 }
 
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
+// Value returns the ent.Value that was dynamically selected and assigned to the Holder.
 // This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
+func (_m *Holder) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryTenant queries the "tenant" edge of the User entity.
-func (_m *User) QueryTenant() *TenantQuery {
-	return NewUserClient(_m.config).QueryTenant(_m)
+// QueryTenant queries the "tenant" edge of the Holder entity.
+func (_m *Holder) QueryTenant() *TenantQuery {
+	return NewHolderClient(_m.config).QueryTenant(_m)
 }
 
-// Update returns a builder for updating this User.
-// Note that you need to call User.Unwrap() before calling this method if this User
+// Update returns a builder for updating this Holder.
+// Note that you need to call Holder.Unwrap() before calling this method if this Holder
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (_m *User) Update() *UserUpdateOne {
-	return NewUserClient(_m.config).UpdateOne(_m)
+func (_m *Holder) Update() *HolderUpdateOne {
+	return NewHolderClient(_m.config).UpdateOne(_m)
 }
 
-// Unwrap unwraps the User entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the Holder entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (_m *User) Unwrap() *User {
+func (_m *Holder) Unwrap() *Holder {
 	_tx, ok := _m.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: User is not a transactional entity")
+		panic("ent: Holder is not a transactional entity")
 	}
 	_m.config.driver = _tx.drv
 	return _m
 }
 
 // String implements the fmt.Stringer.
-func (_m *User) String() string {
+func (_m *Holder) String() string {
 	var builder strings.Builder
-	builder.WriteString("User(")
+	builder.WriteString("Holder(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("alias=")
 	builder.WriteString(_m.Alias)
@@ -191,5 +191,5 @@ func (_m *User) String() string {
 	return builder.String()
 }
 
-// Users is a parsable slice of User.
-type Users []*User
+// Holders is a parsable slice of Holder.
+type Holders []*Holder

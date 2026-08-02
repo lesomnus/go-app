@@ -112,7 +112,7 @@ stacked on top of each other:
 - `server/core` holds the rules that apply wherever the app runs. It validates
   and completes the requests it cares about and hands them over to the next
   server. It is also where a service that is not CRUD, and so is not generated,
-  is written by hand; `UserService.List` is the example. `Server.Db()` reaches
+  is written by hand; `HolderService.List` is the example. `Server.Db()` reaches
   the client of the generated server behind it, so a middleware does not have
   to carry a database of its own.
 - `server` holds what they share: `Overlay` to implement only the services of
@@ -284,12 +284,12 @@ its own, so that works from inside it as well.
 $ ./scripts/gen-go.sh && ./scripts/gen-ent.sh
 
 # 2. Write the difference as a migration. Flags come before the name.
-$ go run . migrate plan --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" add_user_email
-> written: 20260801175803_add_user_email.sql
+$ go run . migrate plan --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" add_holder_email
+> written: 20260801175803_add_holder_email.sql
 > read them before they are applied to anything.
 
 # 3. Read what was written, then commit it with the schema change.
-$ cat migrations/20260801175803_add_user_email.sql
+$ cat migrations/20260801175803_add_holder_email.sql
 ```
 
 `db.dev_dsn` in the configuration file says the same thing as `--dev`. Either
@@ -350,10 +350,10 @@ database.
 ```sh
 # What would run, and nothing else.
 $ go run . migrate apply --dry-run
-> pending: 20260801175803_add_user_email.sql
+> pending: 20260801175803_add_holder_email.sql
 
 $ go run . migrate apply
-> applied: 20260801175803_add_user_email.sql
+> applied: 20260801175803_add_holder_email.sql
 ```
 
 Which migrations a database has run is recorded in the database itself, in the

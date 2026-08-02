@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: go_app/user.proto
+// source: go_app/holder.proto
 
 package go_app
 
@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type User struct {
+type Holder struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Id          []byte                 `protobuf:"bytes,1,opt,name=id"`
 	xxx_hidden_Tenant      *Tenant                `protobuf:"bytes,2,opt,name=tenant"`
@@ -35,21 +35,21 @@ type User struct {
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *User) Reset() {
-	*x = User{}
-	mi := &file_go_app_user_proto_msgTypes[0]
+func (x *Holder) Reset() {
+	*x = Holder{}
+	mi := &file_go_app_holder_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *User) String() string {
+func (x *Holder) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*User) ProtoMessage() {}
+func (*Holder) ProtoMessage() {}
 
-func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_proto_msgTypes[0]
+func (x *Holder) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,109 +60,109 @@ func (x *User) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *User) GetId() []byte {
+func (x *Holder) GetId() []byte {
 	if x != nil {
 		return x.xxx_hidden_Id
 	}
 	return nil
 }
 
-func (x *User) GetTenant() *Tenant {
+func (x *Holder) GetTenant() *Tenant {
 	if x != nil {
 		return x.xxx_hidden_Tenant
 	}
 	return nil
 }
 
-func (x *User) GetAlias() string {
+func (x *Holder) GetAlias() string {
 	if x != nil {
 		return x.xxx_hidden_Alias
 	}
 	return ""
 }
 
-func (x *User) GetName() string {
+func (x *Holder) GetName() string {
 	if x != nil {
 		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
-func (x *User) GetDesc() string {
+func (x *Holder) GetDesc() string {
 	if x != nil {
 		return x.xxx_hidden_Desc
 	}
 	return ""
 }
 
-func (x *User) GetLabels() map[string]string {
+func (x *Holder) GetLabels() map[string]string {
 	if x != nil {
 		return x.xxx_hidden_Labels
 	}
 	return nil
 }
 
-func (x *User) GetDateCreated() *timestamppb.Timestamp {
+func (x *Holder) GetDateCreated() *timestamppb.Timestamp {
 	if x != nil {
 		return x.xxx_hidden_DateCreated
 	}
 	return nil
 }
 
-func (x *User) SetId(v []byte) {
+func (x *Holder) SetId(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
 	x.xxx_hidden_Id = v
 }
 
-func (x *User) SetTenant(v *Tenant) {
+func (x *Holder) SetTenant(v *Tenant) {
 	x.xxx_hidden_Tenant = v
 }
 
-func (x *User) SetAlias(v string) {
+func (x *Holder) SetAlias(v string) {
 	x.xxx_hidden_Alias = v
 }
 
-func (x *User) SetName(v string) {
+func (x *Holder) SetName(v string) {
 	x.xxx_hidden_Name = v
 }
 
-func (x *User) SetDesc(v string) {
+func (x *Holder) SetDesc(v string) {
 	x.xxx_hidden_Desc = v
 }
 
-func (x *User) SetLabels(v map[string]string) {
+func (x *Holder) SetLabels(v map[string]string) {
 	x.xxx_hidden_Labels = v
 }
 
-func (x *User) SetDateCreated(v *timestamppb.Timestamp) {
+func (x *Holder) SetDateCreated(v *timestamppb.Timestamp) {
 	x.xxx_hidden_DateCreated = v
 }
 
-func (x *User) HasTenant() bool {
+func (x *Holder) HasTenant() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Tenant != nil
 }
 
-func (x *User) HasDateCreated() bool {
+func (x *Holder) HasDateCreated() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_DateCreated != nil
 }
 
-func (x *User) ClearTenant() {
+func (x *Holder) ClearTenant() {
 	x.xxx_hidden_Tenant = nil
 }
 
-func (x *User) ClearDateCreated() {
+func (x *Holder) ClearDateCreated() {
 	x.xxx_hidden_DateCreated = nil
 }
 
-type User_builder struct {
+type Holder_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Id          []byte
@@ -174,8 +174,8 @@ type User_builder struct {
 	DateCreated *timestamppb.Timestamp
 }
 
-func (b0 User_builder) Build() *User {
-	m0 := &User{}
+func (b0 Holder_builder) Build() *Holder {
+	m0 := &Holder{}
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Id = b.Id
@@ -188,18 +188,18 @@ func (b0 User_builder) Build() *User {
 	return m0
 }
 
-var File_go_app_user_proto protoreflect.FileDescriptor
+var File_go_app_holder_proto protoreflect.FileDescriptor
 
-const file_go_app_user_proto_rawDesc = "" +
+const file_go_app_holder_proto_rawDesc = "" +
 	"\n" +
-	"\x11go_app/user.proto\x12\x06go_app\x1a\x13go_app/tenant.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\torm.proto\"\xf9\x02\n" +
-	"\x04User\x12\x1b\n" +
+	"\x13go_app/holder.proto\x12\x06go_app\x1a\x13go_app/tenant.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\torm.proto\"\xfd\x02\n" +
+	"\x06Holder\x12\x1b\n" +
 	"\x02id\x18\x01 \x01(\fB\v\xea\x82\x16\a\x10@(\x01\x82\x01\x00R\x02id\x12.\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x0e.go_app.TenantB\x06\xf2\x82\x16\x02@\x01R\x06tenant\x12\x14\n" +
 	"\x05alias\x18\x04 \x01(\tR\x05alias\x12\x12\n" +
 	"\x04name\x18\x05 \x01(\tR\x04name\x12\x12\n" +
-	"\x04desc\x18\x06 \x01(\tR\x04desc\x120\n" +
-	"\x06labels\x18\a \x03(\v2\x18.go_app.User.LabelsEntryR\x06labels\x12H\n" +
+	"\x04desc\x18\x06 \x01(\tR\x04desc\x122\n" +
+	"\x06labels\x18\a \x03(\v2\x1a.go_app.Holder.LabelsEntryR\x06labels\x12H\n" +
 	"\fdate_created\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampB\t\xea\x82\x16\x05@\x01\x82\x01\x00R\vdateCreated\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -208,17 +208,17 @@ const file_go_app_user_proto_rawDesc = "" +
 	"\n" +
 	"\x06tenant\x10\x020\x01J\x04\b\x03\x10\x04B!Z\x1agithub.com/lesomnus/go-app\x92\x03\x02\b\x02b\beditionsp\xe8\a"
 
-var file_go_app_user_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_go_app_user_proto_goTypes = []any{
-	(*User)(nil),                  // 0: go_app.User
-	nil,                           // 1: go_app.User.LabelsEntry
+var file_go_app_holder_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_go_app_holder_proto_goTypes = []any{
+	(*Holder)(nil),                // 0: go_app.Holder
+	nil,                           // 1: go_app.Holder.LabelsEntry
 	(*Tenant)(nil),                // 2: go_app.Tenant
 	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
-var file_go_app_user_proto_depIdxs = []int32{
-	2, // 0: go_app.User.tenant:type_name -> go_app.Tenant
-	1, // 1: go_app.User.labels:type_name -> go_app.User.LabelsEntry
-	3, // 2: go_app.User.date_created:type_name -> google.protobuf.Timestamp
+var file_go_app_holder_proto_depIdxs = []int32{
+	2, // 0: go_app.Holder.tenant:type_name -> go_app.Tenant
+	1, // 1: go_app.Holder.labels:type_name -> go_app.Holder.LabelsEntry
+	3, // 2: go_app.Holder.date_created:type_name -> google.protobuf.Timestamp
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -226,9 +226,9 @@ var file_go_app_user_proto_depIdxs = []int32{
 	0, // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_go_app_user_proto_init() }
-func file_go_app_user_proto_init() {
-	if File_go_app_user_proto != nil {
+func init() { file_go_app_holder_proto_init() }
+func file_go_app_holder_proto_init() {
+	if File_go_app_holder_proto != nil {
 		return
 	}
 	file_go_app_tenant_proto_init()
@@ -236,17 +236,17 @@ func file_go_app_user_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_user_proto_rawDesc), len(file_go_app_user_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_holder_proto_rawDesc), len(file_go_app_holder_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_go_app_user_proto_goTypes,
-		DependencyIndexes: file_go_app_user_proto_depIdxs,
-		MessageInfos:      file_go_app_user_proto_msgTypes,
+		GoTypes:           file_go_app_holder_proto_goTypes,
+		DependencyIndexes: file_go_app_holder_proto_depIdxs,
+		MessageInfos:      file_go_app_holder_proto_msgTypes,
 	}.Build()
-	File_go_app_user_proto = out.File
-	file_go_app_user_proto_goTypes = nil
-	file_go_app_user_proto_depIdxs = nil
+	File_go_app_holder_proto = out.File
+	file_go_app_holder_proto_goTypes = nil
+	file_go_app_holder_proto_depIdxs = nil
 }

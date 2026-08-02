@@ -12,8 +12,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/lesomnus/go-app/internal/ent/holder"
 	"github.com/lesomnus/go-app/internal/ent/tenant"
-	"github.com/lesomnus/go-app/internal/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -74,8 +74,8 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			holder.Table: holder.ValidColumn,
 			tenant.Table: tenant.ValidColumn,
-			user.Table:   user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -11,49 +11,49 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/lesomnus/go-app/internal/ent/holder"
 	"github.com/lesomnus/go-app/internal/ent/tenant"
-	"github.com/lesomnus/go-app/internal/ent/user"
 )
 
-// UserCreate is the builder for creating a User entity.
-type UserCreate struct {
+// HolderCreate is the builder for creating a Holder entity.
+type HolderCreate struct {
 	config
-	mutation *UserMutation
+	mutation *HolderMutation
 	hooks    []Hook
 }
 
 // SetAlias sets the "alias" field.
-func (_c *UserCreate) SetAlias(v string) *UserCreate {
+func (_c *HolderCreate) SetAlias(v string) *HolderCreate {
 	_c.mutation.SetAlias(v)
 	return _c
 }
 
 // SetName sets the "name" field.
-func (_c *UserCreate) SetName(v string) *UserCreate {
+func (_c *HolderCreate) SetName(v string) *HolderCreate {
 	_c.mutation.SetName(v)
 	return _c
 }
 
 // SetDesc sets the "desc" field.
-func (_c *UserCreate) SetDesc(v string) *UserCreate {
+func (_c *HolderCreate) SetDesc(v string) *HolderCreate {
 	_c.mutation.SetDesc(v)
 	return _c
 }
 
 // SetLabels sets the "labels" field.
-func (_c *UserCreate) SetLabels(v map[string]string) *UserCreate {
+func (_c *HolderCreate) SetLabels(v map[string]string) *HolderCreate {
 	_c.mutation.SetLabels(v)
 	return _c
 }
 
 // SetDateCreated sets the "date_created" field.
-func (_c *UserCreate) SetDateCreated(v time.Time) *UserCreate {
+func (_c *HolderCreate) SetDateCreated(v time.Time) *HolderCreate {
 	_c.mutation.SetDateCreated(v)
 	return _c
 }
 
 // SetNillableDateCreated sets the "date_created" field if the given value is not nil.
-func (_c *UserCreate) SetNillableDateCreated(v *time.Time) *UserCreate {
+func (_c *HolderCreate) SetNillableDateCreated(v *time.Time) *HolderCreate {
 	if v != nil {
 		_c.SetDateCreated(*v)
 	}
@@ -61,34 +61,34 @@ func (_c *UserCreate) SetNillableDateCreated(v *time.Time) *UserCreate {
 }
 
 // SetID sets the "id" field.
-func (_c *UserCreate) SetID(v uuid.UUID) *UserCreate {
+func (_c *HolderCreate) SetID(v uuid.UUID) *HolderCreate {
 	_c.mutation.SetID(v)
 	return _c
 }
 
 // SetTenantID sets the "tenant" edge to the Tenant entity by ID.
-func (_c *UserCreate) SetTenantID(id uuid.UUID) *UserCreate {
+func (_c *HolderCreate) SetTenantID(id uuid.UUID) *HolderCreate {
 	_c.mutation.SetTenantID(id)
 	return _c
 }
 
 // SetTenant sets the "tenant" edge to the Tenant entity.
-func (_c *UserCreate) SetTenant(v *Tenant) *UserCreate {
+func (_c *HolderCreate) SetTenant(v *Tenant) *HolderCreate {
 	return _c.SetTenantID(v.ID)
 }
 
-// Mutation returns the UserMutation object of the builder.
-func (_c *UserCreate) Mutation() *UserMutation {
+// Mutation returns the HolderMutation object of the builder.
+func (_c *HolderCreate) Mutation() *HolderMutation {
 	return _c.mutation
 }
 
-// Save creates the User in the database.
-func (_c *UserCreate) Save(ctx context.Context) (*User, error) {
+// Save creates the Holder in the database.
+func (_c *HolderCreate) Save(ctx context.Context) (*Holder, error) {
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (_c *UserCreate) SaveX(ctx context.Context) *User {
+func (_c *HolderCreate) SaveX(ctx context.Context) *Holder {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -97,36 +97,36 @@ func (_c *UserCreate) SaveX(ctx context.Context) *User {
 }
 
 // Exec executes the query.
-func (_c *UserCreate) Exec(ctx context.Context) error {
+func (_c *HolderCreate) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreate) ExecX(ctx context.Context) {
+func (_c *HolderCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_c *UserCreate) check() error {
+func (_c *HolderCreate) check() error {
 	if _, ok := _c.mutation.Alias(); !ok {
-		return &ValidationError{Name: "alias", err: errors.New(`ent: missing required field "User.alias"`)}
+		return &ValidationError{Name: "alias", err: errors.New(`ent: missing required field "Holder.alias"`)}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "User.name"`)}
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Holder.name"`)}
 	}
 	if _, ok := _c.mutation.Desc(); !ok {
-		return &ValidationError{Name: "desc", err: errors.New(`ent: missing required field "User.desc"`)}
+		return &ValidationError{Name: "desc", err: errors.New(`ent: missing required field "Holder.desc"`)}
 	}
 	if len(_c.mutation.TenantIDs()) == 0 {
-		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "User.tenant"`)}
+		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "Holder.tenant"`)}
 	}
 	return nil
 }
 
-func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
+func (_c *HolderCreate) sqlSave(ctx context.Context) (*Holder, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
@@ -149,41 +149,41 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	return _node, nil
 }
 
-func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
+func (_c *HolderCreate) createSpec() (*Holder, *sqlgraph.CreateSpec) {
 	var (
-		_node = &User{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
+		_node = &Holder{config: _c.config}
+		_spec = sqlgraph.NewCreateSpec(holder.Table, sqlgraph.NewFieldSpec(holder.FieldID, field.TypeUUID))
 	)
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
 	if value, ok := _c.mutation.Alias(); ok {
-		_spec.SetField(user.FieldAlias, field.TypeString, value)
+		_spec.SetField(holder.FieldAlias, field.TypeString, value)
 		_node.Alias = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
-		_spec.SetField(user.FieldName, field.TypeString, value)
+		_spec.SetField(holder.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
 	if value, ok := _c.mutation.Desc(); ok {
-		_spec.SetField(user.FieldDesc, field.TypeString, value)
+		_spec.SetField(holder.FieldDesc, field.TypeString, value)
 		_node.Desc = value
 	}
 	if value, ok := _c.mutation.Labels(); ok {
-		_spec.SetField(user.FieldLabels, field.TypeJSON, value)
+		_spec.SetField(holder.FieldLabels, field.TypeJSON, value)
 		_node.Labels = value
 	}
 	if value, ok := _c.mutation.DateCreated(); ok {
-		_spec.SetField(user.FieldDateCreated, field.TypeTime, value)
+		_spec.SetField(holder.FieldDateCreated, field.TypeTime, value)
 		_node.DateCreated = value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   user.TenantTable,
-			Columns: []string{user.TenantColumn},
+			Table:   holder.TenantTable,
+			Columns: []string{holder.TenantColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeUUID),
@@ -192,32 +192,32 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_tenant = &nodes[0]
+		_node.holder_tenant = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
 
-// UserCreateBulk is the builder for creating many User entities in bulk.
-type UserCreateBulk struct {
+// HolderCreateBulk is the builder for creating many Holder entities in bulk.
+type HolderCreateBulk struct {
 	config
 	err      error
-	builders []*UserCreate
+	builders []*HolderCreate
 }
 
-// Save creates the User entities in the database.
-func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
+// Save creates the Holder entities in the database.
+func (_c *HolderCreateBulk) Save(ctx context.Context) ([]*Holder, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
 	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*User, len(_c.builders))
+	nodes := make([]*Holder, len(_c.builders))
 	mutators := make([]Mutator, len(_c.builders))
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*UserMutation)
+				mutation, ok := m.(*HolderMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -260,7 +260,7 @@ func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_c *UserCreateBulk) SaveX(ctx context.Context) []*User {
+func (_c *HolderCreateBulk) SaveX(ctx context.Context) []*Holder {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -269,13 +269,13 @@ func (_c *UserCreateBulk) SaveX(ctx context.Context) []*User {
 }
 
 // Exec executes the query.
-func (_c *UserCreateBulk) Exec(ctx context.Context) error {
+func (_c *HolderCreateBulk) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreateBulk) ExecX(ctx context.Context) {
+func (_c *HolderCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}

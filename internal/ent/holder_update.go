@@ -10,31 +10,31 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lesomnus/go-app/internal/ent/holder"
 	"github.com/lesomnus/go-app/internal/ent/predicate"
-	"github.com/lesomnus/go-app/internal/ent/user"
 )
 
-// UserUpdate is the builder for updating User entities.
-type UserUpdate struct {
+// HolderUpdate is the builder for updating Holder entities.
+type HolderUpdate struct {
 	config
 	hooks    []Hook
-	mutation *UserMutation
+	mutation *HolderMutation
 }
 
-// Where appends a list predicates to the UserUpdate builder.
-func (_u *UserUpdate) Where(ps ...predicate.User) *UserUpdate {
+// Where appends a list predicates to the HolderUpdate builder.
+func (_u *HolderUpdate) Where(ps ...predicate.Holder) *HolderUpdate {
 	_u.mutation.Where(ps...)
 	return _u
 }
 
 // SetAlias sets the "alias" field.
-func (_u *UserUpdate) SetAlias(v string) *UserUpdate {
+func (_u *HolderUpdate) SetAlias(v string) *HolderUpdate {
 	_u.mutation.SetAlias(v)
 	return _u
 }
 
 // SetNillableAlias sets the "alias" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableAlias(v *string) *UserUpdate {
+func (_u *HolderUpdate) SetNillableAlias(v *string) *HolderUpdate {
 	if v != nil {
 		_u.SetAlias(*v)
 	}
@@ -42,13 +42,13 @@ func (_u *UserUpdate) SetNillableAlias(v *string) *UserUpdate {
 }
 
 // SetName sets the "name" field.
-func (_u *UserUpdate) SetName(v string) *UserUpdate {
+func (_u *HolderUpdate) SetName(v string) *HolderUpdate {
 	_u.mutation.SetName(v)
 	return _u
 }
 
 // SetNillableName sets the "name" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableName(v *string) *UserUpdate {
+func (_u *HolderUpdate) SetNillableName(v *string) *HolderUpdate {
 	if v != nil {
 		_u.SetName(*v)
 	}
@@ -56,13 +56,13 @@ func (_u *UserUpdate) SetNillableName(v *string) *UserUpdate {
 }
 
 // SetDesc sets the "desc" field.
-func (_u *UserUpdate) SetDesc(v string) *UserUpdate {
+func (_u *HolderUpdate) SetDesc(v string) *HolderUpdate {
 	_u.mutation.SetDesc(v)
 	return _u
 }
 
 // SetNillableDesc sets the "desc" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableDesc(v *string) *UserUpdate {
+func (_u *HolderUpdate) SetNillableDesc(v *string) *HolderUpdate {
 	if v != nil {
 		_u.SetDesc(*v)
 	}
@@ -70,29 +70,29 @@ func (_u *UserUpdate) SetNillableDesc(v *string) *UserUpdate {
 }
 
 // SetLabels sets the "labels" field.
-func (_u *UserUpdate) SetLabels(v map[string]string) *UserUpdate {
+func (_u *HolderUpdate) SetLabels(v map[string]string) *HolderUpdate {
 	_u.mutation.SetLabels(v)
 	return _u
 }
 
 // ClearLabels clears the value of the "labels" field.
-func (_u *UserUpdate) ClearLabels() *UserUpdate {
+func (_u *HolderUpdate) ClearLabels() *HolderUpdate {
 	_u.mutation.ClearLabels()
 	return _u
 }
 
-// Mutation returns the UserMutation object of the builder.
-func (_u *UserUpdate) Mutation() *UserMutation {
+// Mutation returns the HolderMutation object of the builder.
+func (_u *HolderUpdate) Mutation() *HolderMutation {
 	return _u.mutation
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *UserUpdate) Save(ctx context.Context) (int, error) {
+func (_u *HolderUpdate) Save(ctx context.Context) (int, error) {
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_u *UserUpdate) SaveX(ctx context.Context) int {
+func (_u *HolderUpdate) SaveX(ctx context.Context) int {
 	affected, err := _u.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -101,31 +101,31 @@ func (_u *UserUpdate) SaveX(ctx context.Context) int {
 }
 
 // Exec executes the query.
-func (_u *UserUpdate) Exec(ctx context.Context) error {
+func (_u *HolderUpdate) Exec(ctx context.Context) error {
 	_, err := _u.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_u *UserUpdate) ExecX(ctx context.Context) {
+func (_u *HolderUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_u *UserUpdate) check() error {
+func (_u *HolderUpdate) check() error {
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "User.tenant"`)
+		return errors.New(`ent: clearing a required unique edge "Holder.tenant"`)
 	}
 	return nil
 }
 
-func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+func (_u *HolderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
+	_spec := sqlgraph.NewUpdateSpec(holder.Table, holder.Columns, sqlgraph.NewFieldSpec(holder.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -134,26 +134,26 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 	}
 	if value, ok := _u.mutation.Alias(); ok {
-		_spec.SetField(user.FieldAlias, field.TypeString, value)
+		_spec.SetField(holder.FieldAlias, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
-		_spec.SetField(user.FieldName, field.TypeString, value)
+		_spec.SetField(holder.FieldName, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Desc(); ok {
-		_spec.SetField(user.FieldDesc, field.TypeString, value)
+		_spec.SetField(holder.FieldDesc, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Labels(); ok {
-		_spec.SetField(user.FieldLabels, field.TypeJSON, value)
+		_spec.SetField(holder.FieldLabels, field.TypeJSON, value)
 	}
 	if _u.mutation.LabelsCleared() {
-		_spec.ClearField(user.FieldLabels, field.TypeJSON)
+		_spec.ClearField(holder.FieldLabels, field.TypeJSON)
 	}
 	if _u.mutation.DateCreatedCleared() {
-		_spec.ClearField(user.FieldDateCreated, field.TypeTime)
+		_spec.ClearField(holder.FieldDateCreated, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{user.Label}
+			err = &NotFoundError{holder.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
@@ -163,22 +163,22 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	return _node, nil
 }
 
-// UserUpdateOne is the builder for updating a single User entity.
-type UserUpdateOne struct {
+// HolderUpdateOne is the builder for updating a single Holder entity.
+type HolderUpdateOne struct {
 	config
 	fields   []string
 	hooks    []Hook
-	mutation *UserMutation
+	mutation *HolderMutation
 }
 
 // SetAlias sets the "alias" field.
-func (_u *UserUpdateOne) SetAlias(v string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetAlias(v string) *HolderUpdateOne {
 	_u.mutation.SetAlias(v)
 	return _u
 }
 
 // SetNillableAlias sets the "alias" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableAlias(v *string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetNillableAlias(v *string) *HolderUpdateOne {
 	if v != nil {
 		_u.SetAlias(*v)
 	}
@@ -186,13 +186,13 @@ func (_u *UserUpdateOne) SetNillableAlias(v *string) *UserUpdateOne {
 }
 
 // SetName sets the "name" field.
-func (_u *UserUpdateOne) SetName(v string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetName(v string) *HolderUpdateOne {
 	_u.mutation.SetName(v)
 	return _u
 }
 
 // SetNillableName sets the "name" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableName(v *string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetNillableName(v *string) *HolderUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
 	}
@@ -200,13 +200,13 @@ func (_u *UserUpdateOne) SetNillableName(v *string) *UserUpdateOne {
 }
 
 // SetDesc sets the "desc" field.
-func (_u *UserUpdateOne) SetDesc(v string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetDesc(v string) *HolderUpdateOne {
 	_u.mutation.SetDesc(v)
 	return _u
 }
 
 // SetNillableDesc sets the "desc" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableDesc(v *string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetNillableDesc(v *string) *HolderUpdateOne {
 	if v != nil {
 		_u.SetDesc(*v)
 	}
@@ -214,42 +214,42 @@ func (_u *UserUpdateOne) SetNillableDesc(v *string) *UserUpdateOne {
 }
 
 // SetLabels sets the "labels" field.
-func (_u *UserUpdateOne) SetLabels(v map[string]string) *UserUpdateOne {
+func (_u *HolderUpdateOne) SetLabels(v map[string]string) *HolderUpdateOne {
 	_u.mutation.SetLabels(v)
 	return _u
 }
 
 // ClearLabels clears the value of the "labels" field.
-func (_u *UserUpdateOne) ClearLabels() *UserUpdateOne {
+func (_u *HolderUpdateOne) ClearLabels() *HolderUpdateOne {
 	_u.mutation.ClearLabels()
 	return _u
 }
 
-// Mutation returns the UserMutation object of the builder.
-func (_u *UserUpdateOne) Mutation() *UserMutation {
+// Mutation returns the HolderMutation object of the builder.
+func (_u *HolderUpdateOne) Mutation() *HolderMutation {
 	return _u.mutation
 }
 
-// Where appends a list predicates to the UserUpdate builder.
-func (_u *UserUpdateOne) Where(ps ...predicate.User) *UserUpdateOne {
+// Where appends a list predicates to the HolderUpdate builder.
+func (_u *HolderUpdateOne) Where(ps ...predicate.Holder) *HolderUpdateOne {
 	_u.mutation.Where(ps...)
 	return _u
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
-func (_u *UserUpdateOne) Select(field string, fields ...string) *UserUpdateOne {
+func (_u *HolderUpdateOne) Select(field string, fields ...string) *HolderUpdateOne {
 	_u.fields = append([]string{field}, fields...)
 	return _u
 }
 
-// Save executes the query and returns the updated User entity.
-func (_u *UserUpdateOne) Save(ctx context.Context) (*User, error) {
+// Save executes the query and returns the updated Holder entity.
+func (_u *HolderUpdateOne) Save(ctx context.Context) (*Holder, error) {
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_u *UserUpdateOne) SaveX(ctx context.Context) *User {
+func (_u *HolderUpdateOne) SaveX(ctx context.Context) *Holder {
 	node, err := _u.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -258,44 +258,44 @@ func (_u *UserUpdateOne) SaveX(ctx context.Context) *User {
 }
 
 // Exec executes the query on the entity.
-func (_u *UserUpdateOne) Exec(ctx context.Context) error {
+func (_u *HolderUpdateOne) Exec(ctx context.Context) error {
 	_, err := _u.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_u *UserUpdateOne) ExecX(ctx context.Context) {
+func (_u *HolderUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_u *UserUpdateOne) check() error {
+func (_u *HolderUpdateOne) check() error {
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "User.tenant"`)
+		return errors.New(`ent: clearing a required unique edge "Holder.tenant"`)
 	}
 	return nil
 }
 
-func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
+func (_u *HolderUpdateOne) sqlSave(ctx context.Context) (_node *Holder, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
+	_spec := sqlgraph.NewUpdateSpec(holder.Table, holder.Columns, sqlgraph.NewFieldSpec(holder.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "User.id" for update`)}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Holder.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
 	if fields := _u.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, user.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, holder.FieldID)
 		for _, f := range fields {
-			if !user.ValidColumn(f) {
+			if !holder.ValidColumn(f) {
 				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 			}
-			if f != user.FieldID {
+			if f != holder.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, f)
 			}
 		}
@@ -308,29 +308,29 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 		}
 	}
 	if value, ok := _u.mutation.Alias(); ok {
-		_spec.SetField(user.FieldAlias, field.TypeString, value)
+		_spec.SetField(holder.FieldAlias, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
-		_spec.SetField(user.FieldName, field.TypeString, value)
+		_spec.SetField(holder.FieldName, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Desc(); ok {
-		_spec.SetField(user.FieldDesc, field.TypeString, value)
+		_spec.SetField(holder.FieldDesc, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Labels(); ok {
-		_spec.SetField(user.FieldLabels, field.TypeJSON, value)
+		_spec.SetField(holder.FieldLabels, field.TypeJSON, value)
 	}
 	if _u.mutation.LabelsCleared() {
-		_spec.ClearField(user.FieldLabels, field.TypeJSON)
+		_spec.ClearField(holder.FieldLabels, field.TypeJSON)
 	}
 	if _u.mutation.DateCreatedCleared() {
-		_spec.ClearField(user.FieldDateCreated, field.TypeTime)
+		_spec.ClearField(holder.FieldDateCreated, field.TypeTime)
 	}
-	_node = &User{config: _u.config}
+	_node = &Holder{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{user.Label}
+			err = &NotFoundError{holder.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: go_app/user_svc.proto
+// source: go_app/holder_svc.proto
 
 package go_app
 
@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type UserAddRequest struct {
+type HolderAddRequest struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Id          []byte                 `protobuf:"bytes,1,opt,name=id"`
 	xxx_hidden_Tenant      *TenantRef             `protobuf:"bytes,2,opt,name=tenant"`
@@ -37,21 +37,21 @@ type UserAddRequest struct {
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *UserAddRequest) Reset() {
-	*x = UserAddRequest{}
-	mi := &file_go_app_user_svc_proto_msgTypes[0]
+func (x *HolderAddRequest) Reset() {
+	*x = HolderAddRequest{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserAddRequest) String() string {
+func (x *HolderAddRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserAddRequest) ProtoMessage() {}
+func (*HolderAddRequest) ProtoMessage() {}
 
-func (x *UserAddRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[0]
+func (x *HolderAddRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,56 +62,56 @@ func (x *UserAddRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserAddRequest) GetId() []byte {
+func (x *HolderAddRequest) GetId() []byte {
 	if x != nil {
 		return x.xxx_hidden_Id
 	}
 	return nil
 }
 
-func (x *UserAddRequest) GetTenant() *TenantRef {
+func (x *HolderAddRequest) GetTenant() *TenantRef {
 	if x != nil {
 		return x.xxx_hidden_Tenant
 	}
 	return nil
 }
 
-func (x *UserAddRequest) GetAlias() string {
+func (x *HolderAddRequest) GetAlias() string {
 	if x != nil {
 		return x.xxx_hidden_Alias
 	}
 	return ""
 }
 
-func (x *UserAddRequest) GetName() string {
+func (x *HolderAddRequest) GetName() string {
 	if x != nil {
 		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
-func (x *UserAddRequest) GetDesc() string {
+func (x *HolderAddRequest) GetDesc() string {
 	if x != nil {
 		return x.xxx_hidden_Desc
 	}
 	return ""
 }
 
-func (x *UserAddRequest) GetLabels() map[string]string {
+func (x *HolderAddRequest) GetLabels() map[string]string {
 	if x != nil {
 		return x.xxx_hidden_Labels
 	}
 	return nil
 }
 
-func (x *UserAddRequest) GetDateCreated() *timestamppb.Timestamp {
+func (x *HolderAddRequest) GetDateCreated() *timestamppb.Timestamp {
 	if x != nil {
 		return x.xxx_hidden_DateCreated
 	}
 	return nil
 }
 
-func (x *UserAddRequest) SetId(v []byte) {
+func (x *HolderAddRequest) SetId(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
@@ -119,65 +119,65 @@ func (x *UserAddRequest) SetId(v []byte) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
 }
 
-func (x *UserAddRequest) SetTenant(v *TenantRef) {
+func (x *HolderAddRequest) SetTenant(v *TenantRef) {
 	x.xxx_hidden_Tenant = v
 }
 
-func (x *UserAddRequest) SetAlias(v string) {
+func (x *HolderAddRequest) SetAlias(v string) {
 	x.xxx_hidden_Alias = v
 }
 
-func (x *UserAddRequest) SetName(v string) {
+func (x *HolderAddRequest) SetName(v string) {
 	x.xxx_hidden_Name = v
 }
 
-func (x *UserAddRequest) SetDesc(v string) {
+func (x *HolderAddRequest) SetDesc(v string) {
 	x.xxx_hidden_Desc = v
 }
 
-func (x *UserAddRequest) SetLabels(v map[string]string) {
+func (x *HolderAddRequest) SetLabels(v map[string]string) {
 	x.xxx_hidden_Labels = v
 }
 
-func (x *UserAddRequest) SetDateCreated(v *timestamppb.Timestamp) {
+func (x *HolderAddRequest) SetDateCreated(v *timestamppb.Timestamp) {
 	x.xxx_hidden_DateCreated = v
 }
 
-func (x *UserAddRequest) HasId() bool {
+func (x *HolderAddRequest) HasId() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *UserAddRequest) HasTenant() bool {
+func (x *HolderAddRequest) HasTenant() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Tenant != nil
 }
 
-func (x *UserAddRequest) HasDateCreated() bool {
+func (x *HolderAddRequest) HasDateCreated() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_DateCreated != nil
 }
 
-func (x *UserAddRequest) ClearId() {
+func (x *HolderAddRequest) ClearId() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Id = nil
 }
 
-func (x *UserAddRequest) ClearTenant() {
+func (x *HolderAddRequest) ClearTenant() {
 	x.xxx_hidden_Tenant = nil
 }
 
-func (x *UserAddRequest) ClearDateCreated() {
+func (x *HolderAddRequest) ClearDateCreated() {
 	x.xxx_hidden_DateCreated = nil
 }
 
-type UserAddRequest_builder struct {
+type HolderAddRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Id          []byte
@@ -189,8 +189,8 @@ type UserAddRequest_builder struct {
 	DateCreated *timestamppb.Timestamp
 }
 
-func (b0 UserAddRequest_builder) Build() *UserAddRequest {
-	m0 := &UserAddRequest{}
+func (b0 HolderAddRequest_builder) Build() *HolderAddRequest {
+	m0 := &HolderAddRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Id != nil {
@@ -206,29 +206,29 @@ func (b0 UserAddRequest_builder) Build() *UserAddRequest {
 	return m0
 }
 
-type UserGetRequest struct {
+type HolderGetRequest struct {
 	state             protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Ref    *UserRef               `protobuf:"bytes,1,opt,name=ref"`
-	xxx_hidden_Select *UserSelect            `protobuf:"bytes,2,opt,name=select"`
+	xxx_hidden_Ref    *HolderRef             `protobuf:"bytes,1,opt,name=ref"`
+	xxx_hidden_Select *HolderSelect          `protobuf:"bytes,2,opt,name=select"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
-func (x *UserGetRequest) Reset() {
-	*x = UserGetRequest{}
-	mi := &file_go_app_user_svc_proto_msgTypes[1]
+func (x *HolderGetRequest) Reset() {
+	*x = HolderGetRequest{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserGetRequest) String() string {
+func (x *HolderGetRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserGetRequest) ProtoMessage() {}
+func (*HolderGetRequest) ProtoMessage() {}
 
-func (x *UserGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[1]
+func (x *HolderGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -239,59 +239,59 @@ func (x *UserGetRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserGetRequest) GetRef() *UserRef {
+func (x *HolderGetRequest) GetRef() *HolderRef {
 	if x != nil {
 		return x.xxx_hidden_Ref
 	}
 	return nil
 }
 
-func (x *UserGetRequest) GetSelect() *UserSelect {
+func (x *HolderGetRequest) GetSelect() *HolderSelect {
 	if x != nil {
 		return x.xxx_hidden_Select
 	}
 	return nil
 }
 
-func (x *UserGetRequest) SetRef(v *UserRef) {
+func (x *HolderGetRequest) SetRef(v *HolderRef) {
 	x.xxx_hidden_Ref = v
 }
 
-func (x *UserGetRequest) SetSelect(v *UserSelect) {
+func (x *HolderGetRequest) SetSelect(v *HolderSelect) {
 	x.xxx_hidden_Select = v
 }
 
-func (x *UserGetRequest) HasRef() bool {
+func (x *HolderGetRequest) HasRef() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Ref != nil
 }
 
-func (x *UserGetRequest) HasSelect() bool {
+func (x *HolderGetRequest) HasSelect() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Select != nil
 }
 
-func (x *UserGetRequest) ClearRef() {
+func (x *HolderGetRequest) ClearRef() {
 	x.xxx_hidden_Ref = nil
 }
 
-func (x *UserGetRequest) ClearSelect() {
+func (x *HolderGetRequest) ClearSelect() {
 	x.xxx_hidden_Select = nil
 }
 
-type UserGetRequest_builder struct {
+type HolderGetRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Ref    *UserRef
-	Select *UserSelect
+	Ref    *HolderRef
+	Select *HolderSelect
 }
 
-func (b0 UserGetRequest_builder) Build() *UserGetRequest {
-	m0 := &UserGetRequest{}
+func (b0 HolderGetRequest_builder) Build() *HolderGetRequest {
+	m0 := &HolderGetRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Ref = b.Ref
@@ -299,28 +299,28 @@ func (b0 UserGetRequest_builder) Build() *UserGetRequest {
 	return m0
 }
 
-type UserRef struct {
+type HolderRef struct {
 	state          protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Key isUserRef_Key          `protobuf_oneof:"key"`
+	xxx_hidden_Key isHolderRef_Key        `protobuf_oneof:"key"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *UserRef) Reset() {
-	*x = UserRef{}
-	mi := &file_go_app_user_svc_proto_msgTypes[2]
+func (x *HolderRef) Reset() {
+	*x = HolderRef{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserRef) String() string {
+func (x *HolderRef) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserRef) ProtoMessage() {}
+func (*HolderRef) ProtoMessage() {}
 
-func (x *UserRef) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[2]
+func (x *HolderRef) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,145 +331,145 @@ func (x *UserRef) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserRef) GetId() []byte {
+func (x *HolderRef) GetId() []byte {
 	if x != nil {
-		if x, ok := x.xxx_hidden_Key.(*userRef_Id); ok {
+		if x, ok := x.xxx_hidden_Key.(*holderRef_Id); ok {
 			return x.Id
 		}
 	}
 	return nil
 }
 
-func (x *UserRef) GetSlug() *UserRefBySlug {
+func (x *HolderRef) GetSlug() *HolderRefBySlug {
 	if x != nil {
-		if x, ok := x.xxx_hidden_Key.(*userRef_Slug); ok {
+		if x, ok := x.xxx_hidden_Key.(*holderRef_Slug); ok {
 			return x.Slug
 		}
 	}
 	return nil
 }
 
-func (x *UserRef) SetId(v []byte) {
+func (x *HolderRef) SetId(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.xxx_hidden_Key = &userRef_Id{v}
+	x.xxx_hidden_Key = &holderRef_Id{v}
 }
 
-func (x *UserRef) SetSlug(v *UserRefBySlug) {
+func (x *HolderRef) SetSlug(v *HolderRefBySlug) {
 	if v == nil {
 		x.xxx_hidden_Key = nil
 		return
 	}
-	x.xxx_hidden_Key = &userRef_Slug{v}
+	x.xxx_hidden_Key = &holderRef_Slug{v}
 }
 
-func (x *UserRef) HasKey() bool {
+func (x *HolderRef) HasKey() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Key != nil
 }
 
-func (x *UserRef) HasId() bool {
+func (x *HolderRef) HasId() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.xxx_hidden_Key.(*userRef_Id)
+	_, ok := x.xxx_hidden_Key.(*holderRef_Id)
 	return ok
 }
 
-func (x *UserRef) HasSlug() bool {
+func (x *HolderRef) HasSlug() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.xxx_hidden_Key.(*userRef_Slug)
+	_, ok := x.xxx_hidden_Key.(*holderRef_Slug)
 	return ok
 }
 
-func (x *UserRef) ClearKey() {
+func (x *HolderRef) ClearKey() {
 	x.xxx_hidden_Key = nil
 }
 
-func (x *UserRef) ClearId() {
-	if _, ok := x.xxx_hidden_Key.(*userRef_Id); ok {
+func (x *HolderRef) ClearId() {
+	if _, ok := x.xxx_hidden_Key.(*holderRef_Id); ok {
 		x.xxx_hidden_Key = nil
 	}
 }
 
-func (x *UserRef) ClearSlug() {
-	if _, ok := x.xxx_hidden_Key.(*userRef_Slug); ok {
+func (x *HolderRef) ClearSlug() {
+	if _, ok := x.xxx_hidden_Key.(*holderRef_Slug); ok {
 		x.xxx_hidden_Key = nil
 	}
 }
 
-const UserRef_Key_not_set_case case_UserRef_Key = 0
-const UserRef_Id_case case_UserRef_Key = 1
-const UserRef_Slug_case case_UserRef_Key = 4
+const HolderRef_Key_not_set_case case_HolderRef_Key = 0
+const HolderRef_Id_case case_HolderRef_Key = 1
+const HolderRef_Slug_case case_HolderRef_Key = 4
 
-func (x *UserRef) WhichKey() case_UserRef_Key {
+func (x *HolderRef) WhichKey() case_HolderRef_Key {
 	if x == nil {
-		return UserRef_Key_not_set_case
+		return HolderRef_Key_not_set_case
 	}
 	switch x.xxx_hidden_Key.(type) {
-	case *userRef_Id:
-		return UserRef_Id_case
-	case *userRef_Slug:
-		return UserRef_Slug_case
+	case *holderRef_Id:
+		return HolderRef_Id_case
+	case *holderRef_Slug:
+		return HolderRef_Slug_case
 	default:
-		return UserRef_Key_not_set_case
+		return HolderRef_Key_not_set_case
 	}
 }
 
-type UserRef_builder struct {
+type HolderRef_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	// Fields of oneof xxx_hidden_Key:
 	Id   []byte
-	Slug *UserRefBySlug
+	Slug *HolderRefBySlug
 	// -- end of xxx_hidden_Key
 }
 
-func (b0 UserRef_builder) Build() *UserRef {
-	m0 := &UserRef{}
+func (b0 HolderRef_builder) Build() *HolderRef {
+	m0 := &HolderRef{}
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Id != nil {
-		x.xxx_hidden_Key = &userRef_Id{b.Id}
+		x.xxx_hidden_Key = &holderRef_Id{b.Id}
 	}
 	if b.Slug != nil {
-		x.xxx_hidden_Key = &userRef_Slug{b.Slug}
+		x.xxx_hidden_Key = &holderRef_Slug{b.Slug}
 	}
 	return m0
 }
 
-type case_UserRef_Key protoreflect.FieldNumber
+type case_HolderRef_Key protoreflect.FieldNumber
 
-func (x case_UserRef_Key) String() string {
-	md := file_go_app_user_svc_proto_msgTypes[2].Descriptor()
+func (x case_HolderRef_Key) String() string {
+	md := file_go_app_holder_svc_proto_msgTypes[2].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
 	return protoimpl.X.MessageFieldStringOf(md, protoreflect.FieldNumber(x))
 }
 
-type isUserRef_Key interface {
-	isUserRef_Key()
+type isHolderRef_Key interface {
+	isHolderRef_Key()
 }
 
-type userRef_Id struct {
+type holderRef_Id struct {
 	Id []byte `protobuf:"bytes,1,opt,name=id,oneof"`
 }
 
-type userRef_Slug struct {
-	Slug *UserRefBySlug `protobuf:"bytes,4,opt,name=slug,oneof"`
+type holderRef_Slug struct {
+	Slug *HolderRefBySlug `protobuf:"bytes,4,opt,name=slug,oneof"`
 }
 
-func (*userRef_Id) isUserRef_Key() {}
+func (*holderRef_Id) isHolderRef_Key() {}
 
-func (*userRef_Slug) isUserRef_Key() {}
+func (*holderRef_Slug) isHolderRef_Key() {}
 
-type UserRefBySlug struct {
+type HolderRefBySlug struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Alias       *string                `protobuf:"bytes,4,opt,name=alias"`
 	xxx_hidden_Tenant      *TenantRef             `protobuf:"bytes,2,opt,name=tenant"`
@@ -479,21 +479,21 @@ type UserRefBySlug struct {
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *UserRefBySlug) Reset() {
-	*x = UserRefBySlug{}
-	mi := &file_go_app_user_svc_proto_msgTypes[3]
+func (x *HolderRefBySlug) Reset() {
+	*x = HolderRefBySlug{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserRefBySlug) String() string {
+func (x *HolderRefBySlug) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserRefBySlug) ProtoMessage() {}
+func (*HolderRefBySlug) ProtoMessage() {}
 
-func (x *UserRefBySlug) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[3]
+func (x *HolderRefBySlug) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -504,7 +504,7 @@ func (x *UserRefBySlug) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserRefBySlug) GetAlias() string {
+func (x *HolderRefBySlug) GetAlias() string {
 	if x != nil {
 		if x.xxx_hidden_Alias != nil {
 			return *x.xxx_hidden_Alias
@@ -514,54 +514,54 @@ func (x *UserRefBySlug) GetAlias() string {
 	return ""
 }
 
-func (x *UserRefBySlug) GetTenant() *TenantRef {
+func (x *HolderRefBySlug) GetTenant() *TenantRef {
 	if x != nil {
 		return x.xxx_hidden_Tenant
 	}
 	return nil
 }
 
-func (x *UserRefBySlug) SetAlias(v string) {
+func (x *HolderRefBySlug) SetAlias(v string) {
 	x.xxx_hidden_Alias = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 2)
 }
 
-func (x *UserRefBySlug) SetTenant(v *TenantRef) {
+func (x *HolderRefBySlug) SetTenant(v *TenantRef) {
 	x.xxx_hidden_Tenant = v
 }
 
-func (x *UserRefBySlug) HasAlias() bool {
+func (x *HolderRefBySlug) HasAlias() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *UserRefBySlug) HasTenant() bool {
+func (x *HolderRefBySlug) HasTenant() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Tenant != nil
 }
 
-func (x *UserRefBySlug) ClearAlias() {
+func (x *HolderRefBySlug) ClearAlias() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Alias = nil
 }
 
-func (x *UserRefBySlug) ClearTenant() {
+func (x *HolderRefBySlug) ClearTenant() {
 	x.xxx_hidden_Tenant = nil
 }
 
-type UserRefBySlug_builder struct {
+type HolderRefBySlug_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Alias  *string
 	Tenant *TenantRef
 }
 
-func (b0 UserRefBySlug_builder) Build() *UserRefBySlug {
-	m0 := &UserRefBySlug{}
+func (b0 HolderRefBySlug_builder) Build() *HolderRefBySlug {
+	m0 := &HolderRefBySlug{}
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Alias != nil {
@@ -572,7 +572,7 @@ func (b0 UserRefBySlug_builder) Build() *UserRefBySlug {
 	return m0
 }
 
-type UserSelect struct {
+type HolderSelect struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_All         bool                   `protobuf:"varint,1,opt,name=all"`
 	xxx_hidden_Tenant      *TenantSelect          `protobuf:"bytes,2,opt,name=tenant"`
@@ -587,21 +587,21 @@ type UserSelect struct {
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *UserSelect) Reset() {
-	*x = UserSelect{}
-	mi := &file_go_app_user_svc_proto_msgTypes[4]
+func (x *HolderSelect) Reset() {
+	*x = HolderSelect{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserSelect) String() string {
+func (x *HolderSelect) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserSelect) ProtoMessage() {}
+func (*HolderSelect) ProtoMessage() {}
 
-func (x *UserSelect) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[4]
+func (x *HolderSelect) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -612,173 +612,173 @@ func (x *UserSelect) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserSelect) GetAll() bool {
+func (x *HolderSelect) GetAll() bool {
 	if x != nil {
 		return x.xxx_hidden_All
 	}
 	return false
 }
 
-func (x *UserSelect) GetTenant() *TenantSelect {
+func (x *HolderSelect) GetTenant() *TenantSelect {
 	if x != nil {
 		return x.xxx_hidden_Tenant
 	}
 	return nil
 }
 
-func (x *UserSelect) GetAlias() bool {
+func (x *HolderSelect) GetAlias() bool {
 	if x != nil {
 		return x.xxx_hidden_Alias
 	}
 	return false
 }
 
-func (x *UserSelect) GetName() bool {
+func (x *HolderSelect) GetName() bool {
 	if x != nil {
 		return x.xxx_hidden_Name
 	}
 	return false
 }
 
-func (x *UserSelect) GetDesc() bool {
+func (x *HolderSelect) GetDesc() bool {
 	if x != nil {
 		return x.xxx_hidden_Desc
 	}
 	return false
 }
 
-func (x *UserSelect) GetLabels() bool {
+func (x *HolderSelect) GetLabels() bool {
 	if x != nil {
 		return x.xxx_hidden_Labels
 	}
 	return false
 }
 
-func (x *UserSelect) GetDateCreated() bool {
+func (x *HolderSelect) GetDateCreated() bool {
 	if x != nil {
 		return x.xxx_hidden_DateCreated
 	}
 	return false
 }
 
-func (x *UserSelect) SetAll(v bool) {
+func (x *HolderSelect) SetAll(v bool) {
 	x.xxx_hidden_All = v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
 }
 
-func (x *UserSelect) SetTenant(v *TenantSelect) {
+func (x *HolderSelect) SetTenant(v *TenantSelect) {
 	x.xxx_hidden_Tenant = v
 }
 
-func (x *UserSelect) SetAlias(v bool) {
+func (x *HolderSelect) SetAlias(v bool) {
 	x.xxx_hidden_Alias = v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 7)
 }
 
-func (x *UserSelect) SetName(v bool) {
+func (x *HolderSelect) SetName(v bool) {
 	x.xxx_hidden_Name = v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 7)
 }
 
-func (x *UserSelect) SetDesc(v bool) {
+func (x *HolderSelect) SetDesc(v bool) {
 	x.xxx_hidden_Desc = v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 7)
 }
 
-func (x *UserSelect) SetLabels(v bool) {
+func (x *HolderSelect) SetLabels(v bool) {
 	x.xxx_hidden_Labels = v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 7)
 }
 
-func (x *UserSelect) SetDateCreated(v bool) {
+func (x *HolderSelect) SetDateCreated(v bool) {
 	x.xxx_hidden_DateCreated = v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 7)
 }
 
-func (x *UserSelect) HasAll() bool {
+func (x *HolderSelect) HasAll() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *UserSelect) HasTenant() bool {
+func (x *HolderSelect) HasTenant() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Tenant != nil
 }
 
-func (x *UserSelect) HasAlias() bool {
+func (x *HolderSelect) HasAlias() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
 }
 
-func (x *UserSelect) HasName() bool {
+func (x *HolderSelect) HasName() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
 }
 
-func (x *UserSelect) HasDesc() bool {
+func (x *HolderSelect) HasDesc() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 4)
 }
 
-func (x *UserSelect) HasLabels() bool {
+func (x *HolderSelect) HasLabels() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
 }
 
-func (x *UserSelect) HasDateCreated() bool {
+func (x *HolderSelect) HasDateCreated() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
 }
 
-func (x *UserSelect) ClearAll() {
+func (x *HolderSelect) ClearAll() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_All = false
 }
 
-func (x *UserSelect) ClearTenant() {
+func (x *HolderSelect) ClearTenant() {
 	x.xxx_hidden_Tenant = nil
 }
 
-func (x *UserSelect) ClearAlias() {
+func (x *HolderSelect) ClearAlias() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
 	x.xxx_hidden_Alias = false
 }
 
-func (x *UserSelect) ClearName() {
+func (x *HolderSelect) ClearName() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
 	x.xxx_hidden_Name = false
 }
 
-func (x *UserSelect) ClearDesc() {
+func (x *HolderSelect) ClearDesc() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 4)
 	x.xxx_hidden_Desc = false
 }
 
-func (x *UserSelect) ClearLabels() {
+func (x *HolderSelect) ClearLabels() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 5)
 	x.xxx_hidden_Labels = false
 }
 
-func (x *UserSelect) ClearDateCreated() {
+func (x *HolderSelect) ClearDateCreated() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 6)
 	x.xxx_hidden_DateCreated = false
 }
 
-type UserSelect_builder struct {
+type HolderSelect_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	All         *bool
@@ -790,8 +790,8 @@ type UserSelect_builder struct {
 	DateCreated *bool
 }
 
-func (b0 UserSelect_builder) Build() *UserSelect {
-	m0 := &UserSelect{}
+func (b0 HolderSelect_builder) Build() *HolderSelect {
+	m0 := &HolderSelect{}
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.All != nil {
@@ -822,9 +822,9 @@ func (b0 UserSelect_builder) Build() *UserSelect {
 	return m0
 }
 
-type UserPatchRequest struct {
+type HolderPatchRequest struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Ref         *UserRef               `protobuf:"bytes,1,opt,name=ref"`
+	xxx_hidden_Ref         *HolderRef             `protobuf:"bytes,1,opt,name=ref"`
 	xxx_hidden_Alias       *string                `protobuf:"bytes,7,opt,name=alias"`
 	xxx_hidden_Name        *string                `protobuf:"bytes,9,opt,name=name"`
 	xxx_hidden_Desc        *string                `protobuf:"bytes,11,opt,name=desc"`
@@ -835,21 +835,21 @@ type UserPatchRequest struct {
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *UserPatchRequest) Reset() {
-	*x = UserPatchRequest{}
-	mi := &file_go_app_user_svc_proto_msgTypes[5]
+func (x *HolderPatchRequest) Reset() {
+	*x = HolderPatchRequest{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserPatchRequest) String() string {
+func (x *HolderPatchRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserPatchRequest) ProtoMessage() {}
+func (*HolderPatchRequest) ProtoMessage() {}
 
-func (x *UserPatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[5]
+func (x *HolderPatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -860,14 +860,14 @@ func (x *UserPatchRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserPatchRequest) GetRef() *UserRef {
+func (x *HolderPatchRequest) GetRef() *HolderRef {
 	if x != nil {
 		return x.xxx_hidden_Ref
 	}
 	return nil
 }
 
-func (x *UserPatchRequest) GetAlias() string {
+func (x *HolderPatchRequest) GetAlias() string {
 	if x != nil {
 		if x.xxx_hidden_Alias != nil {
 			return *x.xxx_hidden_Alias
@@ -877,7 +877,7 @@ func (x *UserPatchRequest) GetAlias() string {
 	return ""
 }
 
-func (x *UserPatchRequest) GetName() string {
+func (x *HolderPatchRequest) GetName() string {
 	if x != nil {
 		if x.xxx_hidden_Name != nil {
 			return *x.xxx_hidden_Name
@@ -887,7 +887,7 @@ func (x *UserPatchRequest) GetName() string {
 	return ""
 }
 
-func (x *UserPatchRequest) GetDesc() string {
+func (x *HolderPatchRequest) GetDesc() string {
 	if x != nil {
 		if x.xxx_hidden_Desc != nil {
 			return *x.xxx_hidden_Desc
@@ -897,95 +897,95 @@ func (x *UserPatchRequest) GetDesc() string {
 	return ""
 }
 
-func (x *UserPatchRequest) GetLabels() map[string]string {
+func (x *HolderPatchRequest) GetLabels() map[string]string {
 	if x != nil {
 		return x.xxx_hidden_Labels
 	}
 	return nil
 }
 
-func (x *UserPatchRequest) SetRef(v *UserRef) {
+func (x *HolderPatchRequest) SetRef(v *HolderRef) {
 	x.xxx_hidden_Ref = v
 }
 
-func (x *UserPatchRequest) SetAlias(v string) {
+func (x *HolderPatchRequest) SetAlias(v string) {
 	x.xxx_hidden_Alias = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
 }
 
-func (x *UserPatchRequest) SetName(v string) {
+func (x *HolderPatchRequest) SetName(v string) {
 	x.xxx_hidden_Name = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 5)
 }
 
-func (x *UserPatchRequest) SetDesc(v string) {
+func (x *HolderPatchRequest) SetDesc(v string) {
 	x.xxx_hidden_Desc = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 5)
 }
 
-func (x *UserPatchRequest) SetLabels(v map[string]string) {
+func (x *HolderPatchRequest) SetLabels(v map[string]string) {
 	x.xxx_hidden_Labels = v
 }
 
-func (x *UserPatchRequest) HasRef() bool {
+func (x *HolderPatchRequest) HasRef() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Ref != nil
 }
 
-func (x *UserPatchRequest) HasAlias() bool {
+func (x *HolderPatchRequest) HasAlias() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
 }
 
-func (x *UserPatchRequest) HasName() bool {
+func (x *HolderPatchRequest) HasName() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
 }
 
-func (x *UserPatchRequest) HasDesc() bool {
+func (x *HolderPatchRequest) HasDesc() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
 }
 
-func (x *UserPatchRequest) ClearRef() {
+func (x *HolderPatchRequest) ClearRef() {
 	x.xxx_hidden_Ref = nil
 }
 
-func (x *UserPatchRequest) ClearAlias() {
+func (x *HolderPatchRequest) ClearAlias() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
 	x.xxx_hidden_Alias = nil
 }
 
-func (x *UserPatchRequest) ClearName() {
+func (x *HolderPatchRequest) ClearName() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
 	x.xxx_hidden_Name = nil
 }
 
-func (x *UserPatchRequest) ClearDesc() {
+func (x *HolderPatchRequest) ClearDesc() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
 	x.xxx_hidden_Desc = nil
 }
 
-type UserPatchRequest_builder struct {
+type HolderPatchRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Ref    *UserRef
+	Ref    *HolderRef
 	Alias  *string
 	Name   *string
 	Desc   *string
 	Labels map[string]string
 }
 
-func (b0 UserPatchRequest_builder) Build() *UserPatchRequest {
-	m0 := &UserPatchRequest{}
+func (b0 HolderPatchRequest_builder) Build() *HolderPatchRequest {
+	m0 := &HolderPatchRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Ref = b.Ref
@@ -1005,28 +1005,28 @@ func (b0 UserPatchRequest_builder) Build() *UserPatchRequest {
 	return m0
 }
 
-type UserListRequest struct {
+type HolderListRequest struct {
 	state              protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Filters *[]*UserFilter         `protobuf:"bytes,1,rep,name=filters"`
+	xxx_hidden_Filters *[]*HolderFilter       `protobuf:"bytes,1,rep,name=filters"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
-func (x *UserListRequest) Reset() {
-	*x = UserListRequest{}
-	mi := &file_go_app_user_svc_proto_msgTypes[6]
+func (x *HolderListRequest) Reset() {
+	*x = HolderListRequest{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserListRequest) String() string {
+func (x *HolderListRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserListRequest) ProtoMessage() {}
+func (*HolderListRequest) ProtoMessage() {}
 
-func (x *UserListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[6]
+func (x *HolderListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1037,7 @@ func (x *UserListRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserListRequest) GetFilters() []*UserFilter {
+func (x *HolderListRequest) GetFilters() []*HolderFilter {
 	if x != nil {
 		if x.xxx_hidden_Filters != nil {
 			return *x.xxx_hidden_Filters
@@ -1046,46 +1046,46 @@ func (x *UserListRequest) GetFilters() []*UserFilter {
 	return nil
 }
 
-func (x *UserListRequest) SetFilters(v []*UserFilter) {
+func (x *HolderListRequest) SetFilters(v []*HolderFilter) {
 	x.xxx_hidden_Filters = &v
 }
 
-type UserListRequest_builder struct {
+type HolderListRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Filters []*UserFilter
+	Filters []*HolderFilter
 }
 
-func (b0 UserListRequest_builder) Build() *UserListRequest {
-	m0 := &UserListRequest{}
+func (b0 HolderListRequest_builder) Build() *HolderListRequest {
+	m0 := &HolderListRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Filters = &b.Filters
 	return m0
 }
 
-type UserListResponse struct {
+type HolderListResponse struct {
 	state            protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Items *[]*User               `protobuf:"bytes,1,rep,name=items"`
+	xxx_hidden_Items *[]*Holder             `protobuf:"bytes,1,rep,name=items"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
-func (x *UserListResponse) Reset() {
-	*x = UserListResponse{}
-	mi := &file_go_app_user_svc_proto_msgTypes[7]
+func (x *HolderListResponse) Reset() {
+	*x = HolderListResponse{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserListResponse) String() string {
+func (x *HolderListResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserListResponse) ProtoMessage() {}
+func (*HolderListResponse) ProtoMessage() {}
 
-func (x *UserListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[7]
+func (x *HolderListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1096,7 +1096,7 @@ func (x *UserListResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserListResponse) GetItems() []*User {
+func (x *HolderListResponse) GetItems() []*Holder {
 	if x != nil {
 		if x.xxx_hidden_Items != nil {
 			return *x.xxx_hidden_Items
@@ -1105,46 +1105,46 @@ func (x *UserListResponse) GetItems() []*User {
 	return nil
 }
 
-func (x *UserListResponse) SetItems(v []*User) {
+func (x *HolderListResponse) SetItems(v []*Holder) {
 	x.xxx_hidden_Items = &v
 }
 
-type UserListResponse_builder struct {
+type HolderListResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Items []*User
+	Items []*Holder
 }
 
-func (b0 UserListResponse_builder) Build() *UserListResponse {
-	m0 := &UserListResponse{}
+func (b0 HolderListResponse_builder) Build() *HolderListResponse {
+	m0 := &HolderListResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Items = &b.Items
 	return m0
 }
 
-type UserFilter struct {
+type HolderFilter struct {
 	state          protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Ref *UserRef               `protobuf:"bytes,1,opt,name=ref"`
+	xxx_hidden_Ref *HolderRef             `protobuf:"bytes,1,opt,name=ref"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *UserFilter) Reset() {
-	*x = UserFilter{}
-	mi := &file_go_app_user_svc_proto_msgTypes[8]
+func (x *HolderFilter) Reset() {
+	*x = HolderFilter{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserFilter) String() string {
+func (x *HolderFilter) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserFilter) ProtoMessage() {}
+func (*HolderFilter) ProtoMessage() {}
 
-func (x *UserFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_user_svc_proto_msgTypes[8]
+func (x *HolderFilter) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1155,143 +1155,141 @@ func (x *UserFilter) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *UserFilter) GetRef() *UserRef {
+func (x *HolderFilter) GetRef() *HolderRef {
 	if x != nil {
 		return x.xxx_hidden_Ref
 	}
 	return nil
 }
 
-func (x *UserFilter) SetRef(v *UserRef) {
+func (x *HolderFilter) SetRef(v *HolderRef) {
 	x.xxx_hidden_Ref = v
 }
 
-func (x *UserFilter) HasRef() bool {
+func (x *HolderFilter) HasRef() bool {
 	if x == nil {
 		return false
 	}
 	return x.xxx_hidden_Ref != nil
 }
 
-func (x *UserFilter) ClearRef() {
+func (x *HolderFilter) ClearRef() {
 	x.xxx_hidden_Ref = nil
 }
 
-type UserFilter_builder struct {
+type HolderFilter_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Ref *UserRef
+	Ref *HolderRef
 }
 
-func (b0 UserFilter_builder) Build() *UserFilter {
-	m0 := &UserFilter{}
+func (b0 HolderFilter_builder) Build() *HolderFilter {
+	m0 := &HolderFilter{}
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Ref = b.Ref
 	return m0
 }
 
-var File_go_app_user_svc_proto protoreflect.FileDescriptor
+var File_go_app_holder_svc_proto protoreflect.FileDescriptor
 
-const file_go_app_user_svc_proto_rawDesc = "" +
+const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\n" +
-	"\x15go_app/user_svc.proto\x12\x06go_app\x1a\x17go_app/tenant_svc.proto\x1a\x11go_app/user.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd4\x02\n" +
-	"\x0eUserAddRequest\x12\x0e\n" +
+	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd8\x02\n" +
+	"\x10HolderAddRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12)\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\x12\x1b\n" +
 	"\x05alias\x18\x04 \x01(\tB\x05\xaa\x01\x02\b\x02R\x05alias\x12\x19\n" +
 	"\x04name\x18\x05 \x01(\tB\x05\xaa\x01\x02\b\x02R\x04name\x12\x19\n" +
-	"\x04desc\x18\x06 \x01(\tB\x05\xaa\x01\x02\b\x02R\x04desc\x12:\n" +
-	"\x06labels\x18\a \x03(\v2\".go_app.UserAddRequest.LabelsEntryR\x06labels\x12=\n" +
+	"\x04desc\x18\x06 \x01(\tB\x05\xaa\x01\x02\b\x02R\x04desc\x12<\n" +
+	"\x06labels\x18\a \x03(\v2$.go_app.HolderAddRequest.LabelsEntryR\x06labels\x12=\n" +
 	"\fdate_created\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\vdateCreated\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"_\n" +
-	"\x0eUserGetRequest\x12!\n" +
-	"\x03ref\x18\x01 \x01(\v2\x0f.go_app.UserRefR\x03ref\x12*\n" +
-	"\x06select\x18\x02 \x01(\v2\x12.go_app.UserSelectR\x06select\"O\n" +
-	"\aUserRef\x12\x10\n" +
-	"\x02id\x18\x01 \x01(\fH\x00R\x02id\x12+\n" +
-	"\x04slug\x18\x04 \x01(\v2\x15.go_app.UserRefBySlugH\x00R\x04slugB\x05\n" +
-	"\x03key\"P\n" +
-	"\rUserRefBySlug\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"e\n" +
+	"\x10HolderGetRequest\x12#\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12,\n" +
+	"\x06select\x18\x02 \x01(\v2\x14.go_app.HolderSelectR\x06select\"S\n" +
+	"\tHolderRef\x12\x10\n" +
+	"\x02id\x18\x01 \x01(\fH\x00R\x02id\x12-\n" +
+	"\x04slug\x18\x04 \x01(\v2\x17.go_app.HolderRefBySlugH\x00R\x04slugB\x05\n" +
+	"\x03key\"R\n" +
+	"\x0fHolderRefBySlug\x12\x14\n" +
 	"\x05alias\x18\x04 \x01(\tR\x05alias\x12)\n" +
-	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\"\xc5\x01\n" +
-	"\n" +
-	"UserSelect\x12\x10\n" +
+	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\"\xc7\x01\n" +
+	"\fHolderSelect\x12\x10\n" +
 	"\x03all\x18\x01 \x01(\bR\x03all\x12,\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x14.go_app.TenantSelectR\x06tenant\x12\x14\n" +
 	"\x05alias\x18\x04 \x01(\bR\x05alias\x12\x12\n" +
 	"\x04name\x18\x05 \x01(\bR\x04name\x12\x12\n" +
 	"\x04desc\x18\x06 \x01(\bR\x04desc\x12\x16\n" +
 	"\x06labels\x18\a \x01(\bR\x06labels\x12!\n" +
-	"\fdate_created\x18\x0f \x01(\bR\vdateCreated\"\xec\x01\n" +
-	"\x10UserPatchRequest\x12!\n" +
-	"\x03ref\x18\x01 \x01(\v2\x0f.go_app.UserRefR\x03ref\x12\x14\n" +
+	"\fdate_created\x18\x0f \x01(\bR\vdateCreated\"\xf2\x01\n" +
+	"\x12HolderPatchRequest\x12#\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\x14\n" +
 	"\x05alias\x18\a \x01(\tR\x05alias\x12\x12\n" +
 	"\x04name\x18\t \x01(\tR\x04name\x12\x12\n" +
-	"\x04desc\x18\v \x01(\tR\x04desc\x12<\n" +
-	"\x06labels\x18\r \x03(\v2$.go_app.UserPatchRequest.LabelsEntryR\x06labels\x1a9\n" +
+	"\x04desc\x18\v \x01(\tR\x04desc\x12>\n" +
+	"\x06labels\x18\r \x03(\v2&.go_app.HolderPatchRequest.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"?\n" +
-	"\x0fUserListRequest\x12,\n" +
-	"\afilters\x18\x01 \x03(\v2\x12.go_app.UserFilterR\afilters\"6\n" +
-	"\x10UserListResponse\x12\"\n" +
-	"\x05items\x18\x01 \x03(\v2\f.go_app.UserR\x05items\"/\n" +
-	"\n" +
-	"UserFilter\x12!\n" +
-	"\x03ref\x18\x01 \x01(\v2\x0f.go_app.UserRefR\x03ref2\x85\x02\n" +
-	"\vUserService\x12+\n" +
-	"\x03Add\x12\x16.go_app.UserAddRequest\x1a\f.go_app.User\x12+\n" +
-	"\x03Get\x12\x16.go_app.UserGetRequest\x1a\f.go_app.User\x12/\n" +
-	"\x05Patch\x12\x18.go_app.UserPatchRequest\x1a\f.go_app.User\x120\n" +
-	"\x05Erase\x12\x0f.go_app.UserRef\x1a\x16.google.protobuf.Empty\x129\n" +
-	"\x04List\x12\x17.go_app.UserListRequest\x1a\x18.go_app.UserListResponseB\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"C\n" +
+	"\x11HolderListRequest\x12.\n" +
+	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterR\afilters\":\n" +
+	"\x12HolderListResponse\x12$\n" +
+	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\"3\n" +
+	"\fHolderFilter\x12#\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref2\x99\x02\n" +
+	"\rHolderService\x12/\n" +
+	"\x03Add\x12\x18.go_app.HolderAddRequest\x1a\x0e.go_app.Holder\x12/\n" +
+	"\x03Get\x12\x18.go_app.HolderGetRequest\x1a\x0e.go_app.Holder\x123\n" +
+	"\x05Patch\x12\x1a.go_app.HolderPatchRequest\x1a\x0e.go_app.Holder\x122\n" +
+	"\x05Erase\x12\x11.go_app.HolderRef\x1a\x16.google.protobuf.Empty\x12=\n" +
+	"\x04List\x12\x19.go_app.HolderListRequest\x1a\x1a.go_app.HolderListResponseB\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
 
-var file_go_app_user_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
-var file_go_app_user_svc_proto_goTypes = []any{
-	(*UserAddRequest)(nil),        // 0: go_app.UserAddRequest
-	(*UserGetRequest)(nil),        // 1: go_app.UserGetRequest
-	(*UserRef)(nil),               // 2: go_app.UserRef
-	(*UserRefBySlug)(nil),         // 3: go_app.UserRefBySlug
-	(*UserSelect)(nil),            // 4: go_app.UserSelect
-	(*UserPatchRequest)(nil),      // 5: go_app.UserPatchRequest
-	(*UserListRequest)(nil),       // 6: go_app.UserListRequest
-	(*UserListResponse)(nil),      // 7: go_app.UserListResponse
-	(*UserFilter)(nil),            // 8: go_app.UserFilter
-	nil,                           // 9: go_app.UserAddRequest.LabelsEntry
-	nil,                           // 10: go_app.UserPatchRequest.LabelsEntry
+var file_go_app_holder_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_go_app_holder_svc_proto_goTypes = []any{
+	(*HolderAddRequest)(nil),      // 0: go_app.HolderAddRequest
+	(*HolderGetRequest)(nil),      // 1: go_app.HolderGetRequest
+	(*HolderRef)(nil),             // 2: go_app.HolderRef
+	(*HolderRefBySlug)(nil),       // 3: go_app.HolderRefBySlug
+	(*HolderSelect)(nil),          // 4: go_app.HolderSelect
+	(*HolderPatchRequest)(nil),    // 5: go_app.HolderPatchRequest
+	(*HolderListRequest)(nil),     // 6: go_app.HolderListRequest
+	(*HolderListResponse)(nil),    // 7: go_app.HolderListResponse
+	(*HolderFilter)(nil),          // 8: go_app.HolderFilter
+	nil,                           // 9: go_app.HolderAddRequest.LabelsEntry
+	nil,                           // 10: go_app.HolderPatchRequest.LabelsEntry
 	(*TenantRef)(nil),             // 11: go_app.TenantRef
 	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
 	(*TenantSelect)(nil),          // 13: go_app.TenantSelect
-	(*User)(nil),                  // 14: go_app.User
+	(*Holder)(nil),                // 14: go_app.Holder
 	(*emptypb.Empty)(nil),         // 15: google.protobuf.Empty
 }
-var file_go_app_user_svc_proto_depIdxs = []int32{
-	11, // 0: go_app.UserAddRequest.tenant:type_name -> go_app.TenantRef
-	9,  // 1: go_app.UserAddRequest.labels:type_name -> go_app.UserAddRequest.LabelsEntry
-	12, // 2: go_app.UserAddRequest.date_created:type_name -> google.protobuf.Timestamp
-	2,  // 3: go_app.UserGetRequest.ref:type_name -> go_app.UserRef
-	4,  // 4: go_app.UserGetRequest.select:type_name -> go_app.UserSelect
-	3,  // 5: go_app.UserRef.slug:type_name -> go_app.UserRefBySlug
-	11, // 6: go_app.UserRefBySlug.tenant:type_name -> go_app.TenantRef
-	13, // 7: go_app.UserSelect.tenant:type_name -> go_app.TenantSelect
-	2,  // 8: go_app.UserPatchRequest.ref:type_name -> go_app.UserRef
-	10, // 9: go_app.UserPatchRequest.labels:type_name -> go_app.UserPatchRequest.LabelsEntry
-	8,  // 10: go_app.UserListRequest.filters:type_name -> go_app.UserFilter
-	14, // 11: go_app.UserListResponse.items:type_name -> go_app.User
-	2,  // 12: go_app.UserFilter.ref:type_name -> go_app.UserRef
-	0,  // 13: go_app.UserService.Add:input_type -> go_app.UserAddRequest
-	1,  // 14: go_app.UserService.Get:input_type -> go_app.UserGetRequest
-	5,  // 15: go_app.UserService.Patch:input_type -> go_app.UserPatchRequest
-	2,  // 16: go_app.UserService.Erase:input_type -> go_app.UserRef
-	6,  // 17: go_app.UserService.List:input_type -> go_app.UserListRequest
-	14, // 18: go_app.UserService.Add:output_type -> go_app.User
-	14, // 19: go_app.UserService.Get:output_type -> go_app.User
-	14, // 20: go_app.UserService.Patch:output_type -> go_app.User
-	15, // 21: go_app.UserService.Erase:output_type -> google.protobuf.Empty
-	7,  // 22: go_app.UserService.List:output_type -> go_app.UserListResponse
+var file_go_app_holder_svc_proto_depIdxs = []int32{
+	11, // 0: go_app.HolderAddRequest.tenant:type_name -> go_app.TenantRef
+	9,  // 1: go_app.HolderAddRequest.labels:type_name -> go_app.HolderAddRequest.LabelsEntry
+	12, // 2: go_app.HolderAddRequest.date_created:type_name -> google.protobuf.Timestamp
+	2,  // 3: go_app.HolderGetRequest.ref:type_name -> go_app.HolderRef
+	4,  // 4: go_app.HolderGetRequest.select:type_name -> go_app.HolderSelect
+	3,  // 5: go_app.HolderRef.slug:type_name -> go_app.HolderRefBySlug
+	11, // 6: go_app.HolderRefBySlug.tenant:type_name -> go_app.TenantRef
+	13, // 7: go_app.HolderSelect.tenant:type_name -> go_app.TenantSelect
+	2,  // 8: go_app.HolderPatchRequest.ref:type_name -> go_app.HolderRef
+	10, // 9: go_app.HolderPatchRequest.labels:type_name -> go_app.HolderPatchRequest.LabelsEntry
+	8,  // 10: go_app.HolderListRequest.filters:type_name -> go_app.HolderFilter
+	14, // 11: go_app.HolderListResponse.items:type_name -> go_app.Holder
+	2,  // 12: go_app.HolderFilter.ref:type_name -> go_app.HolderRef
+	0,  // 13: go_app.HolderService.Add:input_type -> go_app.HolderAddRequest
+	1,  // 14: go_app.HolderService.Get:input_type -> go_app.HolderGetRequest
+	5,  // 15: go_app.HolderService.Patch:input_type -> go_app.HolderPatchRequest
+	2,  // 16: go_app.HolderService.Erase:input_type -> go_app.HolderRef
+	6,  // 17: go_app.HolderService.List:input_type -> go_app.HolderListRequest
+	14, // 18: go_app.HolderService.Add:output_type -> go_app.Holder
+	14, // 19: go_app.HolderService.Get:output_type -> go_app.Holder
+	14, // 20: go_app.HolderService.Patch:output_type -> go_app.Holder
+	15, // 21: go_app.HolderService.Erase:output_type -> google.protobuf.Empty
+	7,  // 22: go_app.HolderService.List:output_type -> go_app.HolderListResponse
 	18, // [18:23] is the sub-list for method output_type
 	13, // [13:18] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
@@ -1299,32 +1297,32 @@ var file_go_app_user_svc_proto_depIdxs = []int32{
 	0,  // [0:13] is the sub-list for field type_name
 }
 
-func init() { file_go_app_user_svc_proto_init() }
-func file_go_app_user_svc_proto_init() {
-	if File_go_app_user_svc_proto != nil {
+func init() { file_go_app_holder_svc_proto_init() }
+func file_go_app_holder_svc_proto_init() {
+	if File_go_app_holder_svc_proto != nil {
 		return
 	}
+	file_go_app_holder_proto_init()
 	file_go_app_tenant_svc_proto_init()
-	file_go_app_user_proto_init()
-	file_go_app_user_svc_proto_msgTypes[2].OneofWrappers = []any{
-		(*userRef_Id)(nil),
-		(*userRef_Slug)(nil),
+	file_go_app_holder_svc_proto_msgTypes[2].OneofWrappers = []any{
+		(*holderRef_Id)(nil),
+		(*holderRef_Slug)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_user_svc_proto_rawDesc), len(file_go_app_user_svc_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_holder_svc_proto_rawDesc), len(file_go_app_holder_svc_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_go_app_user_svc_proto_goTypes,
-		DependencyIndexes: file_go_app_user_svc_proto_depIdxs,
-		MessageInfos:      file_go_app_user_svc_proto_msgTypes,
+		GoTypes:           file_go_app_holder_svc_proto_goTypes,
+		DependencyIndexes: file_go_app_holder_svc_proto_depIdxs,
+		MessageInfos:      file_go_app_holder_svc_proto_msgTypes,
 	}.Build()
-	File_go_app_user_svc_proto = out.File
-	file_go_app_user_svc_proto_goTypes = nil
-	file_go_app_user_svc_proto_depIdxs = nil
+	File_go_app_holder_svc_proto = out.File
+	file_go_app_holder_svc_proto_goTypes = nil
+	file_go_app_holder_svc_proto_depIdxs = nil
 }

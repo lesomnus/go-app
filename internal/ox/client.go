@@ -109,11 +109,11 @@ func (c *Client) CreateTenant(ctx context.Context, x *X, alias string) *go_app.T
 	return v
 }
 
-// CreateUser adds a User of the given Tenant, failing the test if it cannot.
-func (c *Client) CreateUser(ctx context.Context, x *X, tenant *go_app.TenantRef, alias string) *go_app.User {
+// CreateHolder adds a Holder of the given Tenant, failing the test if it cannot.
+func (c *Client) CreateHolder(ctx context.Context, x *X, tenant *go_app.TenantRef, alias string) *go_app.Holder {
 	x.TB().Helper()
 
-	v, err := c.User().Add(ctx, go_app.UserAddRequest_builder{Tenant: tenant, Alias: alias}.Build())
+	v, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{Tenant: tenant, Alias: alias}.Build())
 	x.NoError(err)
 
 	return v

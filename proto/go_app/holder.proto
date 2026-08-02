@@ -9,7 +9,7 @@ import "orm.proto";
 option features.field_presence = IMPLICIT;
 option go_package = "github.com/lesomnus/go-app";
 
-message User {
+message Holder {
   reserved 3;
 
   bytes id = 1 [(orm.field) = {

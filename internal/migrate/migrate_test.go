@@ -69,7 +69,7 @@ func TestPlanApply(t *testing.T) {
 	applied, err := migrate.Apply(ctx, db, dialect.SQLite, dir)
 	x.NoError(err)
 	x.Len(applied, 1)
-	x.Subset(tables(ctx, t, db), []string{"tenant", "user", migrate.RevisionTable})
+	x.Subset(tables(ctx, t, db), []string{"tenant", "holder", migrate.RevisionTable})
 
 	// Applying again is not applying anything.
 	pending, err = migrate.Pending(ctx, db, dialect.SQLite, dir)

@@ -1,0 +1,79 @@
+edition = "2023";
+package go_app;
+
+import "go_app/holder.proto";
+import "go_app/tenant_svc.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/lesomnus/go-app";
+
+service HolderService {
+  // Add creates a new Holder
+  rpc Add(HolderAddRequest) returns (Holder);
+  // Get retrieves a Holder
+  rpc Get(HolderGetRequest) returns (Holder);
+  // Patch updates an existing Holder
+  rpc Patch(HolderPatchRequest) returns (Holder);
+  // Erase deletes a Holder
+  rpc Erase(HolderRef) returns (google.protobuf.Empty);
+  // List holders
+  rpc List(HolderListRequest) returns (HolderListResponse);
+}
+
+message HolderAddRequest {
+  bytes id = 1;
+  TenantRef tenant = 2;
+  string alias = 4 [features.field_presence = IMPLICIT];
+  string name = 5 [features.field_presence = IMPLICIT];
+  string desc = 6 [features.field_presence = IMPLICIT];
+  map<string, string> labels = 7;
+  google.protobuf.Timestamp date_created = 15;
+}
+
+message HolderGetRequest {
+  HolderRef ref = 1;
+  HolderSelect select = 2;
+}
+
+message HolderRef {
+  oneof key {
+    bytes id = 1;
+    HolderRefBySlug slug = 4;
+  }
+}
+
+message HolderRefBySlug {
+  string alias = 4;
+  TenantRef tenant = 2;
+}
+
+message HolderSelect {
+  bool all = 1;
+  TenantSelect tenant = 2;
+  bool alias = 4;
+  bool name = 5;
+  bool desc = 6;
+  bool labels = 7;
+  bool date_created = 15;
+}
+
+message HolderPatchRequest {
+  HolderRef ref = 1;
+  string alias = 7;
+  string name = 9;
+  string desc = 11;
+  map<string, string> labels = 13;
+}
+
+message HolderListRequest {
+  repeated HolderFilter filters = 1;
+}
+
+message HolderListResponse {
+  repeated Holder items = 1;
+}
+
+message HolderFilter {
+  HolderRef ref = 1;
+}

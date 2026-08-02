@@ -8,46 +8,46 @@ import (
 
 type Server interface {
 	Tenant() TenantServiceServer
-	User() UserServiceServer
+	Holder() HolderServiceServer
 }
 
 func RegisterServer(g *grpc.Server, s Server) {
 	RegisterTenantServiceServer(g, s.Tenant())
-	RegisterUserServiceServer(g, s.User())
+	RegisterHolderServiceServer(g, s.Holder())
 }
 
 type UnimplementedServer struct {
 	TenantServer TenantServiceServer
-	UserServer   UserServiceServer
+	HolderServer HolderServiceServer
 }
 
 func (UnimplementedServer) Tenant() TenantServiceServer { return UnimplementedTenantServiceServer{} }
-func (UnimplementedServer) User() UserServiceServer     { return UnimplementedUserServiceServer{} }
+func (UnimplementedServer) Holder() HolderServiceServer { return UnimplementedHolderServiceServer{} }
 
 type StaticServer struct {
 	TenantServer TenantServiceServer
-	UserServer   UserServiceServer
+	HolderServer HolderServiceServer
 }
 
 func (s *StaticServer) Tenant() TenantServiceServer { return s.TenantServer }
-func (s *StaticServer) User() UserServiceServer     { return s.UserServer }
+func (s *StaticServer) Holder() HolderServiceServer { return s.HolderServer }
 
 type Client interface {
 	Tenant() TenantServiceClient
-	User() UserServiceClient
+	Holder() HolderServiceClient
 }
 
 func NewClient(c *grpc.ClientConn) Client {
 	return &client{
 		_Tenant: NewTenantServiceClient(c),
-		_User:   NewUserServiceClient(c),
+		_Holder: NewHolderServiceClient(c),
 	}
 }
 
 type client struct {
 	_Tenant TenantServiceClient
-	_User   UserServiceClient
+	_Holder HolderServiceClient
 }
 
 func (c *client) Tenant() TenantServiceClient { return c._Tenant }
-func (c *client) User() UserServiceClient     { return c._User }
+func (c *client) Holder() HolderServiceClient { return c._Holder }

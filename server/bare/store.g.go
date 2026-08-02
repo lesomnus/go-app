@@ -16,4 +16,4 @@ func NewServer(db *ent.Client) Server {
 }
 
 func (s Server) Tenant() go_app.TenantServiceServer { return NewTenantServiceServer(s.Db) }
-func (s Server) User() go_app.UserServiceServer     { return NewUserServiceServer(s.Db) }
+func (s Server) Holder() go_app.HolderServiceServer { return NewHolderServiceServer(s.Db) }

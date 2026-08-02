@@ -1,0 +1,17 @@
+edition = "2023";
+
+service HolderService {
+  // List holders
+  rpc List(HolderListRequest) returns (HolderListResponse);
+}
+
+message HolderFilter {
+  HolderRef ref = 1;
+}
+
+message HolderListRequest {
+  repeated HolderFilter filters = 1;
+}
+message HolderListResponse {
+  repeated Holder items = 1;
+}

@@ -9,6 +9,37 @@ import (
 )
 
 var (
+	// HolderColumns holds the columns for the "holder" table.
+	HolderColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Unique: true},
+		{Name: "alias", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "desc", Type: field.TypeString},
+		{Name: "labels", Type: field.TypeJSON, Nullable: true},
+		{Name: "date_created", Type: field.TypeTime, Nullable: true},
+		{Name: "holder_tenant", Type: field.TypeUUID},
+	}
+	// HolderTable holds the schema information for the "holder" table.
+	HolderTable = &schema.Table{
+		Name:       "holder",
+		Columns:    HolderColumns,
+		PrimaryKey: []*schema.Column{HolderColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "holder_tenant_tenant",
+				Columns:    []*schema.Column{HolderColumns[6]},
+				RefColumns: []*schema.Column{TenantColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "holder_alias_holder_tenant",
+				Unique:  true,
+				Columns: []*schema.Column{HolderColumns[1], HolderColumns[6]},
+			},
+		},
+	}
 	// TenantColumns holds the columns for the "tenant" table.
 	TenantColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID, Unique: true},
@@ -24,50 +55,19 @@ var (
 		Columns:    TenantColumns,
 		PrimaryKey: []*schema.Column{TenantColumns[0]},
 	}
-	// UserColumns holds the columns for the "user" table.
-	UserColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID, Unique: true},
-		{Name: "alias", Type: field.TypeString},
-		{Name: "name", Type: field.TypeString},
-		{Name: "desc", Type: field.TypeString},
-		{Name: "labels", Type: field.TypeJSON, Nullable: true},
-		{Name: "date_created", Type: field.TypeTime, Nullable: true},
-		{Name: "user_tenant", Type: field.TypeUUID},
-	}
-	// UserTable holds the schema information for the "user" table.
-	UserTable = &schema.Table{
-		Name:       "user",
-		Columns:    UserColumns,
-		PrimaryKey: []*schema.Column{UserColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "user_tenant_tenant",
-				Columns:    []*schema.Column{UserColumns[6]},
-				RefColumns: []*schema.Column{TenantColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
-		Indexes: []*schema.Index{
-			{
-				Name:    "user_alias_user_tenant",
-				Unique:  true,
-				Columns: []*schema.Column{UserColumns[1], UserColumns[6]},
-			},
-		},
-	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		HolderTable,
 		TenantTable,
-		UserTable,
 	}
 )
 
 func init() {
+	HolderTable.ForeignKeys[0].RefTable = TenantTable
+	HolderTable.Annotation = &entsql.Annotation{
+		Table: "holder",
+	}
 	TenantTable.Annotation = &entsql.Annotation{
 		Table: "tenant",
-	}
-	UserTable.ForeignKeys[0].RefTable = TenantTable
-	UserTable.Annotation = &entsql.Annotation{
-		Table: "user",
 	}
 }
