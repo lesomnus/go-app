@@ -74,12 +74,16 @@ func TestHolderList(t *testing.T) {
 
 		v, err := c.Holder().List(ctx, &go_app.HolderListRequest{})
 		x.NoError(err)
-		x.ElementsMatch([]string{"john", "jane", "erlich"}, aliases(v))
+		// One admin for each of the three tenants: root, acme and hooli.
+		x.ElementsMatch([]string{
+			"admin", "admin", "admin",
+			"john", "jane", "erlich",
+		}, aliases(v))
 	}))
-	t.Run("nothing if there is no holder", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	t.Run("only the admins when nothing else was added", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v, err := c.Holder().List(ctx, &go_app.HolderListRequest{})
 		x.NoError(err)
-		x.Empty(v.GetItems())
+		x.Equal([]string{"admin"}, aliases(v))
 	}))
 	t.Run("the holders the filters point at", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		acme := c.CreateTenant(ctx, x, "acme")

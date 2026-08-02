@@ -31,6 +31,10 @@ type Server struct {
 	// look at the database directly.
 	Db *ent.Client
 
+	// Root is the Tenant that administers the deployment, which is there
+	// before any test does anything.
+	Root *go_app.Tenant
+
 	go_app.Server
 }
 
@@ -51,13 +55,20 @@ func NewServer(tb testing.TB) *Server {
 	tb.Cleanup(func() { c.Close() })
 	x.NoError(c.Schema.Create(tb.Context()))
 
-	return &Server{
+	s := &Server{
 		tb:  tb,
 		log: logger(tb),
 
 		Db:     c,
 		Server: core.New(c),
 	}
+
+	// Every deployment has the root Tenant, so every test does too.
+	root, err := core.EnsureRoot(tb.Context(), s.Server.(core.Server))
+	x.NoError(err)
+	s.Root = root
+
+	return s
 }
 
 // Grpc serves the app on a new gRPC server.

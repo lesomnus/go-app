@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 
+	"github.com/lesomnus/z"
+
 	go_app "github.com/lesomnus/go-app/go_app"
 )
 
@@ -32,7 +34,29 @@ func (s TenantServiceServer) Add(ctx context.Context, req *go_app.TenantAddReque
 		req.SetName(alias)
 	}
 
-	return s.TenantServiceServer.Add(ctx, req)
+	v, err := s.TenantServiceServer.Add(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// A Tenant with nobody in it is a Tenant nobody can do anything with, so
+	// it comes with the Holder that administers it.
+	_, err = s.Next().Holder().Add(ctx, go_app.HolderAddRequest_builder{
+		Tenant: v.Ref(),
+		Alias:  AdminAlias,
+		Name:   "Admin",
+	}.Build())
+	if err != nil {
+		// The two writes are not one, so the half that was written is taken
+		// back rather than left behind.
+		if _, err := s.Next().Tenant().Erase(ctx, v.Ref()); err != nil {
+			return nil, z.Err(err, "add the admin holder, and the tenant could not be taken back either")
+		}
+
+		return nil, z.Err(err, "add the admin holder")
+	}
+
+	return v, nil
 }
 
 func (s TenantServiceServer) Patch(ctx context.Context, req *go_app.TenantPatchRequest) (*go_app.Tenant, error) {

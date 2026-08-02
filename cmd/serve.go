@@ -112,12 +112,17 @@ func NewCmdServe() *xli.Command {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
+			s := core.New(db.Client)
+			if _, err := core.EnsureRoot(ctx, s); err != nil {
+				return z.Err(err, "ensure the root tenant")
+			}
+
 			opts := grpcx.ServerOptions(ctx)
 			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, grpc.Creds(creds))
 
 			srv := grpc.NewServer(opts...)
-			go_app.RegisterServer(srv, core.New(db.Client))
+			go_app.RegisterServer(srv, s)
 
 			health_srv := health.NewServer()
 			grpc_health_v1.RegisterHealthServer(srv, health_srv)
