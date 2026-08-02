@@ -115,8 +115,10 @@ stacked on top of each other:
   is written by hand; `HolderService.List` is the example. `Server.Db()` reaches
   the client of the generated server behind it, so a middleware does not have
   to carry a database of its own.
+- `server/gate` says what the caller of a request may do with it. It is the
+  outermost one, so nothing behind it has to ask again.
 - `server` holds what they share: `Overlay` to implement only the services of
-  interest, and `Iter`, `Find` and `TerminalOf` to look into a stack.
+  interest, and `Iter`, `Find` and `SinkOf` to look into a stack.
 
 ```go
 // server/audit/server.go
@@ -130,6 +132,52 @@ func (s Server) Tenant() go_app.TenantServiceServer { ... }
 // Building fails if a server cannot make itself out of what it was given.
 s, err := server.Build(bare.NewServer(db), core.Build(), audit.Build())
 ```
+
+## Who is calling
+
+Every request is from somebody, and two questions are asked about them. They
+are kept apart because they change for different reasons.
+
+**Who is this?** `server/auth` reads whatever the transport carries and looks
+it up, and what comes back is a Holder read from the database rather than one
+the caller described. It goes into the frame of the request (`server/frame`),
+and everything behind reads it from there rather than working it out again.
+
+Only one way of asking is written: `Plain`, which believes the caller.
+
+```sh
+$ grpcurl -H 'authorization: Plain acme/admin' ... 
+```
+
+It checks nothing, which is the point - a test or a call by hand says who it is
+and gets on with it - and it is off unless the configuration turns it on, which
+the server says out loud when it starts:
+
+```
+> ! callers are believed when they say who they are - auth=plain
+```
+
+Anything reachable by callers who are not already trusted needs one that checks
+something. A `Handler` reads a claim, a `Resolver` looks it up, and `Seq` tries
+several in turn; a new way of asking is a `Handler` and nothing else. The same
+boundary applies as for [whose trace it is](#whose-trace-is-it): behind a
+gateway that knows its callers, believing them is the point.
+
+**May they do this?** `server/gate` decides, and it holds one rule: a Tenant is
+a wall.
+
+- Nothing of another Tenant is visible. Not `PermissionDenied` but `NotFound`,
+  since that it exists is itself something not to say.
+- A Tenant is put up and taken down by whoever administers the deployment,
+  which is not something that happens from inside one.
+- Whoever holds the `root` Tenant is not walled in. That Tenant has an
+  identifier that is a constant, so anything can name it without asking.
+
+Every Tenant comes with the Holder that administers it, `admin`, because a
+Tenant nobody holds is a Tenant nobody can do anything with.
+
+It is a sample. An app with more to say about who may do what says it here, in
+front of the rules that hold wherever it runs.
 
 ## Testing
 
@@ -151,6 +199,11 @@ func TestTenantAdd(t *testing.T) {
 	}))
 }
 ```
+
+A test is served as whoever administers the deployment; `c.AsHolder(ctx, v)`
+says it is somebody else, and `c.AsNobody(ctx)` says nothing at all. Those go
+through the same authentication the app is served with, so what a test travels
+is what a caller travels.
 
 `c.Bare()` is a second client, of the innermost server, that skips the rules of
 the servers in front of it; it is how a test arranges a state the app itself

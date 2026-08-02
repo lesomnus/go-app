@@ -18,7 +18,11 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent"
 	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/server"
+	"github.com/lesomnus/go-app/server/auth"
+	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
+	"github.com/lesomnus/go-app/server/gate"
 )
 
 // Server is the app under test, backed by a database that lives in memory and
@@ -32,8 +36,14 @@ type Server struct {
 	Db *ent.Client
 
 	// Root is the Tenant that administers the deployment, which is there
-	// before any test does anything.
-	Root *go_app.Tenant
+	// before any test does anything, and Admin is who holds it. A test is
+	// served as Admin unless it says otherwise.
+	Root  *go_app.Tenant
+	Admin *go_app.Holder
+
+	// Sink is the server that answers out of the database, which is what the
+	// authentication looks callers up on.
+	Sink go_app.Server
 
 	go_app.Server
 }
@@ -55,20 +65,31 @@ func NewServer(tb testing.TB) *Server {
 	tb.Cleanup(func() { c.Close() })
 	x.NoError(c.Schema.Create(tb.Context()))
 
-	s := &Server{
+	// The stack the app is served with, whole: the rules that hold everywhere
+	// and the gate that says who may ask for what.
+	sink := bare.NewServer(c)
+	v, err := server.Build(sink, core.Build(), gate.Build())
+	x.NoError(err)
+
+	// Every deployment has the root Tenant, so every test does too. It is made
+	// around the gate, since there is nobody to be yet.
+	ctx := tb.Context()
+	root, err := core.EnsureRoot(ctx, core.New(c))
+	x.NoError(err)
+	admin, err := core.Admin(ctx, core.New(c), root.Ref())
+	x.NoError(err)
+
+	return &Server{
 		tb:  tb,
 		log: logger(tb),
 
-		Db:     c,
-		Server: core.New(c),
+		Db:    c,
+		Root:  root,
+		Admin: admin,
+		Sink:  sink,
+
+		Server: v,
 	}
-
-	// Every deployment has the root Tenant, so every test does too.
-	root, err := core.EnsureRoot(tb.Context(), s.Server.(core.Server))
-	x.NoError(err)
-	s.Root = root
-
-	return s
 }
 
 // Grpc serves the app on a new gRPC server.
@@ -91,6 +112,9 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 		}),
 	}
 	opts = append(opts, grpcx.ServerOptions(s.tb.Context())...)
+	// The same way the app works out who is calling, so a test travels that
+	// road as well; `Plain` is what says who without anything to check.
+	opts = append(opts, auth.Interceptor(auth.Plain(), auth.ServerResolver(s.Sink), auth.PublicDefault)...)
 	opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 
 	g := grpc.NewServer(opts...)

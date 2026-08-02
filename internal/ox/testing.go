@@ -67,6 +67,8 @@ func T(run func(ctx context.Context, x *X, c *Client)) func(t *testing.T) {
 		c := NewClient(t, s)
 		defer c.Close()
 
-		run(t.Context(), NewX(t), c)
+		// As whoever administers the deployment, which is the one caller that
+		// is there before a test arranges anything.
+		run(c.AsRoot(t.Context()), NewX(t), c)
 	}
 }

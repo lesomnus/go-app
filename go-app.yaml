@@ -20,6 +20,17 @@ server:
   #   # the clients are configured with.
   #   min_time: 10s
 
+# How a caller says who it is (used by the `serve` subcommand).
+auth:
+  # Believe whatever the caller says:
+  #
+  #   authorization: Plain <tenant-alias>/<holder-alias>
+  #
+  # Nothing is checked, so this is for development and for a server nobody
+  # untrusted can reach. Off unless it is turned on, and said out loud when it
+  # is. See server/auth to add one that checks something.
+  plain: true
+
 # Database used by the gRPC services (used by the `serve` subcommand).
 db:
   # Registered drivers are "sqlite3" (SQLite on Wasm) and "pgx" (PostgreSQL);

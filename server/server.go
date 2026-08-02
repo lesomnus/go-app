@@ -49,9 +49,15 @@ func Find[T go_app.Server](s go_app.Server) (T, bool) {
 	return zero, false
 }
 
-// TerminalOf returns the innermost server of the stack, that is the one that
-// does not delegate to another server.
-func TerminalOf(s go_app.Server) go_app.Server {
+// SinkOf returns the server the stack ends at, which is the one the others
+// were built in front of and the only one that answers out of a database
+// rather than by asking somebody else.
+//
+// It is the same server [Build] was given, and it is named the same way. What
+// is at the end is not always what a caller means, though: reach for [Find]
+// when there is a particular server in mind, and keep this for when the stack
+// itself is the subject.
+func SinkOf(s go_app.Server) go_app.Server {
 	for v := range Iter(s) {
 		s = v
 	}

@@ -45,7 +45,7 @@ func TestBuild(t *testing.T) {
 		s, err := server.Build(sink, build("core", nil), build("log", nil))
 		x.NoError(err)
 		x.Equal([]string{"log", "core"}, names(s))
-		x.Equal(sink, server.TerminalOf(s))
+		x.Equal(sink, server.SinkOf(s))
 	})
 	t.Run("stops at the first failure", func(t *testing.T) {
 		x := require.New(t)

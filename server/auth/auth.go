@@ -1,0 +1,102 @@
+// Package auth says who a caller is.
+//
+// It is two steps, kept apart because they change for different reasons. A
+// [Handler] reads whatever the transport carries - a header, a certificate, a
+// token - and says who the caller claims to be. A [Resolver] looks that claim
+// up and answers with the Holder it belongs to, or with nothing. What the
+// second one hands back is what the request is served as, and it comes from
+// the database rather than from the caller.
+//
+// Only one handler is written here, [Plain], and it believes whatever it is
+// told. It is for development and for tests. Anything that faces callers who
+// are not already trusted needs one that checks something; see the note in
+// README.md on where that boundary is.
+package auth
+
+import (
+	"context"
+	"errors"
+	"io"
+
+	go_app "github.com/lesomnus/go-app/go_app"
+)
+
+// ErrNoCredential is what a handler reports when the request carries nothing
+// it knows how to read. It is not a refusal: the next handler is asked, and if
+// none of them find anything the call is Unauthenticated.
+//
+// A credential that is there but wrong is a different thing entirely, and must
+// be reported as itself so that it is not read as "nobody asked".
+var ErrNoCredential = io.EOF
+
+// Identity is who a caller claims to be, before anything has been looked up.
+// A Holder is named either by its id or by its alias within a Tenant, which is
+// the same way anything else names one.
+type Identity struct {
+	// Method is what the claim was read from, for the log and for nothing
+	// else. A rule that turns on the way somebody authenticated is a rule that
+	// will be wrong one day.
+	Method string
+
+	Ref *go_app.HolderRef
+}
+
+// Handler reads a claim out of the context a call is served with.
+type Handler interface {
+	// Handle returns who the caller claims to be. It wraps
+	// [ErrNoCredential] if the request carries nothing it can read.
+	Handle(ctx context.Context) (Identity, error)
+}
+
+type HandlerFunc func(ctx context.Context) (Identity, error)
+
+func (f HandlerFunc) Handle(ctx context.Context) (Identity, error) {
+	return f(ctx)
+}
+
+// Seq asks each handler in turn and takes the first claim any of them finds. A
+// handler that finds nothing is passed over; one that finds something wrong
+// stops the search.
+func Seq(hs ...Handler) Handler {
+	return HandlerFunc(func(ctx context.Context) (Identity, error) {
+		for _, h := range hs {
+			v, err := h.Handle(ctx)
+			if err == nil {
+				return v, nil
+			}
+			if !errors.Is(err, ErrNoCredential) {
+				return Identity{}, err
+			}
+		}
+
+		return Identity{}, ErrNoCredential
+	})
+}
+
+// Resolver turns a claim into the Holder it is about.
+type Resolver interface {
+	// Resolve returns the Holder the identity names, or an error wrapping
+	// [ErrNoCredential] if there is no such Holder. A caller that names
+	// somebody who does not exist is no better off than one that named
+	// nobody.
+	Resolve(ctx context.Context, id Identity) (*go_app.Holder, error)
+}
+
+type ResolverFunc func(ctx context.Context, id Identity) (*go_app.Holder, error)
+
+func (f ResolverFunc) Resolve(ctx context.Context, id Identity) (*go_app.Holder, error) {
+	return f(ctx, id)
+}
+
+// Provider puts a credential into the context of an outgoing call, which is
+// the other half of a [Handler]. It is what a client of this app, or this app
+// calling another one, uses.
+type Provider interface {
+	Provide(ctx context.Context) context.Context
+}
+
+type ProviderFunc func(ctx context.Context) context.Context
+
+func (f ProviderFunc) Provide(ctx context.Context) context.Context {
+	return f(ctx)
+}

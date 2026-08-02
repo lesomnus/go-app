@@ -53,8 +53,9 @@ func TestRoot(t *testing.T) {
 		before, err := c.Tenant().Get(ctx, go_app.TenantGetById(core.RootId[:]))
 		x.NoError(err)
 
-		// What every start does.
-		after, err := core.EnsureRoot(ctx, c.Server.Server)
+		// What every start does, around the gate: there is nobody to be when a
+		// deployment is made.
+		after, err := core.EnsureRoot(ctx, core.New(c.Server.Db))
 		x.NoError(err)
 		x.Equal(before.GetDateCreated().AsTime(), after.GetDateCreated().AsTime())
 
@@ -72,7 +73,7 @@ func TestAdmin(t *testing.T) {
 	t.Run("a tenant comes with one", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 
-		v, err := core.Admin(ctx, c.Server.Server, tenant.Ref())
+		v, err := core.Admin(ctx, core.New(c.Server.Db), tenant.Ref())
 		x.NoError(err)
 		x.Equal(core.AdminAlias, v.GetAlias())
 		x.Equal("Admin", v.GetName())
@@ -83,7 +84,7 @@ func TestAdmin(t *testing.T) {
 		v, err := c.Bare().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
 		x.NoError(err)
 
-		_, err = core.Admin(ctx, c.Server.Server, v.Ref())
+		_, err = core.Admin(ctx, core.New(c.Server.Db), v.Ref())
 		x.ErrorIs(err, core.ErrNoAdmin)
 	}))
 	t.Run("the tenant is taken back if it cannot be given one", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {

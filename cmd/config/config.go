@@ -17,6 +17,7 @@ type Config struct {
 	path string
 
 	Server ServerConfig
+	Auth   AuthConfig
 	Db     DbConfig
 	Greet  GreetConfig
 

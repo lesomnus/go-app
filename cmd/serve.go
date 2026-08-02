@@ -12,7 +12,10 @@ import (
 	"github.com/lesomnus/go-app/cmd/config"
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/server"
+	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
+	"github.com/lesomnus/go-app/server/gate"
 	"github.com/lesomnus/otx/log"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
@@ -112,13 +115,21 @@ func NewCmdServe() *xli.Command {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			s := core.New(db.Client)
-			if _, err := core.EnsureRoot(ctx, s); err != nil {
+			sink := bare.NewServer(db.Client)
+			s, err := server.Build(sink, core.Build(), gate.Build())
+			if err != nil {
+				return z.Err(err, "build server")
+			}
+
+			// Before anything is served, and around the gate rather than
+			// through it: there is nobody to be yet.
+			if _, err := core.EnsureRoot(ctx, core.New(db.Client)); err != nil {
 				return z.Err(err, "ensure the root tenant")
 			}
 
 			opts := grpcx.ServerOptions(ctx)
 			opts = append(opts, c.Server.GrpcOptions()...)
+			opts = append(opts, c.Auth.GrpcOptions(sink)...)
 			opts = append(opts, grpc.Creds(creds))
 
 			srv := grpc.NewServer(opts...)
@@ -140,6 +151,11 @@ func NewCmdServe() *xli.Command {
 			}
 
 			l := log.From(ctx)
+			if c.Auth.Plain {
+				l.Warn("callers are believed when they say who they are",
+					slog.String("auth", "plain"),
+				)
+			}
 			l.Info("serving grpc",
 				slog.String("addr", lis.Addr().String()),
 				slog.Bool("tls", c.Server.TLS.Active()),

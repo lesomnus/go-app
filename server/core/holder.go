@@ -74,6 +74,10 @@ func (s HolderServiceServer) List(ctx context.Context, req *go_app.HolderListReq
 		q.Where(holder.Or(ps...))
 	}
 
+	// The Tenant comes with each of them: almost everything that reads a list
+	// wants to know whose they are, `server/gate` before anyone else.
+	q.WithTenant()
+
 	// Oldest first, so that what is answered does not depend on the order the
 	// database happens to hold the rows in.
 	us, err := q.Order(holder.ByDateCreated()).Limit(ListLimit).All(ctx)

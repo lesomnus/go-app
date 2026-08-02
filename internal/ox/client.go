@@ -10,10 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server"
+	"github.com/lesomnus/go-app/server/auth"
+	"github.com/lesomnus/go-app/server/bare"
 )
 
 // bufSize is the buffer of the in-memory listener; large enough that a message
@@ -82,7 +85,12 @@ func (c *Client) Bare() go_app.Client {
 		return c.bare
 	}
 
-	s := server.TerminalOf(c.Server.Server)
+	// Named rather than found at the end of the stack: what a test wants here
+	// is the server that talks to the database, and that is a server it can
+	// name, not just whichever one happens to be last.
+	s, ok := server.Find[bare.Server](c.Server.Server)
+	require.True(c.tb, ok, "the stack has no bare server")
+
 	c.bare = newClient(c.tb, c.Server, c.Server.GrpcOf(s))
 	return c.bare
 }
@@ -97,6 +105,32 @@ func (c *Client) Close() error {
 	c.grpc.GracefulStop()
 	c.wg.Wait()
 	return nil
+}
+
+// AsHolder says the call is from the given Holder, the way a caller of the app
+// says it. Every call made with the context it returns is served as them.
+func (c *Client) AsHolder(ctx context.Context, v *go_app.Holder) context.Context {
+	return auth.PlainProvider(auth.PlainOf(v)).Provide(ctx)
+}
+
+// AsNobody says nothing about who is calling, which is what a caller that has
+// not authenticated looks like.
+func (c *Client) AsNobody(ctx context.Context) context.Context {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		return ctx
+	}
+
+	md = md.Copy()
+	md.Delete("authorization")
+
+	return metadata.NewOutgoingContext(ctx, md)
+}
+
+// AsRoot says the call is from whoever administers the deployment, which is
+// what a test is unless it says otherwise.
+func (c *Client) AsRoot(ctx context.Context) context.Context {
+	return c.AsHolder(ctx, c.Server.Admin)
 }
 
 // CreateTenant adds a Tenant, failing the test if it cannot.
