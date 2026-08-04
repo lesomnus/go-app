@@ -129,9 +129,14 @@ func NewCmdServe() *xli.Command {
 				return z.Err(err, "ensure the root tenant")
 			}
 
+			auth_opts, err := c.Auth.GrpcOptions(sink)
+			if err != nil {
+				return z.Err(err, "build authentication")
+			}
+
 			opts := grpcx.ServerOptions(ctx)
 			opts = append(opts, c.Server.GrpcOptions()...)
-			opts = append(opts, c.Auth.GrpcOptions(sink)...)
+			opts = append(opts, auth_opts...)
 			opts = append(opts, grpc.Creds(creds))
 
 			srv := grpc.NewServer(opts...)
@@ -153,7 +158,7 @@ func NewCmdServe() *xli.Command {
 			}
 
 			l := log.From(ctx)
-			if c.Auth.Plain {
+			if c.Auth.Believes() {
 				l.Warn("callers are believed when they say who they are",
 					slog.String("auth", "plain"),
 				)
@@ -161,6 +166,9 @@ func NewCmdServe() *xli.Command {
 			l.Info("serving grpc",
 				slog.String("addr", lis.Addr().String()),
 				slog.Bool("tls", c.Server.TLS.Active()),
+				// In the order they are tried, since which one answers first
+				// is the whole of what a fallback means.
+				slog.Any("auth", c.Auth.Methods),
 			)
 
 			serve_err := make(chan error, 1)

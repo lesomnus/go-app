@@ -1,11 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"slices"
 
 	"github.com/goccy/go-yaml"
 	"github.com/lesomnus/mkot"
 	"github.com/lesomnus/z"
+
+	"github.com/lesomnus/go-app/server/auth"
 )
 
 var DefaultConfigPaths = []string{
@@ -58,5 +62,21 @@ func (c *Config) Evaluate() error {
 	z.FallbackP(&c.Db.Driver, "sqlite3")
 	z.FallbackP(&c.Db.Dsn, "file:go-app.db?_pragma=foreign_keys(1)")
 	z.FallbackP(&c.Greet.Format, "Hello, %s!")
+
+	// A certificate says who is calling only if it was checked against
+	// something. Without a bundle to check it against, no connection ever
+	// carries a verified chain, and the method would sit there answering
+	// "nobody said anything" for the life of the server.
+	if slices.Contains(c.Auth.Methods, auth.MethodMTLS) && c.Server.TLS.ClientCAFile == "" {
+		return fmt.Errorf("auth.methods has %q but server.tls.client_ca_file is not set, so no certificate would ever be verified", auth.MethodMTLS)
+	}
+
+	// Building it here rather than at the first request, so that a token that
+	// names nobody, or a method nobody wrote, is a server that does not start
+	// rather than one that refuses everyone.
+	if _, err := c.Auth.Handler(); err != nil {
+		return err
+	}
+
 	return nil
 }

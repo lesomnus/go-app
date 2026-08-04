@@ -22,14 +22,40 @@ server:
 
 # How a caller says who it is (used by the `serve` subcommand).
 auth:
-  # Believe whatever the caller says:
+  # The ways a caller may say, tried in the order they are written. The first
+  # one that finds a credential answers; one that finds a bad credential, or
+  # cannot tell whether it is good, refuses the call rather than letting the
+  # next one have a go -- so a token that has expired does not quietly become
+  # whoever the certificate says.
   #
-  #   authorization: Plain <tenant-alias>/<holder-alias>
+  #   plain    believe what the caller writes:
+  #              authorization: Plain <tenant-alias>/<holder-alias>
+  #            Nothing is checked, so this is for development and for a server
+  #            nobody untrusted can reach. It is said out loud at startup.
   #
-  # Nothing is checked, so this is for development and for a server nobody
-  # untrusted can reach. Off unless it is turned on, and said out loud when it
-  # is. See server/auth to add one that checks something.
-  plain: true
+  #   mtls     read the name out of the client certificate: a URI SAN, or the
+  #            common name. Nothing is checked here either, and here that is
+  #            right -- the handshake already did it. Needs
+  #            server.tls.client_ca_file, and server.tls.client_cert_optional
+  #            if callers who have no certificate are to get as far as another
+  #            method.
+  #
+  #   bearer   exchange an opaque token for a name:
+  #              authorization: Bearer <token>
+  #            The only one that has to ask something, which is why it is the
+  #            only one that can answer Unavailable.
+  #
+  # Nothing here at all serves only what is public.
+  methods: [plain]
+  # methods: [bearer, mtls]
+
+  # The sample token store, and a sample is all it is: these are secrets, and a
+  # secret in a configuration file is a secret in a backup and in a terminal
+  # history. A real one is a table or an issuer. See server/auth/token.go.
+  # bearer:
+  #   ttl: 24h
+  #   holders:
+  #     acme/admin: "a-secret-nobody-else-knows"
 
 # Database used by the gRPC services (used by the `serve` subcommand).
 db:

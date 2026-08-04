@@ -60,7 +60,7 @@ func Interceptor(h Handler, r Resolver, public Public) []grpc.ServerOption {
 				return nil, err
 			}
 		} else if !errors.Is(err, ErrNoCredential) {
-			return nil, status.Error(codes.Unauthenticated, err.Error())
+			return nil, statusOf(err)
 		}
 
 		if public(method) {
@@ -88,6 +88,25 @@ func Interceptor(h Handler, r Resolver, public Public) []grpc.ServerOption {
 			return handler(srv, grpcx.StreamWithContext(ss, ctx))
 		}),
 	}
+}
+
+// statusOf answers a handler's refusal with the code that says what the caller
+// should do about it.
+//
+// Unauthenticated means "that credential is no good", and a caller who is told
+// it throws the credential away and goes to get another one. A handler that
+// could not reach the thing it asks must not say that: it would send every
+// caller at once to an issuer that is, by assumption, already having a bad
+// day, and each of them would discard a token that was never wrong.
+func statusOf(err error) error {
+	if s, ok := status.FromError(err); ok {
+		return s.Err()
+	}
+	if errors.Is(err, ErrUnavailable) {
+		return status.Error(codes.Unavailable, err.Error())
+	}
+
+	return status.Error(codes.Unauthenticated, err.Error())
 }
 
 // Inject says who the caller is on every outgoing call.

@@ -23,6 +23,17 @@ type TLSConfig struct {
 	// ClientCAFile is the path to a PEM-encoded CA bundle used to verify
 	// client certificates. Setting it enables mutual TLS.
 	ClientCAFile string `yaml:"client_ca_file"`
+
+	// ClientCertOptional lets a caller connect without a certificate. One that
+	// presents a certificate is still verified against ClientCAFile, and one
+	// that presents nothing is still a connection.
+	//
+	// It is for a server that accepts more than one way of saying who is
+	// calling: with `auth.methods: [bearer, mtls]` and a certificate required,
+	// a caller who has only a token is refused at the handshake, before the
+	// method they meant to use was ever read. Leave it off for a server where
+	// the certificate is the floor and everything else is said on top of it.
+	ClientCertOptional bool `yaml:"client_cert_optional"`
 }
 
 // Active reports whether TLS should be used for the server.
@@ -64,6 +75,9 @@ func (c TLSConfig) Credentials() (credentials.TransportCredentials, error) {
 		}
 		cfg.ClientCAs = pool
 		cfg.ClientAuth = tls.RequireAndVerifyClientCert
+		if c.ClientCertOptional {
+			cfg.ClientAuth = tls.VerifyClientCertIfGiven
+		}
 	}
 
 	return credentials.NewTLS(cfg), nil

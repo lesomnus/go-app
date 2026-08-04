@@ -65,6 +65,11 @@ Without `:-default` the variable is required: one that is not set is an error
 rather than an empty string, so a missing secret is noticed at startup instead
 of at the first request. Write `$$` for a literal dollar sign.
 
+This happens to the file, not to the configuration, so **a comment is expanded
+too**: a commented-out `${env:TOKEN}` left there as an example still stops the
+server from starting until `TOKEN` is set. Write the example without the
+syntax, or give it a default.
+
 ## Code generation
 
 Entities are declared once as [protobuf-orm](https://github.com/protobuf-orm/protobuf-orm)
@@ -188,25 +193,69 @@ it up, and what comes back is a Holder read from the database rather than one
 the caller described. It goes into the frame of the request (`server/frame`),
 and everything behind reads it from there rather than working it out again.
 
-Only one way of asking is written: `Plain`, which believes the caller.
+A `Handler` reads a claim, a `Resolver` looks it up. Three handlers are
+written, and they differ in one thing: **where the name comes from.**
 
-```sh
-$ grpcurl -H 'authorization: Plain acme/admin' ... 
-```
+| | | |
+| --- | --- | --- |
+| `plain` | the caller writes it, and is believed | `authorization: Plain acme/admin` |
+| `mtls` | the client certificate carries it | a URI SAN, or the common name |
+| `bearer` | the token carries nothing, and is exchanged for one | `authorization: Bearer <token>` |
 
-It checks nothing, which is the point - a test or a call by hand says who it is
-and gets on with it - and it is off unless the configuration turns it on, which
-the server says out loud when it starts:
+`plain` checks nothing, which is the point — a test or a call by hand says who
+it is and gets on with it — and the server says so out loud when it starts:
 
 ```
 > ! callers are believed when they say who they are - auth=plain
 ```
 
-Anything reachable by callers who are not already trusted needs one that checks
-something. A `Handler` reads a claim, a `Resolver` looks it up, and `Seq` tries
-several in turn; a new way of asking is a `Handler` and nothing else. The same
-boundary applies as for [whose trace it is](#whose-trace-is-it): behind a
-gateway that knows its callers, believing them is the point.
+`mtls` checks nothing either, and there it is right: the handshake already did
+it. It reads only a chain the server **verified**, never what the peer merely
+sent, so it says nothing at all under a TLS configuration that asks for a
+certificate without checking one.
+
+`bearer` is the only one that has to ask something, and that is what makes it
+the interesting one. `server/auth/token.go` has a sample store — a map, with the
+tokens held as digests and each carrying its own expiry, because a token having
+a life of its own is exactly what a header and a certificate do not have. A real
+store is a table or an issuer; the shape is the same.
+
+### Falling back
+
+The configuration names them in the order they are tried:
+
+```yaml
+auth:
+  methods: [bearer, mtls]   # a token, and the certificate for whoever has none
+```
+
+The first one that finds a credential answers. One that finds a **bad** one, or
+that **cannot tell** whether it is good, refuses the call rather than letting
+the next one have a go — and that is the whole of what makes a fallback safe. A
+token that expired must not quietly become whoever the certificate says, and a
+token store that is down must not either.
+
+That third answer is why `ErrUnavailable` exists. Told `Unauthenticated`, a
+caller throws away a token that was never wrong and goes to get another one,
+from the issuer that is already having a bad day; told `Unavailable`, it waits.
+
+For a caller who has only a token to get as far as the token, the handshake has
+to let them in without a certificate — `server.tls.client_cert_optional`. Leave
+it off where the certificate is the floor and everything else is said on top.
+
+A new way of asking is a `Handler` and nothing else. The same boundary applies
+as for [whose trace it is](#whose-trace-is-it): behind a gateway that knows its
+callers, believing them is the point.
+
+### What a credential does not say
+
+Every handler answers who, and none of them answers what they may do. A
+credential either names a Holder or it does not, and naming one grants
+everything that Holder can do. A token meaning "john, but only for reading"
+would need somewhere to put the "only", and there is nowhere: the frame carries
+the actor and nothing beside it, and every rule in `server/gate` reads the actor
+alone. If that has to change, it changes there first and in `server/auth`
+second.
 
 **May they do this?** `server/gate` decides, and it holds one rule: a Tenant is
 a wall.
