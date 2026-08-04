@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 
@@ -28,6 +29,30 @@ const (
 // by hand - can name it without asking the database first. It spells "root" in
 // the bytes it is written with.
 var RootId = uuid.MustParse("726f6f74-0000-0000-0000-000000000000")
+
+// NobodyId is the identifier that names nobody, and so is the identifier
+// nothing may hold.
+//
+// A request may say what identifier it wants, which is what makes this worth a
+// rule: the audit trail writes this one for a write nobody asked for, so a
+// Holder that held it could act and be recorded as the deployment writing to
+// itself. Non-repudiation is most of what a trail is for, and one field of one
+// request should not be able to end it.
+var NobodyId = uuid.Nil
+
+// CheckId refuses an identifier a row may not be stored under. An empty one is
+// no identifier at all, which is a request asking for whatever the database
+// settles on, and that is allowed.
+func CheckId(v []byte) error {
+	if len(v) == 0 {
+		return nil
+	}
+	if bytes.Equal(v, NobodyId[:]) {
+		return status.Error(codes.InvalidArgument, "id: that one names nobody, so nothing may hold it")
+	}
+
+	return nil
+}
 
 // Root is what the root Tenant looks like.
 func Root() *go_app.TenantAddRequest {

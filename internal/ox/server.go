@@ -18,6 +18,7 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent"
 	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/server/audit"
 	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
@@ -65,11 +66,12 @@ func NewServer(tb testing.TB) *Server {
 	tb.Cleanup(func() { c.Close() })
 	x.NoError(c.Schema.Create(tb.Context()))
 
-	// The stack the app is served with, whole: the rules that hold everywhere
-	// and the gate that says who may ask for what.
-	sink, err := bare.NewServer(c)
+	// The stack the app is served with, whole: the rules that hold everywhere,
+	// the gate that says who may ask for what, and the trail the writes leave
+	// behind them.
+	sink, err := bare.NewServer(c, bare.WithRecorder(audit.NewRecorder()))
 	x.NoError(err)
-	v, err := go_app.Build(sink, core.Build(), gate.Build())
+	v, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
 	x.NoError(err)
 
 	// Every deployment has the root Tenant, so every test does too. It is made

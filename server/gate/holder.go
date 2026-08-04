@@ -111,8 +111,16 @@ func (s HolderServiceServer) get(ctx context.Context, req *go_app.HolderGetReque
 		return nil, err
 	}
 
-	asked := req.GetSelect().HasTenant()
-	if !unbounded(f) && !asked {
+	// A request that names no selection is asking for the whole row, and the
+	// server behind this one answers such a request with the Tenant's key
+	// alongside it -- so there is nothing to add. Adding to it anyway is not a
+	// no-op: a selection that names one thing is a selection that names *only*
+	// it, and the caller would be handed a Holder that is a key and nothing
+	// else. Which is why this asks whether there is a selection before it
+	// edits one.
+	sel := req.GetSelect()
+	asked := sel.HasTenant()
+	if !unbounded(f) && sel != nil && !asked {
 		req.WithSelect(func(sel *go_app.HolderSelect) {
 			sel.SetTenant(go_app.TenantSelect_builder{}.Build())
 		})

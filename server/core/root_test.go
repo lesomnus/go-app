@@ -68,6 +68,34 @@ func TestRoot(t *testing.T) {
 	}))
 }
 
+// The audit trail writes the zero identifier for a write nobody asked for, and
+// a request may say which identifier it wants. So a Holder that could hold that
+// one could act and be recorded as the deployment writing to itself -- and
+// "who did this" would answer "nobody" for somebody who is very much there.
+func TestNobodyHoldsTheZeroId(t *testing.T) {
+	t.Run("a holder may not", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		tenant := c.CreateTenant(ctx, x, "acme")
+
+		_, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
+			Id:     core.NobodyId[:],
+			Tenant: tenant.Ref(),
+			Alias:  "ghost",
+		}.Build())
+		x.ErrCode(codes.InvalidArgument, err)
+	}))
+	t.Run("nor a tenant", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		_, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{
+			Id:    core.NobodyId[:],
+			Alias: "ghost",
+		}.Build())
+		x.ErrCode(codes.InvalidArgument, err)
+	}))
+	t.Run("and saying nothing still gets one", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		v := c.CreateTenant(ctx, x, "acme")
+		x.NotEqual(core.NobodyId[:], v.GetId())
+	}))
+}
+
 func TestAdmin(t *testing.T) {
 	t.Run("a tenant comes with one", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")

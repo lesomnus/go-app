@@ -22,6 +22,10 @@ func (s Server) Tenant() go_app.TenantServiceServer {
 }
 
 func (s TenantServiceServer) Add(ctx context.Context, req *go_app.TenantAddRequest) (*go_app.Tenant, error) {
+	if err := CheckId(req.GetId()); err != nil {
+		return nil, err
+	}
+
 	alias, err := ParseAlias(req.GetAlias())
 	if err != nil {
 		return nil, err

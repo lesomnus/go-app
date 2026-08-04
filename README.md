@@ -129,6 +129,10 @@ stacked on top of each other:
   is written by hand; `HolderService.List` is the example. `Server.Db()` reaches
   the client of the generated server behind it, so a middleware does not have
   to carry a database of its own.
+- `server/audit` keeps the trail of what was changed and by whom. The layer
+  itself only refuses the RPCs that would write the trail by hand; the writing
+  is done from inside the generated servers. See
+  [What was changed, and by whom](#what-was-changed-and-by-whom).
 - `server/gate` says what the caller of a request may do with it. It is the
   outermost one, so nothing behind it has to ask again.
 
@@ -157,12 +161,12 @@ A `var _ enttx.Binder[go_app.Server] = Server{}` in each layer turns forgetting
 it into a compile error.
 
 ```go
-// server/audit/server.go
+// server/audit/audit.go
 type Server struct {
 	go_app.Overlay
 }
 
-func (s Server) Tenant() go_app.TenantServiceServer { ... }
+func (s Server) Audit() go_app.AuditServiceServer { ... }
 
 // The innermost server writes SQL of its own for Apply, so it asks the client
 // which SQL that is; a dialect nothing was written for is refused here rather
@@ -170,11 +174,11 @@ func (s Server) Tenant() go_app.TenantServiceServer { ... }
 // `Dialect()` on it (`internal/ent/orm.g.go`) -- ent keeps its driver to
 // itself, and a caller made to repeat what it said when it opened the
 // connection can say something else the second time.
-sink, err := bare.NewServer(db)
+sink, err := bare.NewServer(db, bare.WithRecorder(audit.NewRecorder()))
 
 // Stack it in front of the others; the last one handles the request first.
 // Building fails if a server cannot make itself out of what it was given.
-s, err := go_app.Build(sink, core.Build(), audit.Build())
+s, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
 ```
 
 A middleware that has something to say about `Patch` usually has the same thing
@@ -272,6 +276,94 @@ Tenant nobody holds is a Tenant nobody can do anything with.
 
 It is a sample. An app with more to say about who may do what says it here, in
 front of the rules that hold wherever it runs.
+
+## What was changed, and by whom
+
+Every request that changes anything writes a row of the trail: who did it, which
+RPC they did it with, which row it was about, and — when the RPC carried one —
+the patch document that was applied.
+
+**Nothing lists the RPCs.** A trail kept by a layer in front would be an
+override per RPC per entity, and one more of them every time the schema grows.
+Worse, it could not be complete: `Patch` and `Apply` are two RPCs and one write,
+and they become one *inside* `server/bare`, below anything that can be stacked
+on top — `Patch` turns its request into a document and calls the same unexported
+path `Apply` does. A layer above sees two shapes and has to convert one of them
+itself, and still cannot tell a document that wrote something from one that only
+asserted.
+
+So the trail is kept where the write happens. `protoc-gen-orm-ent` emits a
+`Recorder` into `server/bare`, and the generated servers call it from inside the
+transaction that makes the write:
+
+```go
+type Change struct {
+	// The whole of what happened: the service names the entity, and the method
+	// is always one of the four, so it says which kind of thing and what was
+	// done to it. Nothing beside it repeats either half.
+	Method string          // "/go_app.HolderService/Apply"
+
+	Key   any              // the row, by its key -- never by the alias the request named it with
+	Patch *patchpb.Patch   // what Patch became, or what Apply carried; nil for the rest
+}
+
+type Recorder interface {
+	Record(ctx context.Context, s Server, c Change) error
+}
+```
+
+Three things follow from *where* it is, and they are the whole design:
+
+- **It is one write.** The row and the record of it are in the same
+  transaction, so they hold or fall together. `server/audit.Recorder` writes
+  through the `Server` it is handed, which runs on that transaction — and which
+  does not record, so a trail cannot audit itself into a loop.
+- **It records what was stored.** `server/core` normalizes on the way down; a
+  trail in front of it would say the caller wrote `" Johnny "` into a row that
+  holds `johnny`.
+- **It records only what happened.** A document made of nothing but `test`
+  asserts something and writes nothing, and is not on the trail. Neither is an
+  erase that erased nothing, nor a request the gate refused.
+
+What is stored as the `action`, though, is not `Change.Method`. That field is
+the RPC of the *generated* server that did the writing, which is not always one
+anybody called: adding a Tenant writes the admin Holder that comes with it, and
+that write reports itself as `HolderService/Add`. So `server/audit` asks gRPC
+for the method it dispatched, and stores that — the whole request's name, not
+the leg of it that reached the database. An RPC written by hand that ends in a
+`Patch` is on the trail under its own name for the same reason. What the request
+did to which row is `object_id`'s to say, and a write nobody called — the
+deployment writing to itself at startup — falls back to `Change.Method`, which
+is the only name it has.
+
+The row is named by its identifier and not by its kind, because an identifier is
+unique across every table: whatever answers to it is what the row was about. The
+cost is real and worth knowing — a row erased later leaves an identifier nothing
+answers to, and nothing says what it used to be.
+
+What it costs, and only while a recorder is configured: `Add` and `Erase` open a
+transaction they did not need before, and `Erase` reads the row before deleting
+it — a request may name a row by its alias, and an alias is not what a trail is
+read back with.
+
+The trail is read with `AuditService.List`, filtered by the identifier of the
+thing it is about, newest first. It is walled the way everything else is: a row belongs to the
+Tenant the caller was held by. Writing one is `Unimplemented` to everybody — the
+RPCs exist because the entity is a CRUD one and a test is far plainer for having
+them, but a trail a deployment can edit is evidence of nothing.
+
+```go
+vs, _ := c.Audit().List(ctx, go_app.AuditListRequest_builder{
+	Filters: []*go_app.AuditFilter{
+		go_app.AuditFilter_builder{ObjectId: v.GetId()}.Build(),
+	},
+}.Build())
+```
+
+Reads leave no row — a trail that grew by one every time somebody looked at
+something would be a traffic log. Who called what, for *every* RPC, is a line in
+the log instead: `server/auth` writes one as it works out who is calling, and it
+carries the same trace as the `served` line that follows it.
 
 ## Testing
 

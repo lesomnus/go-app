@@ -12,6 +12,7 @@ import (
 	"github.com/lesomnus/go-app/cmd/config"
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/server/audit"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/gate"
@@ -114,11 +115,15 @@ func NewCmdServe() *xli.Command {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			sink, err := bare.NewServer(db.Client)
+			// The trail is kept by the servers that do the writing, not by a
+			// layer in front of them: every RPC that changes anything reports
+			// itself, from inside the transaction that changes it. See
+			// `server/audit`.
+			sink, err := bare.NewServer(db.Client, bare.WithRecorder(audit.NewRecorder()))
 			if err != nil {
 				return z.Err(err, "build the server that talks to the database")
 			}
-			s, err := go_app.Build(sink, core.Build(), gate.Build())
+			s, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
 			if err != nil {
 				return z.Err(err, "build server")
 			}

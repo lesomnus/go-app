@@ -1,0 +1,95 @@
+edition = "2023";
+package go_app;
+
+import "go_app/audit.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "patch/patch.proto";
+
+option go_package = "github.com/lesomnus/go-app";
+
+service AuditService {
+  // Add creates a new Audit
+  rpc Add(AuditAddRequest) returns (Audit);
+  // Get retrieves a Audit
+  rpc Get(AuditGetRequest) returns (Audit);
+  // Patch updates an existing Audit
+  rpc Patch(AuditPatchRequest) returns (Audit);
+  // Apply applies a patch document to an existing Audit
+  rpc Apply(AuditApplyRequest) returns (Audit);
+  // Erase deletes a Audit
+  rpc Erase(AuditRef) returns (google.protobuf.Empty);
+  // List the trail of what happened, newest first.
+  rpc List(AuditListRequest) returns (AuditListResponse);
+}
+
+message AuditAddRequest {
+  bytes id = 1;
+  bytes tenant_id = 2 [features.field_presence = IMPLICIT];
+  bytes actor_id = 3 [features.field_presence = IMPLICIT];
+  bytes trace_id = 4 [features.field_presence = IMPLICIT];
+  string action = 5 [features.field_presence = IMPLICIT];
+  bytes object_id = 6 [features.field_presence = IMPLICIT];
+  bytes patch = 7 [features.field_presence = IMPLICIT];
+  google.protobuf.Timestamp date_created = 15;
+}
+
+message AuditGetRequest {
+  AuditRef ref = 1;
+  AuditSelect select = 2;
+}
+
+message AuditRef {
+  oneof key {
+    bytes id = 1;
+  }
+}
+
+message AuditSelect {
+  bool all = 1;
+  bool tenant_id = 2;
+  bool actor_id = 3;
+  bool trace_id = 4;
+  bool action = 5;
+  bool object_id = 6;
+  bool patch = 7;
+  bool date_created = 15;
+}
+
+message AuditPatchRequest {
+  AuditRef ref = 1;
+  bytes tenant_id = 4;
+  bytes actor_id = 6;
+  bytes trace_id = 8;
+  string action = 10;
+  bytes object_id = 12;
+  bytes patch = 14;
+}
+
+message AuditApplyRequest {
+  AuditRef ref = 1;
+  patch.Patch patch = 2;
+}
+
+message AuditListRequest {
+  repeated AuditFilter filters = 1;
+
+  // Whose trail it is, which narrows the answer before it is cut short rather
+  // than after. A wall that removed rows from what came back would be a wall
+  // that any Tenant could push another one's trail out of, just by writing
+  // enough of its own; see `audit.ListLimit`.
+  //
+  // It is not the caller's to decide: `server/gate` sets it to their own
+  // Tenant, whatever they said, unless they are the one Tenant that is not
+  // walled in.
+  bytes tenant_id = 2;
+}
+
+message AuditListResponse {
+  repeated Audit items = 1;
+}
+
+// AuditFilter names what a caller is asking the history of.
+message AuditFilter {
+  bytes object_id = 1;
+}

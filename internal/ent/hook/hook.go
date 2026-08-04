@@ -9,6 +9,18 @@ import (
 	"github.com/lesomnus/go-app/internal/ent"
 )
 
+// The AuditFunc type is an adapter to allow the use of ordinary
+// function as Audit mutator.
+type AuditFunc func(context.Context, *ent.AuditMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AuditFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AuditMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditMutation", m)
+}
+
 // The HolderFunc type is an adapter to allow the use of ordinary
 // function as Holder mutator.
 type HolderFunc func(context.Context, *ent.HolderMutation) (ent.Value, error)

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/lesomnus/go-app/internal/ent/audit"
 	"github.com/lesomnus/go-app/internal/ent/holder"
 	"github.com/lesomnus/go-app/internal/ent/tenant"
 )
@@ -74,6 +75,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			audit.Table:  audit.ValidColumn,
 			holder.Table: holder.ValidColumn,
 			tenant.Table: tenant.ValidColumn,
 		})

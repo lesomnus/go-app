@@ -1,0 +1,99 @@
+edition = "2023";
+
+package go_app;
+
+import "google/protobuf/timestamp.proto";
+import "orm.proto";
+
+option features.field_presence = IMPLICIT;
+option go_package = "github.com/lesomnus/go-app";
+
+// Audit is one write that happened, and who made it.
+//
+// A row is written by `server/audit` for every request that changed something,
+// in the transaction that changed it, so the trail and the data it is about
+// hold or fall together. Nothing writes one by hand: the RPCs below exist so
+// that a test can arrange a trail and read it back, and the deployment refuses
+// the ones that write; see `audit.Server`.
+message Audit {
+  bytes id = 1 [(orm.field) = {
+    type: TYPE_UUID
+    key: true
+    default: ""
+  }];
+
+  // The Tenant the caller was held by, which is who this was done on behalf
+  // of. It is not the Tenant of the thing that changed: whoever administers
+  // the deployment may write into any of them, and what an audit trail is
+  // asked about first is who did it.
+  bytes tenant_id = 2 [(orm.field) = {type: TYPE_UUID}];
+
+  // The Holder that made the request. It is the zero identifier for a write
+  // nobody asked for, which is what the deployment does to itself at startup;
+  // see `core.EnsureRoot`.
+  bytes actor_id = 3 [(orm.field) = {type: TYPE_UUID}];
+
+  // The trace the request belonged to, empty if it was not traced. It is 16
+  // bytes as OpenTelemetry spells one, which is not a UUID however alike they
+  // look, so it is stored as what it is.
+  bytes trace_id = 4;
+
+  // The RPC that did it, by the name gRPC knows it by, such as
+  // "/go_app.HolderService/Apply".
+  string action = 5;
+
+  // What changed, by its identifier. That is the whole of what "the history of
+  // this thing" is asked with, and it is the index below.
+  //
+  // Which kind of thing it was is not stored, because an identifier is unique
+  // across every one of them: whatever answers to it is what the row is about.
+  // The cost is that a row erased later leaves an identifier nothing answers
+  // to, and no way to say what it used to be.
+  bytes object_id = 6 [(orm.field) = {type: TYPE_UUID}];
+
+  // The patch document the write was compiled from, as it was marshaled, and
+  // empty for a write that was not one -- an Add or an Erase says everything
+  // it did in `action` and `object_id`.
+  //
+  // It is stored as bytes rather than read back as a document, because that is
+  // what an audit trail is for: it is written once and read by somebody asking
+  // what happened, and whoever asks can unmarshal it. A column of its own per
+  // operation would be a second schema to keep in step with the first.
+  bytes patch = 7;
+
+  google.protobuf.Timestamp date_created = 15 [(orm.field) = {
+    immutable: true
+    default: ""
+  }];
+
+  option (orm.message) = {
+    rpc: {crud: true}
+    indexes: [
+      {
+        name: "object"
+        refs: [
+          {
+            name: "object_id"
+            number: 6
+          }
+        ]
+      },
+      // The trail as it is read: one Tenant's, newest first. Without it the
+      // only read there is scans the one table that never stops growing and
+      // sorts what it finds.
+      {
+        name: "trail"
+        refs: [
+          {
+            name: "tenant_id"
+            number: 2
+          },
+          {
+            name: "date_created"
+            number: 15
+          }
+        ]
+      }
+    ]
+  };
+}

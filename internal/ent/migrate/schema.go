@@ -9,6 +9,35 @@ import (
 )
 
 var (
+	// AuditColumns holds the columns for the "audit" table.
+	AuditColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Unique: true},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "actor_id", Type: field.TypeUUID},
+		{Name: "trace_id", Type: field.TypeBytes},
+		{Name: "action", Type: field.TypeString},
+		{Name: "object_id", Type: field.TypeUUID},
+		{Name: "patch", Type: field.TypeBytes},
+		{Name: "date_created", Type: field.TypeTime, Nullable: true},
+	}
+	// AuditTable holds the schema information for the "audit" table.
+	AuditTable = &schema.Table{
+		Name:       "audit",
+		Columns:    AuditColumns,
+		PrimaryKey: []*schema.Column{AuditColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "audit_object_id",
+				Unique:  false,
+				Columns: []*schema.Column{AuditColumns[5]},
+			},
+			{
+				Name:    "audit_tenant_id_date_created",
+				Unique:  false,
+				Columns: []*schema.Column{AuditColumns[1], AuditColumns[7]},
+			},
+		},
+	}
 	// HolderColumns holds the columns for the "holder" table.
 	HolderColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID, Unique: true},
@@ -57,12 +86,16 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AuditTable,
 		HolderTable,
 		TenantTable,
 	}
 )
 
 func init() {
+	AuditTable.Annotation = &entsql.Annotation{
+		Table: "audit",
+	}
 	HolderTable.ForeignKeys[0].RefTable = TenantTable
 	HolderTable.Annotation = &entsql.Annotation{
 		Table: "holder",

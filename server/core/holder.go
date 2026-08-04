@@ -30,6 +30,9 @@ func (s HolderServiceServer) Add(ctx context.Context, req *go_app.HolderAddReque
 		// A Holder only exists within a Tenant.
 		return nil, status.Error(codes.InvalidArgument, "tenant: must be given")
 	}
+	if err := CheckId(req.GetId()); err != nil {
+		return nil, err
+	}
 
 	alias, err := ParseAlias(req.GetAlias())
 	if err != nil {
