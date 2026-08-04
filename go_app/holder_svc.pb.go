@@ -7,6 +7,7 @@
 package go_app
 
 import (
+	patchpb "github.com/lesomnus/protobuf-patch/patchpb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -825,10 +826,10 @@ func (b0 HolderSelect_builder) Build() *HolderSelect {
 type HolderPatchRequest struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Ref         *HolderRef             `protobuf:"bytes,1,opt,name=ref"`
-	xxx_hidden_Alias       *string                `protobuf:"bytes,7,opt,name=alias"`
-	xxx_hidden_Name        *string                `protobuf:"bytes,9,opt,name=name"`
-	xxx_hidden_Desc        *string                `protobuf:"bytes,11,opt,name=desc"`
-	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,13,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Alias       *string                `protobuf:"bytes,8,opt,name=alias"`
+	xxx_hidden_Name        *string                `protobuf:"bytes,10,opt,name=name"`
+	xxx_hidden_Desc        *string                `protobuf:"bytes,12,opt,name=desc"`
+	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,14,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	XXX_raceDetectHookData protoimpl.RaceDetectHookData
 	XXX_presence           [1]uint32
 	unknownFields          protoimpl.UnknownFields
@@ -1005,6 +1006,99 @@ func (b0 HolderPatchRequest_builder) Build() *HolderPatchRequest {
 	return m0
 }
 
+type HolderApplyRequest struct {
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Ref   *HolderRef             `protobuf:"bytes,1,opt,name=ref"`
+	xxx_hidden_Patch *patchpb.Patch         `protobuf:"bytes,2,opt,name=patch"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *HolderApplyRequest) Reset() {
+	*x = HolderApplyRequest{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HolderApplyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HolderApplyRequest) ProtoMessage() {}
+
+func (x *HolderApplyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *HolderApplyRequest) GetRef() *HolderRef {
+	if x != nil {
+		return x.xxx_hidden_Ref
+	}
+	return nil
+}
+
+func (x *HolderApplyRequest) GetPatch() *patchpb.Patch {
+	if x != nil {
+		return x.xxx_hidden_Patch
+	}
+	return nil
+}
+
+func (x *HolderApplyRequest) SetRef(v *HolderRef) {
+	x.xxx_hidden_Ref = v
+}
+
+func (x *HolderApplyRequest) SetPatch(v *patchpb.Patch) {
+	x.xxx_hidden_Patch = v
+}
+
+func (x *HolderApplyRequest) HasRef() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Ref != nil
+}
+
+func (x *HolderApplyRequest) HasPatch() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Patch != nil
+}
+
+func (x *HolderApplyRequest) ClearRef() {
+	x.xxx_hidden_Ref = nil
+}
+
+func (x *HolderApplyRequest) ClearPatch() {
+	x.xxx_hidden_Patch = nil
+}
+
+type HolderApplyRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Ref   *HolderRef
+	Patch *patchpb.Patch
+}
+
+func (b0 HolderApplyRequest_builder) Build() *HolderApplyRequest {
+	m0 := &HolderApplyRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Ref = b.Ref
+	x.xxx_hidden_Patch = b.Patch
+	return m0
+}
+
 type HolderListRequest struct {
 	state              protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Filters *[]*HolderFilter       `protobuf:"bytes,1,rep,name=filters"`
@@ -1014,7 +1108,7 @@ type HolderListRequest struct {
 
 func (x *HolderListRequest) Reset() {
 	*x = HolderListRequest{}
-	mi := &file_go_app_holder_svc_proto_msgTypes[6]
+	mi := &file_go_app_holder_svc_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +1120,7 @@ func (x *HolderListRequest) String() string {
 func (*HolderListRequest) ProtoMessage() {}
 
 func (x *HolderListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_holder_svc_proto_msgTypes[6]
+	mi := &file_go_app_holder_svc_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +1167,7 @@ type HolderListResponse struct {
 
 func (x *HolderListResponse) Reset() {
 	*x = HolderListResponse{}
-	mi := &file_go_app_holder_svc_proto_msgTypes[7]
+	mi := &file_go_app_holder_svc_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1085,7 +1179,7 @@ func (x *HolderListResponse) String() string {
 func (*HolderListResponse) ProtoMessage() {}
 
 func (x *HolderListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_holder_svc_proto_msgTypes[7]
+	mi := &file_go_app_holder_svc_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +1226,7 @@ type HolderFilter struct {
 
 func (x *HolderFilter) Reset() {
 	*x = HolderFilter{}
-	mi := &file_go_app_holder_svc_proto_msgTypes[8]
+	mi := &file_go_app_holder_svc_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1144,7 +1238,7 @@ func (x *HolderFilter) String() string {
 func (*HolderFilter) ProtoMessage() {}
 
 func (x *HolderFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_go_app_holder_svc_proto_msgTypes[8]
+	mi := &file_go_app_holder_svc_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1195,7 +1289,7 @@ var File_go_app_holder_svc_proto protoreflect.FileDescriptor
 
 const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\n" +
-	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd8\x02\n" +
+	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xd8\x02\n" +
 	"\x10HolderAddRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12)\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\x12\x1b\n" +
@@ -1227,27 +1321,32 @@ const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\fdate_created\x18\x0f \x01(\bR\vdateCreated\"\xf2\x01\n" +
 	"\x12HolderPatchRequest\x12#\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\x14\n" +
-	"\x05alias\x18\a \x01(\tR\x05alias\x12\x12\n" +
-	"\x04name\x18\t \x01(\tR\x04name\x12\x12\n" +
-	"\x04desc\x18\v \x01(\tR\x04desc\x12>\n" +
-	"\x06labels\x18\r \x03(\v2&.go_app.HolderPatchRequest.LabelsEntryR\x06labels\x1a9\n" +
+	"\x05alias\x18\b \x01(\tR\x05alias\x12\x12\n" +
+	"\x04name\x18\n" +
+	" \x01(\tR\x04name\x12\x12\n" +
+	"\x04desc\x18\f \x01(\tR\x04desc\x12>\n" +
+	"\x06labels\x18\x0e \x03(\v2&.go_app.HolderPatchRequest.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"C\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +
+	"\x12HolderApplyRequest\x12#\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\"\n" +
+	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"C\n" +
 	"\x11HolderListRequest\x12.\n" +
 	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterR\afilters\":\n" +
 	"\x12HolderListResponse\x12$\n" +
 	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\"3\n" +
 	"\fHolderFilter\x12#\n" +
-	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref2\x99\x02\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref2\xce\x02\n" +
 	"\rHolderService\x12/\n" +
 	"\x03Add\x12\x18.go_app.HolderAddRequest\x1a\x0e.go_app.Holder\x12/\n" +
 	"\x03Get\x12\x18.go_app.HolderGetRequest\x1a\x0e.go_app.Holder\x123\n" +
-	"\x05Patch\x12\x1a.go_app.HolderPatchRequest\x1a\x0e.go_app.Holder\x122\n" +
+	"\x05Patch\x12\x1a.go_app.HolderPatchRequest\x1a\x0e.go_app.Holder\x123\n" +
+	"\x05Apply\x12\x1a.go_app.HolderApplyRequest\x1a\x0e.go_app.Holder\x122\n" +
 	"\x05Erase\x12\x11.go_app.HolderRef\x1a\x16.google.protobuf.Empty\x12=\n" +
 	"\x04List\x12\x19.go_app.HolderListRequest\x1a\x1a.go_app.HolderListResponseB\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
 
-var file_go_app_holder_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_go_app_holder_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_go_app_holder_svc_proto_goTypes = []any{
 	(*HolderAddRequest)(nil),      // 0: go_app.HolderAddRequest
 	(*HolderGetRequest)(nil),      // 1: go_app.HolderGetRequest
@@ -1255,46 +1354,52 @@ var file_go_app_holder_svc_proto_goTypes = []any{
 	(*HolderRefBySlug)(nil),       // 3: go_app.HolderRefBySlug
 	(*HolderSelect)(nil),          // 4: go_app.HolderSelect
 	(*HolderPatchRequest)(nil),    // 5: go_app.HolderPatchRequest
-	(*HolderListRequest)(nil),     // 6: go_app.HolderListRequest
-	(*HolderListResponse)(nil),    // 7: go_app.HolderListResponse
-	(*HolderFilter)(nil),          // 8: go_app.HolderFilter
-	nil,                           // 9: go_app.HolderAddRequest.LabelsEntry
-	nil,                           // 10: go_app.HolderPatchRequest.LabelsEntry
-	(*TenantRef)(nil),             // 11: go_app.TenantRef
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*TenantSelect)(nil),          // 13: go_app.TenantSelect
-	(*Holder)(nil),                // 14: go_app.Holder
-	(*emptypb.Empty)(nil),         // 15: google.protobuf.Empty
+	(*HolderApplyRequest)(nil),    // 6: go_app.HolderApplyRequest
+	(*HolderListRequest)(nil),     // 7: go_app.HolderListRequest
+	(*HolderListResponse)(nil),    // 8: go_app.HolderListResponse
+	(*HolderFilter)(nil),          // 9: go_app.HolderFilter
+	nil,                           // 10: go_app.HolderAddRequest.LabelsEntry
+	nil,                           // 11: go_app.HolderPatchRequest.LabelsEntry
+	(*TenantRef)(nil),             // 12: go_app.TenantRef
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*TenantSelect)(nil),          // 14: go_app.TenantSelect
+	(*patchpb.Patch)(nil),         // 15: patch.Patch
+	(*Holder)(nil),                // 16: go_app.Holder
+	(*emptypb.Empty)(nil),         // 17: google.protobuf.Empty
 }
 var file_go_app_holder_svc_proto_depIdxs = []int32{
-	11, // 0: go_app.HolderAddRequest.tenant:type_name -> go_app.TenantRef
-	9,  // 1: go_app.HolderAddRequest.labels:type_name -> go_app.HolderAddRequest.LabelsEntry
-	12, // 2: go_app.HolderAddRequest.date_created:type_name -> google.protobuf.Timestamp
+	12, // 0: go_app.HolderAddRequest.tenant:type_name -> go_app.TenantRef
+	10, // 1: go_app.HolderAddRequest.labels:type_name -> go_app.HolderAddRequest.LabelsEntry
+	13, // 2: go_app.HolderAddRequest.date_created:type_name -> google.protobuf.Timestamp
 	2,  // 3: go_app.HolderGetRequest.ref:type_name -> go_app.HolderRef
 	4,  // 4: go_app.HolderGetRequest.select:type_name -> go_app.HolderSelect
 	3,  // 5: go_app.HolderRef.slug:type_name -> go_app.HolderRefBySlug
-	11, // 6: go_app.HolderRefBySlug.tenant:type_name -> go_app.TenantRef
-	13, // 7: go_app.HolderSelect.tenant:type_name -> go_app.TenantSelect
+	12, // 6: go_app.HolderRefBySlug.tenant:type_name -> go_app.TenantRef
+	14, // 7: go_app.HolderSelect.tenant:type_name -> go_app.TenantSelect
 	2,  // 8: go_app.HolderPatchRequest.ref:type_name -> go_app.HolderRef
-	10, // 9: go_app.HolderPatchRequest.labels:type_name -> go_app.HolderPatchRequest.LabelsEntry
-	8,  // 10: go_app.HolderListRequest.filters:type_name -> go_app.HolderFilter
-	14, // 11: go_app.HolderListResponse.items:type_name -> go_app.Holder
-	2,  // 12: go_app.HolderFilter.ref:type_name -> go_app.HolderRef
-	0,  // 13: go_app.HolderService.Add:input_type -> go_app.HolderAddRequest
-	1,  // 14: go_app.HolderService.Get:input_type -> go_app.HolderGetRequest
-	5,  // 15: go_app.HolderService.Patch:input_type -> go_app.HolderPatchRequest
-	2,  // 16: go_app.HolderService.Erase:input_type -> go_app.HolderRef
-	6,  // 17: go_app.HolderService.List:input_type -> go_app.HolderListRequest
-	14, // 18: go_app.HolderService.Add:output_type -> go_app.Holder
-	14, // 19: go_app.HolderService.Get:output_type -> go_app.Holder
-	14, // 20: go_app.HolderService.Patch:output_type -> go_app.Holder
-	15, // 21: go_app.HolderService.Erase:output_type -> google.protobuf.Empty
-	7,  // 22: go_app.HolderService.List:output_type -> go_app.HolderListResponse
-	18, // [18:23] is the sub-list for method output_type
-	13, // [13:18] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	11, // 9: go_app.HolderPatchRequest.labels:type_name -> go_app.HolderPatchRequest.LabelsEntry
+	2,  // 10: go_app.HolderApplyRequest.ref:type_name -> go_app.HolderRef
+	15, // 11: go_app.HolderApplyRequest.patch:type_name -> patch.Patch
+	9,  // 12: go_app.HolderListRequest.filters:type_name -> go_app.HolderFilter
+	16, // 13: go_app.HolderListResponse.items:type_name -> go_app.Holder
+	2,  // 14: go_app.HolderFilter.ref:type_name -> go_app.HolderRef
+	0,  // 15: go_app.HolderService.Add:input_type -> go_app.HolderAddRequest
+	1,  // 16: go_app.HolderService.Get:input_type -> go_app.HolderGetRequest
+	5,  // 17: go_app.HolderService.Patch:input_type -> go_app.HolderPatchRequest
+	6,  // 18: go_app.HolderService.Apply:input_type -> go_app.HolderApplyRequest
+	2,  // 19: go_app.HolderService.Erase:input_type -> go_app.HolderRef
+	7,  // 20: go_app.HolderService.List:input_type -> go_app.HolderListRequest
+	16, // 21: go_app.HolderService.Add:output_type -> go_app.Holder
+	16, // 22: go_app.HolderService.Get:output_type -> go_app.Holder
+	16, // 23: go_app.HolderService.Patch:output_type -> go_app.Holder
+	16, // 24: go_app.HolderService.Apply:output_type -> go_app.Holder
+	17, // 25: go_app.HolderService.Erase:output_type -> google.protobuf.Empty
+	8,  // 26: go_app.HolderService.List:output_type -> go_app.HolderListResponse
+	21, // [21:27] is the sub-list for method output_type
+	15, // [15:21] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_go_app_holder_svc_proto_init() }
@@ -1314,7 +1419,7 @@ func file_go_app_holder_svc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_holder_svc_proto_rawDesc), len(file_go_app_holder_svc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

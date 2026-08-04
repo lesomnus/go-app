@@ -17,8 +17,9 @@ import (
 // HolderUpdate is the builder for updating Holder entities.
 type HolderUpdate struct {
 	config
-	hooks    []Hook
-	mutation *HolderMutation
+	hooks     []Hook
+	mutation  *HolderMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the HolderUpdate builder.
@@ -121,6 +122,12 @@ func (_u *HolderUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *HolderUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *HolderUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *HolderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -151,6 +158,7 @@ func (_u *HolderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DateCreatedCleared() {
 		_spec.ClearField(holder.FieldDateCreated, field.TypeTime)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{holder.Label}
@@ -166,9 +174,10 @@ func (_u *HolderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 // HolderUpdateOne is the builder for updating a single Holder entity.
 type HolderUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *HolderMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *HolderMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetAlias sets the "alias" field.
@@ -278,6 +287,12 @@ func (_u *HolderUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *HolderUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *HolderUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *HolderUpdateOne) sqlSave(ctx context.Context) (_node *Holder, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -325,6 +340,7 @@ func (_u *HolderUpdateOne) sqlSave(ctx context.Context) (_node *Holder, err erro
 	if _u.mutation.DateCreatedCleared() {
 		_spec.ClearField(holder.FieldDateCreated, field.TypeTime)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &Holder{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

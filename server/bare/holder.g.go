@@ -6,11 +6,15 @@ package bare
 import (
 	context "context"
 	sqlgraph "entgo.io/ent/dialect/sql/sqlgraph"
+	errors "errors"
 	uuid "github.com/google/uuid"
 	go_app "github.com/lesomnus/go-app/go_app"
 	ent "github.com/lesomnus/go-app/internal/ent"
 	holder "github.com/lesomnus/go-app/internal/ent/holder"
 	predicate "github.com/lesomnus/go-app/internal/ent/predicate"
+	patchpb "github.com/lesomnus/protobuf-patch/patchpb"
+	ormpatch "github.com/protobuf-orm/protobuf-orm/ormpatch"
+	entpatch "github.com/protobuf-orm/protoc-gen-orm-ent/runtime/entpatch"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -151,32 +155,21 @@ func HolderSelectInit(q *ent.HolderQuery, m *go_app.HolderSelect) {
 }
 
 func (s HolderServiceServer) Patch(ctx context.Context, req *go_app.HolderPatchRequest) (*go_app.Holder, error) {
-	p, err := HolderPick(req.GetRef())
+	doc, err := ormpatch.FromPatchRequest(holderOrmEntity, req.ProtoReflect(), nil)
 	if err != nil {
-		return nil, err
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
+		if errors.Is(err, ormpatch.ErrRequestLayout) {
+			return nil, status.Errorf(codes.Internal, "%s", err)
+		}
+		if errors.Is(err, ormpatch.ErrUnsupported) {
+			return nil, status.Errorf(codes.Unimplemented, "%s", err)
+		}
+		return nil, status.Errorf(codes.InvalidArgument, "%s", err)
 	}
 
-	q := s.Db.Holder.Update().Where(p)
-	if req.HasAlias() {
-		q.SetAlias(req.GetAlias())
-	}
-	if req.HasName() {
-		q.SetName(req.GetName())
-	}
-	if req.HasDesc() {
-		q.SetDesc(req.GetDesc())
-	}
-	if u := req.GetLabels(); len(u) > 0 {
-		q.SetLabels(u)
-	}
-
-	if n, err := q.Save(ctx); err != nil {
-		return nil, err
-	} else if n == 0 {
-		return nil, status.Errorf(codes.NotFound, "not found")
-	}
-
-	return s.Get(ctx, req.GetRef().Pick())
+	return s.apply(ctx, req.GetRef(), doc)
 }
 
 func HolderGetKey(ctx context.Context, db *ent.Client, ref *go_app.HolderRef) (uuid.UUID, error) {
@@ -203,6 +196,106 @@ func HolderGetKey(ctx context.Context, db *ent.Client, ref *go_app.HolderRef) (u
 	}
 
 	return v, nil
+}
+
+var holderOrmEntity = ormpatch.MustEntityOf(go_app.File_go_app_holder_proto, "Holder")
+
+var holderPatchColumns = entpatch.Columns{
+	1: holder.FieldID, 2: holder.TenantColumn, 4: holder.FieldAlias, 5: holder.FieldName, 6: holder.FieldDesc, 7: holder.FieldLabels, 15: holder.FieldDateCreated}
+
+func (s HolderServiceServer) Apply(ctx context.Context, req *go_app.HolderApplyRequest) (*go_app.Holder, error) {
+	if !req.HasPatch() {
+		return nil, status.Errorf(codes.InvalidArgument, "%s", ormpatch.ErrNoPatch)
+	}
+	return s.apply(ctx, req.GetRef(), req.GetPatch())
+}
+
+func (s HolderServiceServer) apply(ctx context.Context, ref *go_app.HolderRef, doc *patchpb.Patch) (*go_app.Holder, error) {
+	plan := &ormpatch.Plan{Entity: holderOrmEntity}
+	if doc != nil {
+		v, err := ormpatch.Compile(holderOrmEntity, doc)
+		if err != nil {
+			if errors.Is(err, ormpatch.ErrUnsupported) {
+				return nil, status.Errorf(codes.Unimplemented, "%s", err)
+			}
+			return nil, status.Errorf(codes.InvalidArgument, "%s", err)
+		}
+		plan = v
+	}
+
+	pred, mod, err := entpatch.Build(plan, holderPatchColumns, s.Db.Dialect())
+	if err != nil {
+		if errors.Is(err, entpatch.ErrValue) {
+			return nil, status.Errorf(codes.InvalidArgument, "%s", err)
+		}
+		return nil, status.Errorf(codes.Internal, "%s", err)
+	}
+
+	st := s
+	commit := func() error { return nil }
+	if !s.Db.InTx() {
+		tx, err := s.Db.Tx(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback()
+		st.Db = tx.Client()
+		commit = tx.Commit
+	}
+
+	k, err := HolderGetKey(ctx, st.Db, ref)
+	if err != nil {
+		return nil, err
+	}
+	at := &go_app.HolderRef{}
+	at.SetId(k[:])
+	p := holder.IDEQ(k)
+
+	if mod == nil {
+		q := st.Db.Holder.Query().Where(p)
+		if pred != nil {
+			q.Where(predicate.Holder(pred))
+		}
+		if ok, err := q.Exist(ctx); err != nil {
+			return nil, err
+		} else if !ok {
+			return nil, func() error {
+				if ok, err := st.Db.Holder.Query().Where(p).Exist(ctx); err != nil {
+					return err
+				} else if !ok {
+					return status.Error(codes.NotFound, "Holder not found")
+				}
+				return status.Error(codes.FailedPrecondition, "a test in the patch did not hold")
+			}()
+		}
+	} else {
+		q := st.Db.Holder.Update().Where(p)
+		if pred != nil {
+			q.Where(predicate.Holder(pred))
+		}
+		q.Modify(mod)
+		if n, err := q.Save(ctx); err != nil {
+			return nil, err
+		} else if n == 0 {
+			return nil, func() error {
+				if ok, err := st.Db.Holder.Query().Where(p).Exist(ctx); err != nil {
+					return err
+				} else if !ok {
+					return status.Error(codes.NotFound, "Holder not found")
+				}
+				return status.Error(codes.FailedPrecondition, "a test in the patch did not hold")
+			}()
+		}
+	}
+
+	out, err := st.Get(ctx, at.Pick())
+	if err != nil {
+		return nil, err
+	}
+	if err := commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s HolderServiceServer) Erase(ctx context.Context, req *go_app.HolderRef) (*emptypb.Empty, error) {

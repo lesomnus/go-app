@@ -18,9 +18,14 @@ TARGET_DIR="${TARGET_DIR:-${__root}/internal/ent}"
 # `sql/versioned-migration` adds `Diff` and `NamedDiff` to the generated
 # migrate package, which is what plans the migration files against a dev
 # database. See `internal/migrate` and the migration guide in README.md.
+#
+# `sql/modifier` adds `Modify` to the update builders, which is what the `Apply`
+# servers use to write a patch document as one statement: the operations become
+# raw column expressions that ent has no builder for.
 cd "${__root}"
 go tool ent generate "${SCHEMA_DIR}" \
 	--target "${TARGET_DIR}" \
-	--feature sql/versioned-migration
+	--feature sql/versioned-migration \
+	--feature sql/modifier
 
 echo "Done."

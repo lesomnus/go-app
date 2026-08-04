@@ -18,7 +18,6 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent"
 	"github.com/lesomnus/go-app/internal/grpcx"
-	"github.com/lesomnus/go-app/server"
 	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
@@ -32,7 +31,8 @@ type Server struct {
 	log *slog.Logger
 
 	// Db is the client the servers run their queries with. Reach for it to
-	// look at the database directly.
+	// look at the database directly; it knows the driver and the dialect it
+	// runs on, so a server built by hand needs nothing else.
 	Db *ent.Client
 
 	// Root is the Tenant that administers the deployment, which is there
@@ -67,16 +67,17 @@ func NewServer(tb testing.TB) *Server {
 
 	// The stack the app is served with, whole: the rules that hold everywhere
 	// and the gate that says who may ask for what.
-	sink := bare.NewServer(c)
-	v, err := server.Build(sink, core.Build(), gate.Build())
+	sink, err := bare.NewServer(c)
+	x.NoError(err)
+	v, err := go_app.Build(sink, core.Build(), gate.Build())
 	x.NoError(err)
 
 	// Every deployment has the root Tenant, so every test does too. It is made
 	// around the gate, since there is nobody to be yet.
 	ctx := tb.Context()
-	root, err := core.EnsureRoot(ctx, core.New(c))
+	root, err := core.EnsureRoot(ctx, core.NewServer(sink))
 	x.NoError(err)
-	admin, err := core.Admin(ctx, core.New(c), root.Ref())
+	admin, err := core.Admin(ctx, core.NewServer(sink), root.Ref())
 	x.NoError(err)
 
 	return &Server{

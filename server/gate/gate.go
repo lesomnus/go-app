@@ -13,26 +13,43 @@ import (
 	"bytes"
 	"context"
 
+	"entgo.io/ent/dialect"
+	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/enttx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	go_app "github.com/lesomnus/go-app/go_app"
-	"github.com/lesomnus/go-app/server"
 	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/frame"
 )
 
 var _ go_app.Server = Server{}
 
+// Every layer of a stack has to be rebindable for any of it to be, and a
+// layer that is not is only found out when a transaction is started. This is
+// what makes forgetting it a compile error instead.
+var _ enttx.Binder[go_app.Server] = Server{}
+
 type Server struct {
-	server.Overlay
+	go_app.Overlay
 }
 
 func NewServer(next go_app.Server) Server {
-	return Server{server.NewOverlay(next)}
+	return Server{go_app.NewOverlay(next)}
 }
 
-func Build() server.Builder {
+// WithDriver answers with this stack running on `drv`. Every layer writes it;
+// see [core.Server.WithDriver] for why it cannot be inherited.
+func (s Server) WithDriver(drv dialect.Driver) (go_app.Server, error) {
+	next, err := enttx.Rebind(s.Next(), drv)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewServer(next), nil
+}
+
+func Build() go_app.Builder {
 	return builder{}
 }
 

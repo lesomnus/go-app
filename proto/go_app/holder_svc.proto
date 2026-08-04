@@ -5,6 +5,7 @@ import "go_app/holder.proto";
 import "go_app/tenant_svc.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
+import "patch/patch.proto";
 
 option go_package = "github.com/lesomnus/go-app";
 
@@ -15,6 +16,8 @@ service HolderService {
   rpc Get(HolderGetRequest) returns (Holder);
   // Patch updates an existing Holder
   rpc Patch(HolderPatchRequest) returns (Holder);
+  // Apply applies a patch document to an existing Holder
+  rpc Apply(HolderApplyRequest) returns (Holder);
   // Erase deletes a Holder
   rpc Erase(HolderRef) returns (google.protobuf.Empty);
   // List holders
@@ -60,10 +63,15 @@ message HolderSelect {
 
 message HolderPatchRequest {
   HolderRef ref = 1;
-  string alias = 7;
-  string name = 9;
-  string desc = 11;
-  map<string, string> labels = 13;
+  string alias = 8;
+  string name = 10;
+  string desc = 12;
+  map<string, string> labels = 14;
+}
+
+message HolderApplyRequest {
+  HolderRef ref = 1;
+  patch.Patch patch = 2;
 }
 
 message HolderListRequest {

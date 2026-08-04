@@ -1,2 +1,4 @@
 /dist
 /.gen
+/go.work
+/go.work.sum

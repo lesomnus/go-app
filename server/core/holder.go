@@ -105,3 +105,11 @@ func (s HolderServiceServer) Patch(ctx context.Context, req *go_app.HolderPatchR
 
 	return s.HolderServiceServer.Patch(ctx, req)
 }
+
+func (s HolderServiceServer) Apply(ctx context.Context, req *go_app.HolderApplyRequest) (*go_app.Holder, error) {
+	if err := checkAlias(holderEntity, req.GetPatch()); err != nil {
+		return nil, err
+	}
+
+	return s.HolderServiceServer.Apply(ctx, req)
+}

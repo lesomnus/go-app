@@ -6,29 +6,61 @@
 package core
 
 import (
+	"entgo.io/ent/dialect"
+	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/enttx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent"
-	"github.com/lesomnus/go-app/server"
 	"github.com/lesomnus/go-app/server/bare"
 )
 
 var _ go_app.Server = Server{}
 
+// Every layer of a stack has to be rebindable for any of it to be, and a
+// layer that is not is only found out when a transaction is started. This is
+// what makes forgetting it a compile error instead.
+var _ enttx.Binder[go_app.Server] = Server{}
+
 type Server struct {
-	server.Overlay
+	go_app.Overlay
 }
 
 func NewServer(next go_app.Server) Server {
-	return Server{server.NewOverlay(next)}
+	return Server{go_app.NewOverlay(next)}
 }
 
 // New builds the default stack: the core rules in front of the generated
 // servers that talk to the database.
-func New(db *ent.Client) Server {
-	return NewServer(bare.NewServer(db))
+//
+// It fails on a client whose dialect the generated servers write no SQL for,
+// which is settled here rather than at the first `Apply` that would have needed
+// it.
+func New(db *ent.Client, opts ...bare.Option) (Server, error) {
+	v, err := bare.NewServer(db, opts...)
+	if err != nil {
+		return Server{}, err
+	}
+
+	return NewServer(v), nil
+}
+
+// WithDriver answers with this stack running on `drv`, which is how several
+// servers are put on one transaction; see [enttx.Begin].
+//
+// Every layer writes this, and it cannot be inherited from [go_app.Overlay]:
+// the overlay holds what is behind this server but has no way to make this
+// server again. Nor can the caller reach past it -- a layer left out of the
+// rebinding is left out of the stack, and the requests inside the transaction
+// would go around it.
+func (s Server) WithDriver(drv dialect.Driver) (go_app.Server, error) {
+	next, err := enttx.Rebind(s.Next(), drv)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewServer(next), nil
 }
 
 // Db returns the client of the generated server behind this one, which is what
@@ -38,7 +70,7 @@ func New(db *ent.Client) Server {
 // is how it is reached without every server in the stack having to carry a
 // client of its own.
 func (s Server) Db() (*ent.Client, error) {
-	v, ok := server.Find[bare.Server](s)
+	v, ok := go_app.Find[bare.Server](s)
 	if !ok {
 		return nil, status.Error(codes.Internal, "no database in the server stack")
 	}
@@ -46,11 +78,11 @@ func (s Server) Db() (*ent.Client, error) {
 	return v.Db, nil
 }
 
-// Build makes a [server.Builder] of this server so that it can be stacked with
-// the others. A named type rather than a [server.BuilderFunc], since that is
+// Build makes a [go_app.Builder] of this server so that it can be stacked with
+// the others. A named type rather than a [go_app.BuilderFunc], since that is
 // what names the builder if it fails, and it is where the options this server
 // takes would be held.
-func Build() server.Builder {
+func Build() go_app.Builder {
 	return builder{}
 }
 

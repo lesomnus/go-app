@@ -9,7 +9,6 @@ import (
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ox"
-	"github.com/lesomnus/go-app/server"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
 )
@@ -17,7 +16,7 @@ import (
 // noHolders is a server that refuses to add a Holder, and does everything else
 // the way the one behind it does.
 type noHolders struct {
-	server.Overlay
+	go_app.Overlay
 }
 
 func (s noHolders) Holder() go_app.HolderServiceServer {
@@ -55,7 +54,7 @@ func TestRoot(t *testing.T) {
 
 		// What every start does, around the gate: there is nobody to be when a
 		// deployment is made.
-		after, err := core.EnsureRoot(ctx, core.New(c.Server.Db))
+		after, err := core.EnsureRoot(ctx, core.NewServer(c.Server.Sink))
 		x.NoError(err)
 		x.Equal(before.GetDateCreated().AsTime(), after.GetDateCreated().AsTime())
 
@@ -73,7 +72,7 @@ func TestAdmin(t *testing.T) {
 	t.Run("a tenant comes with one", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 
-		v, err := core.Admin(ctx, core.New(c.Server.Db), tenant.Ref())
+		v, err := core.Admin(ctx, core.NewServer(c.Server.Sink), tenant.Ref())
 		x.NoError(err)
 		x.Equal(core.AdminAlias, v.GetAlias())
 		x.Equal("Admin", v.GetName())
@@ -84,16 +83,17 @@ func TestAdmin(t *testing.T) {
 		v, err := c.Bare().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
 		x.NoError(err)
 
-		_, err = core.Admin(ctx, core.New(c.Server.Db), v.Ref())
+		_, err = core.Admin(ctx, core.NewServer(c.Server.Sink), v.Ref())
 		x.ErrorIs(err, core.ErrNoAdmin)
 	}))
 	t.Run("the tenant is taken back if it cannot be given one", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		// A stack whose holders cannot be added, which is the one thing a real
 		// database will not do on demand.
-		db := c.Server.Db
-		s := core.NewServer(noHolders{server.NewOverlay(bare.NewServer(db))})
+		sink, err := bare.NewServer(c.Server.Db)
+		x.NoError(err)
+		s := core.NewServer(noHolders{go_app.NewOverlay(sink)})
 
-		_, err := s.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
+		_, err = s.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
 		x.ErrorContains(err, "add the admin holder")
 
 		// Half a tenant is not left behind.

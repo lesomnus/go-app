@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/lesomnus/protobuf-patch/patch"
 	"google.golang.org/grpc/codes"
 
 	go_app "github.com/lesomnus/go-app/go_app"
@@ -115,6 +116,23 @@ func TestHolder(t *testing.T) {
 		_, err = c.Holder().Erase(ctx, p.erlich.Ref())
 		x.ErrCode(codes.NotFound, err)
 	}))
+	t.Run("a patch document is no way around the wall", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		p := setup(ctx, x, c)
+		ctx = c.AsHolder(ctx, p.john)
+
+		_, err := c.Holder().Apply(ctx, go_app.HolderApplyRequest_builder{
+			Ref: p.erlich.Ref(),
+			Patch: patch.MustNew("go_app.Holder",
+				patch.Target(patch.Name("name")).Assign(patch.Str("Erlich")),
+			),
+		}.Build())
+		x.ErrCode(codes.NotFound, err)
+
+		// Nothing was written on the way to being refused.
+		v, err := c.Bare().Holder().Get(ctx, go_app.HolderGetById(p.erlich.GetId()))
+		x.NoError(err)
+		x.Equal(p.erlich.GetName(), v.GetName())
+	}))
 }
 
 func TestTenant(t *testing.T) {
@@ -141,6 +159,34 @@ func TestTenant(t *testing.T) {
 
 		_, err = c.Tenant().Erase(ctx, p.hooli.Ref())
 		x.ErrCode(codes.PermissionDenied, err)
+	}))
+	t.Run("another one is not mine to patch, by either road", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		p := setup(ctx, x, c)
+		ctx = c.AsHolder(ctx, p.john)
+
+		name := "Hooli"
+		_, err := c.Tenant().Patch(ctx, go_app.TenantPatchRequest_builder{
+			Ref:  p.hooli.Ref(),
+			Name: &name,
+		}.Build())
+		x.ErrCode(codes.NotFound, err)
+
+		_, err = c.Tenant().Apply(ctx, go_app.TenantApplyRequest_builder{
+			Ref: p.hooli.Ref(),
+			Patch: patch.MustNew("go_app.Tenant",
+				patch.Target(patch.Name("name")).Assign(patch.Str(name)),
+			),
+		}.Build())
+		x.ErrCode(codes.NotFound, err)
+
+		// And it is mine to do to my own.
+		_, err = c.Tenant().Apply(ctx, go_app.TenantApplyRequest_builder{
+			Ref: p.acme.Ref(),
+			Patch: patch.MustNew("go_app.Tenant",
+				patch.Target(patch.Name("name")).Assign(patch.Str("Acme")),
+			),
+		}.Build())
+		x.NoError(err)
 	}))
 	t.Run("whoever administers the deployment is not walled in", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)

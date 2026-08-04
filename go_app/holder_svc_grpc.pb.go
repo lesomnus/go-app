@@ -23,6 +23,7 @@ const (
 	HolderService_Add_FullMethodName   = "/go_app.HolderService/Add"
 	HolderService_Get_FullMethodName   = "/go_app.HolderService/Get"
 	HolderService_Patch_FullMethodName = "/go_app.HolderService/Patch"
+	HolderService_Apply_FullMethodName = "/go_app.HolderService/Apply"
 	HolderService_Erase_FullMethodName = "/go_app.HolderService/Erase"
 	HolderService_List_FullMethodName  = "/go_app.HolderService/List"
 )
@@ -37,6 +38,8 @@ type HolderServiceClient interface {
 	Get(ctx context.Context, in *HolderGetRequest, opts ...grpc.CallOption) (*Holder, error)
 	// Patch updates an existing Holder
 	Patch(ctx context.Context, in *HolderPatchRequest, opts ...grpc.CallOption) (*Holder, error)
+	// Apply applies a patch document to an existing Holder
+	Apply(ctx context.Context, in *HolderApplyRequest, opts ...grpc.CallOption) (*Holder, error)
 	// Erase deletes a Holder
 	Erase(ctx context.Context, in *HolderRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// List holders
@@ -81,6 +84,16 @@ func (c *holderServiceClient) Patch(ctx context.Context, in *HolderPatchRequest,
 	return out, nil
 }
 
+func (c *holderServiceClient) Apply(ctx context.Context, in *HolderApplyRequest, opts ...grpc.CallOption) (*Holder, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Holder)
+	err := c.cc.Invoke(ctx, HolderService_Apply_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *holderServiceClient) Erase(ctx context.Context, in *HolderRef, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -111,6 +124,8 @@ type HolderServiceServer interface {
 	Get(context.Context, *HolderGetRequest) (*Holder, error)
 	// Patch updates an existing Holder
 	Patch(context.Context, *HolderPatchRequest) (*Holder, error)
+	// Apply applies a patch document to an existing Holder
+	Apply(context.Context, *HolderApplyRequest) (*Holder, error)
 	// Erase deletes a Holder
 	Erase(context.Context, *HolderRef) (*emptypb.Empty, error)
 	// List holders
@@ -133,6 +148,9 @@ func (UnimplementedHolderServiceServer) Get(context.Context, *HolderGetRequest) 
 }
 func (UnimplementedHolderServiceServer) Patch(context.Context, *HolderPatchRequest) (*Holder, error) {
 	return nil, status.Error(codes.Unimplemented, "method Patch not implemented")
+}
+func (UnimplementedHolderServiceServer) Apply(context.Context, *HolderApplyRequest) (*Holder, error) {
+	return nil, status.Error(codes.Unimplemented, "method Apply not implemented")
 }
 func (UnimplementedHolderServiceServer) Erase(context.Context, *HolderRef) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method Erase not implemented")
@@ -215,6 +233,24 @@ func _HolderService_Patch_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HolderService_Apply_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HolderApplyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HolderServiceServer).Apply(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HolderService_Apply_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HolderServiceServer).Apply(ctx, req.(*HolderApplyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _HolderService_Erase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HolderRef)
 	if err := dec(in); err != nil {
@@ -269,6 +305,10 @@ var HolderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Patch",
 			Handler:    _HolderService_Patch_Handler,
+		},
+		{
+			MethodName: "Apply",
+			Handler:    _HolderService_Apply_Handler,
 		},
 		{
 			MethodName: "Erase",

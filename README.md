@@ -72,6 +72,14 @@ messages in `proto/`, and everything else is generated from them: the service
 contracts, the Go messages, the [ent](https://entgo.io) schema and runtime, and
 the gRPC servers that run CRUD against the database.
 
+Each entity gets `Add`, `Get`, `Patch`, `Apply` and `Erase`. The first three
+carry the entity's own fields; `Apply` carries a
+[patch document](https://github.com/lesomnus/protobuf-patch) instead, which is
+how the edits a fixed request shape cannot express are said - change one map
+entry rather than replace the map, or assert a value before writing it. That
+document schema is not frozen, so `buf.build/patch/patch` is pinned by
+`buf.lock` rather than tracked.
+
 ```sh
 # 1. Service contracts:
 #      proto/<pkg>/*.proto  ->  proto.svc/<pkg>/*_svc.g.proto
@@ -82,8 +90,9 @@ $ buf generate --template buf.gen.svc.yaml
 $ ./scripts/gen-service.sh
 
 # 3. Go messages, gRPC stubs, query helpers, ent schema and ent backed servers:
-#      go_app/           messages, gRPC stubs, query helpers, store wiring
-#      internal/ent/     schema/ and the proto <-> ent conversions
+#      go_app/           messages, gRPC stubs, query helpers, store wiring,
+#                        and the stack helpers every server implementation uses
+#      internal/ent/     schema/, the proto <-> ent conversions, and orm.g.go
 #      server/bare/      the service servers, backed by an ent client
 $ ./scripts/gen-go.sh
 
@@ -117,21 +126,57 @@ stacked on top of each other:
   to carry a database of its own.
 - `server/gate` says what the caller of a request may do with it. It is the
   outermost one, so nothing behind it has to ask again.
-- `server` holds what they share: `Overlay` to implement only the services of
-  interest, and `Iter`, `Find` and `SinkOf` to look into a stack.
+
+What they share is not written here: `go_app` is generated with `Overlay` to
+implement only the services of interest, `Build` to stack them, and `Iter`,
+`Find` and `SinkOf` to look into a stack that was built. All of it is expressed
+in terms of the generated `go_app.Server`, so an app that wrote it by hand would
+write the same file.
+
+**A capability is found, not declared.** Whatever a layer can do besides
+answering a service — hold the database, hold a connection — is reached with
+`Find` rather than by adding a method to `go_app.Server`. That is what keeps
+`Server` the generated set it is: extend it and every layer, every `Overlay` and
+every helper above has to be rewritten to match. `core.Server.Db()` is the
+example, and `Find` takes any type so that a one-method interface naming just
+what a caller needs is as good a question as a layer's own type.
+
+**Except one, and knowingly.** Every layer implements
+[`enttx.Binder`](https://github.com/protobuf-orm/protoc-gen-orm-ent/tree/main/runtime/enttx)
+— four lines that rebind what is behind it and remake itself — so that a caller
+can put the whole stack on one transaction. `Find` is the wrong tool here and
+the difference matters: it walks *past* a layer that does not answer, and that
+layer would then be missing from the rebuilt stack, so requests inside the
+transaction would go around it. Reading a stack skips; rewriting one may not.
+A `var _ enttx.Binder[go_app.Server] = Server{}` in each layer turns forgetting
+it into a compile error.
 
 ```go
 // server/audit/server.go
 type Server struct {
-	server.Overlay
+	go_app.Overlay
 }
 
 func (s Server) Tenant() go_app.TenantServiceServer { ... }
 
+// The innermost server writes SQL of its own for Apply, so it asks the client
+// which SQL that is; a dialect nothing was written for is refused here rather
+// than at the first Apply. The client knows because protoc-gen-orm-ent puts a
+// `Dialect()` on it (`internal/ent/orm.g.go`) -- ent keeps its driver to
+// itself, and a caller made to repeat what it said when it opened the
+// connection can say something else the second time.
+sink, err := bare.NewServer(db)
+
 // Stack it in front of the others; the last one handles the request first.
 // Building fails if a server cannot make itself out of what it was given.
-s, err := server.Build(bare.NewServer(db), core.Build(), audit.Build())
+s, err := go_app.Build(sink, core.Build(), audit.Build())
 ```
+
+A middleware that has something to say about `Patch` usually has the same thing
+to say about `Apply`, and saying it once does not cover both: one reads a field
+of the request, the other reads a document. `server/gate` guards the two the
+same way, since both name the entity with the same `Ref`; `server/core` reads
+what a document writes by compiling it against the schema (`server/core/patch.go`).
 
 ## Who is calling
 
@@ -285,9 +330,11 @@ db:
 ```
 
 Both bundled drivers, SQLite and [pgx](https://github.com/jackc/pgx), are pure
-Go, so the binary is still built with `CGO_ENABLED=0`. Any database ent speaks
-can be used: add a file next to `cmd/config/db-pgx.go` that blank imports the
-`database/sql` driver and tells the configuration which dialect it speaks.
+Go, so the binary is still built with `CGO_ENABLED=0`. Another database is a
+file next to `cmd/config/db-pgx.go` that blank imports the `database/sql` driver
+and tells the configuration which dialect it speaks — as long as it is a dialect
+the generated servers write SQL for, which today means SQLite or PostgreSQL. See
+[Somewhere other than PostgreSQL](#somewhere-other-than-postgresql).
 
 ```go
 package config
@@ -421,9 +468,18 @@ $ docker run --rm ghcr.io/lesomnus/go-app:edge migrate apply
 
 ### Somewhere other than PostgreSQL
 
-The app itself runs on any database ent speaks, and the tests run on SQLite;
-only the migration files are tied to one, since SQL is not the same everywhere.
-To move them:
+The app runs on SQLite or PostgreSQL, and the tests run on SQLite. Two things
+are tied to one database rather than to ent:
+
+- **`Apply`.** A patch document becomes JSON functions, and those are not
+  portable, so `entpatch` writes SQL for the two dialects above and no others. A
+  client on anything else is refused by `bare.NewServer` when the stack is built,
+  rather than at the first `Apply`. Widening that set is a change to
+  [protoc-gen-orm-ent](https://github.com/protobuf-orm/protoc-gen-orm-ent), not
+  to this repository.
+- **The migration files**, since SQL is not the same everywhere.
+
+To move the migrations:
 
 - `migrate.Dialect` in `internal/migrate/migrate.go` is what the files are
   written for, and both `plan` and `apply` refuse a database that speaks

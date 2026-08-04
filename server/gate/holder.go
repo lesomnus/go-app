@@ -50,6 +50,17 @@ func (s HolderServiceServer) Patch(ctx context.Context, req *go_app.HolderPatchR
 	return s.HolderServiceServer.Patch(ctx, req)
 }
 
+// Apply is Patch by another road: what it may change is stated in a document
+// rather than in the request, but it is about the same Holder, named the same
+// way, so the same reference has to be the caller's.
+func (s HolderServiceServer) Apply(ctx context.Context, req *go_app.HolderApplyRequest) (*go_app.Holder, error) {
+	if _, err := s.pick(ctx, req.GetRef()); err != nil {
+		return nil, err
+	}
+
+	return s.HolderServiceServer.Apply(ctx, req)
+}
+
 func (s HolderServiceServer) Erase(ctx context.Context, req *go_app.HolderRef) (*emptypb.Empty, error) {
 	if _, err := s.pick(ctx, req); err != nil {
 		return nil, err

@@ -3,6 +3,10 @@ modules:
   - path: proto
 deps:
   - buf.build/orm/orm
+  # The generated Apply RPC carries a patch.Patch, so every service contract
+  # imports patch/patch.proto. That schema is not frozen yet, so it is pinned
+  # by buf.lock rather than tracked.
+  - buf.build/patch/patch
 lint:
   use:
     - STANDARD

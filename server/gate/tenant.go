@@ -72,3 +72,19 @@ func (s TenantServiceServer) Patch(ctx context.Context, req *go_app.TenantPatchR
 
 	return s.TenantServiceServer.Patch(ctx, req)
 }
+
+// Apply is Patch by another road: what it may change is stated in a document
+// rather than in the request, but it is about the same Tenant, named the same
+// way, so it is the same wall. What the document says is for the server behind
+// this one; whether it may be said at all is settled here.
+func (s TenantServiceServer) Apply(ctx context.Context, req *go_app.TenantApplyRequest) (*go_app.Tenant, error) {
+	f, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !unbounded(f) && !names(f, req.GetRef()) {
+		return nil, errNotFound("Tenant")
+	}
+
+	return s.TenantServiceServer.Apply(ctx, req)
+}

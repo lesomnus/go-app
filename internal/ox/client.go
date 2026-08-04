@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	go_app "github.com/lesomnus/go-app/go_app"
-	"github.com/lesomnus/go-app/server"
 	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/bare"
 )
@@ -88,7 +87,7 @@ func (c *Client) Bare() go_app.Client {
 	// Named rather than found at the end of the stack: what a test wants here
 	// is the server that talks to the database, and that is a server it can
 	// name, not just whichever one happens to be last.
-	s, ok := server.Find[bare.Server](c.Server.Server)
+	s, ok := go_app.Find[bare.Server](c.Server.Server)
 	require.True(c.tb, ok, "the stack has no bare server")
 
 	c.bare = newClient(c.tb, c.Server, c.Server.GrpcOf(s))

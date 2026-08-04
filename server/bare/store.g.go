@@ -3,16 +3,55 @@
 package bare
 
 import (
+	dialect "entgo.io/ent/dialect"
+	fmt "fmt"
 	go_app "github.com/lesomnus/go-app/go_app"
 	ent "github.com/lesomnus/go-app/internal/ent"
+	entpatch "github.com/protobuf-orm/protoc-gen-orm-ent/runtime/entpatch"
 )
 
 type Server struct {
 	Db *ent.Client
 }
 
-func NewServer(db *ent.Client) Server {
-	return Server{Db: db}
+// Option adjusts a [Server] as it is built.
+type Option func(*Server)
+
+// NewServer refuses a client whose dialect this backend does not write
+// SQL for.
+//
+// An engine that speaks one of the written dialects under a different
+// name -- a PostgreSQL-compatible server -- is named when the connection
+// is opened, which is where saying so belongs: everything the client does
+// is rendered for that dialect, not just what this server writes.
+func NewServer(db *ent.Client, opts ...Option) (Server, error) {
+	s := Server{Db: db}
+	for _, opt := range opts {
+		opt(&s)
+	}
+	if d := db.Dialect(); !entpatch.Supports(d) {
+		return Server{}, fmt.Errorf("%w: %s", entpatch.ErrDialect, d)
+	}
+	return s, nil
+}
+
+// WithDriver answers with a server that runs through drv, and is this one
+// in every other way.
+//
+// It is how a caller puts several servers on one transaction: begin one
+// with enttx and rebind the stack onto the driver it answers with.
+//
+// The dialect is checked again rather than assumed. A transaction wraps
+// the connection it was begun on, so it carries the same dialect -- but
+// this takes a driver from anywhere, and what NewServer refused at the
+// start should not become reachable by going around it.
+func (s Server) WithDriver(drv dialect.Driver) (go_app.Server, error) {
+	db := s.Db.WithDriver(drv)
+	if d := db.Dialect(); !entpatch.Supports(d) {
+		return nil, fmt.Errorf("%w: %s", entpatch.ErrDialect, d)
+	}
+	s.Db = db
+	return s, nil
 }
 
 func (s Server) Tenant() go_app.TenantServiceServer { return NewTenantServiceServer(s.Db) }

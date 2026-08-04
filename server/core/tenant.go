@@ -71,3 +71,11 @@ func (s TenantServiceServer) Patch(ctx context.Context, req *go_app.TenantPatchR
 
 	return s.TenantServiceServer.Patch(ctx, req)
 }
+
+func (s TenantServiceServer) Apply(ctx context.Context, req *go_app.TenantApplyRequest) (*go_app.Tenant, error) {
+	if err := checkAlias(tenantEntity, req.GetPatch()); err != nil {
+		return nil, err
+	}
+
+	return s.TenantServiceServer.Apply(ctx, req)
+}
