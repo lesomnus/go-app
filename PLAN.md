@@ -269,3 +269,27 @@ Not now, and not blocked by anything here.
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
 | 4 validation and the doctrine | **done** | `buf.validate` + one interceptor; `Patch`/`Apply` closed at the transport, off by default |
 | 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |
+
+Checked against a real PostgreSQL and not only the SQLite the tests run on:
+migrations applied to an empty database, the root Tenant put there before
+anything was served, writes leaving trail rows, a list read across three pages,
+`Patch` refused, a bad identifier refused before the server saw it, and the wall
+answering `NotFound` from inside a Tenant.
+
+### What the plan got wrong
+
+Worth keeping, since the errors were in the reasoning rather than in the code.
+
+- **Soft delete "cannot live in `core`, because the reads are all generated"**
+  stopped being true the moment the `Scope` hook landed. Reads are now the easy
+  half; what blocks it is the uniqueness of a soft-deleted row, which is a
+  schema question.
+- **`object_tenant_id` makes "history stays where it happened" true.** It was
+  already true. The column is a different policy, and a widening one.
+- **The scope should see everything when a request has no frame.** That is also
+  the answer for a frame that went missing by mistake. Refusing, and handing a
+  server with no wall to the two callers that must go around it, makes the
+  bypass something a reader can find.
+- **Validation belongs on the request.** It does — but only because `Patch` and
+  `Apply` are not requests anybody sends. The constraint that could not reach a
+  generated CRUD request turned out not to need to.
