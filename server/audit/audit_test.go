@@ -324,19 +324,21 @@ func TestTrailIsWalled(t *testing.T) {
 		x.NoError(err)
 		x.Len(vs.GetItems(), 1)
 
-		// Naming no selection asks for the row, and the row is what comes back.
-		// Reading whose it is to decide that is the wall's business and not the
-		// caller's, so it is the one thing taken back out.
+		// Naming no selection asks for the row, and the row is what comes back
+		// -- whose it is included. The wall reads nothing to decide, since it
+		// is a predicate on the query rather than a look at the answer, so
+		// there is nothing it adds to the selection and nothing it takes back
+		// out from under the caller.
 		v, err := c.Audit().Get(as, vs.GetItems()[0].Ref().Pick())
 		x.NoError(err)
 		x.Equal(go_app.HolderService_Patch_FullMethodName, v.GetAction())
 		x.Equal(john.GetId(), v.GetObjectId())
 		x.NotEmpty(v.GetPatch())
 		x.NotNil(v.GetDateCreated())
-		x.Empty(v.GetTenantId())
+		x.Equal(acme.GetId(), v.GetTenantId())
 	}))
 
-	t.Run("asking for all of a row of one's own keeps all of it", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	t.Run("a selection is answered as it was asked", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		acme := c.CreateTenant(ctx, x, "acme")
 		john := c.CreateHolder(ctx, x, acme.Ref(), "john")
 
@@ -353,17 +355,25 @@ func TestTrailIsWalled(t *testing.T) {
 		x.NoError(err)
 		x.Len(vs.GetItems(), 1)
 
-		// Whose it is comes back, because `all` is asking for it -- the wall
-		// reads that column to decide, and what it read is not to be taken out
-		// from under a caller who said they wanted everything.
 		v, err := c.Audit().Get(as, vs.GetItems()[0].Ref().Pick().
 			WithSelect(func(s *go_app.AuditSelect) { s.SetAll(true) }))
 		x.NoError(err)
 		x.Equal(acme.GetId(), v.GetTenantId())
 
-		// And without saying so, it does not.
-		u, err := c.Audit().Get(as, vs.GetItems()[0].Pick())
+		// A selection that names one thing names only it, and nothing in front
+		// edits it into naming two.
+		u, err := c.Audit().Get(as, vs.GetItems()[0].Ref().Pick().
+			WithSelect(func(s *go_app.AuditSelect) { s.SetAction(true) }))
 		x.NoError(err)
-		x.Empty(u.GetTenantId())
+		x.Equal(go_app.HolderService_Patch_FullMethodName, u.GetAction())
+
+		// Not acme's, which is the assertion. It comes back as the identifier
+		// that names nobody rather than as nothing at all: a column that was
+		// not read has no spelling of its own in a fixed-width field, so the
+		// conversion answers with the zero value. Which is worth knowing --
+		// the trail writes that same identifier for a write nobody asked for,
+		// so these two are not told apart by looking. Nothing here can fix
+		// that; it is the generated conversion's to say.
+		x.Equal(make([]byte, 16), u.GetTenantId())
 	}))
 }

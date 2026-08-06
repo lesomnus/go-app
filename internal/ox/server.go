@@ -69,9 +69,17 @@ func NewServer(tb testing.TB) *Server {
 	// The stack the app is served with, whole: the rules that hold everywhere,
 	// the gate that says who may ask for what, and the trail the writes leave
 	// behind them.
-	sink, err := bare.NewServer(c, bare.WithRecorder(audit.NewRecorder()))
+	rec := audit.NewRecorder()
+
+	// Without the wall, which is what works out who is calling and what puts
+	// the root Tenant there before anybody exists; see cmd/serve.go.
+	sink, err := bare.NewServer(c, bare.WithRecorder(rec))
 	x.NoError(err)
-	v, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
+
+	walled, err := bare.NewServer(c, bare.WithRecorder(rec), bare.WithScope(gate.Wall()))
+	x.NoError(err)
+
+	v, err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
 	x.NoError(err)
 
 	// Every deployment has the root Tenant, so every test does too. It is made

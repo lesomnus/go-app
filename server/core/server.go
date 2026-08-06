@@ -78,6 +78,24 @@ func (s Server) Db() (*ent.Client, error) {
 	return v.Db, nil
 }
 
+// Scope returns what the generated server behind this one narrows its queries
+// with, so that a service written by hand narrows its own the same way.
+//
+// A `List` is the case this exists for. It is not a CRUD operation, so nothing
+// generates it and nothing narrows it; written without this it would answer
+// with every row and leave the caller's own to be picked out of the answer --
+// which is wrong twice over. It reads rows the caller may not see, and a list
+// cut short at a limit before it is filtered is one that any caller can push
+// another's rows out of by making enough of their own.
+func (s Server) Scope() (bare.Scopes, error) {
+	v, ok := go_app.Find[bare.Server](s)
+	if !ok {
+		return bare.Scopes{}, status.Error(codes.Internal, "no database in the server stack")
+	}
+
+	return v.Scope, nil
+}
+
 // Build makes a [go_app.Builder] of this server so that it can be stacked with
 // the others. A named type rather than a [go_app.BuilderFunc], since that is
 // what names the builder if it fails, and it is where the options this server

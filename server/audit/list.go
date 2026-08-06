@@ -34,6 +34,11 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 		return nil, err
 	}
 
+	sc, err := s.Scope()
+	if err != nil {
+		return nil, err
+	}
+
 	q := db.Audit.Query()
 
 	// Whose trail it is narrows the query rather than the answer. Cutting the
@@ -41,6 +46,22 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 	// every Tenant is one that any of them can push the others out of: write a
 	// hundred rows of your own and everybody else's trail answers "nothing
 	// happened". Which is worse than an error, because it reads like one.
+	//
+	// The narrowing is the same one the generated servers apply to every row
+	// they read; a hand-written list is the read they do not make, so it is
+	// asked for here rather than inherited.
+	if sc.Audit != nil {
+		p, err := sc.Audit(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if p != nil {
+			q.Where(p)
+		}
+	}
+
+	// A filter, and not the wall: the wall is above. This is how whoever can
+	// see more than one Tenant asks about one of them.
 	if req.HasTenantId() {
 		k, err := uuid.FromBytes(req.GetTenantId())
 		if err != nil {

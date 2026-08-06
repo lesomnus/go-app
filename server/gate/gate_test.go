@@ -2,6 +2,7 @@ package gate_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/lesomnus/protobuf-patch/patch"
@@ -54,23 +55,34 @@ func TestHolder(t *testing.T) {
 		_, err = c.Holder().Get(ctx, go_app.HolderGetBySlug("erlich", p.hooli.Ref()))
 		x.ErrCode(codes.NotFound, err)
 	}))
-	t.Run("what was not asked for does not come back", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	t.Run("the selection is the caller's alone", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
-		ctx = c.AsHolder(ctx, p.john)
+		as := c.AsHolder(ctx, p.john)
 
-		// The tenant is read to decide whether this is allowed, and taken back
-		// out because the caller did not ask for it.
-		v, err := c.Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()))
+		// Naming no selection asks for the row, and the row is what comes
+		// back -- for a Holder of one Tenant exactly as for whoever
+		// administers the deployment. The wall reads nothing to decide, since
+		// it is a predicate on the query rather than a look at the answer, so
+		// there is nothing it has to add to the selection and nothing it has
+		// to take back out.
+		//
+		// It used to add the Tenant to any selection that did not have it,
+		// read it, and clear it again -- which meant the same request answered
+		// two different rows depending on who asked.
+		for _, ctx := range []context.Context{as, ctx} {
+			v, err := c.Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()))
+			x.NoError(err)
+			x.True(v.HasTenant())
+			x.Equal(p.acme.GetId(), v.GetTenant().GetId())
+		}
+
+		// And a selection that names one thing is a selection that names only
+		// it.
+		v, err := c.Holder().Get(as, go_app.HolderGetById(p.john.GetId()).
+			WithSelect(func(s *go_app.HolderSelect) { s.SetAlias(true) }))
 		x.NoError(err)
+		x.Equal("john", v.GetAlias())
 		x.False(v.HasTenant())
-
-		u, err := c.Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()).
-			WithSelect(func(s *go_app.HolderSelect) {
-				s.SetTenant(go_app.TenantSelect_builder{}.Build())
-			}))
-		x.NoError(err)
-		x.True(u.HasTenant())
-		x.Equal(p.acme.GetId(), u.GetTenant().GetId())
 	}))
 	t.Run("a list is only of my own", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
@@ -84,6 +96,29 @@ func TestHolder(t *testing.T) {
 			vs = append(vs, u.GetAlias())
 		}
 		// The admin of acme, and john. Not erlich, and not the other admins.
+		x.ElementsMatch([]string{"admin", "john"}, vs)
+	}))
+	t.Run("a list of my own survives a deployment full of other people's", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		p := setup(ctx, x, c)
+
+		// More Holders in the other Tenant than a whole answer holds.
+		for i := range core.ListLimit + 20 {
+			c.CreateHolder(ctx, x, p.hooli.Ref(), fmt.Sprintf("filler-%d", i))
+		}
+
+		v, err := c.Holder().List(c.AsHolder(ctx, p.john), &go_app.HolderListRequest{})
+		x.NoError(err)
+
+		vs := []string{}
+		for _, u := range v.GetItems() {
+			vs = append(vs, u.GetAlias())
+		}
+
+		// The wall is part of the query, so the limit is taken over acme's
+		// Holders and not over everybody's. Filtered after the fact instead,
+		// this answer would be empty -- the first hundred rows would all be
+		// hooli's and none of them would survive the filter -- and any Tenant
+		// could blank another's list by making enough Holders of its own.
 		x.ElementsMatch([]string{"admin", "john"}, vs)
 	}))
 	t.Run("adding to another tenant is refused", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
@@ -102,19 +137,29 @@ func TestHolder(t *testing.T) {
 		}.Build())
 		x.NoError(err)
 	}))
-	t.Run("changing one of another tenant is refused", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	t.Run("changing one of another tenant changes nothing", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
-		ctx = c.AsHolder(ctx, p.john)
+		as := c.AsHolder(ctx, p.john)
 
 		name := "Erlich"
-		_, err := c.Holder().Patch(ctx, go_app.HolderPatchRequest_builder{
+		_, err := c.Holder().Patch(as, go_app.HolderPatchRequest_builder{
 			Ref:  p.erlich.Ref(),
 			Name: &name,
 		}.Build())
 		x.ErrCode(codes.NotFound, err)
 
-		_, err = c.Holder().Erase(ctx, p.erlich.Ref())
-		x.ErrCode(codes.NotFound, err)
+		// Erasing what is not there succeeds, and out of the wall is not
+		// there, so this succeeds and erases nothing. It reads odd and it is
+		// the honest answer: an erase is idempotent, and one that answered
+		// NotFound for a row that exists but is not yours would be telling a
+		// caller apart from the case where the row never existed at all.
+		_, err = c.Holder().Erase(as, p.erlich.Ref())
+		x.NoError(err)
+
+		// Which is the assertion that matters.
+		v, err := c.Bare().Holder().Get(ctx, go_app.HolderGetById(p.erlich.GetId()))
+		x.NoError(err)
+		x.Equal("erlich", v.GetAlias())
 	}))
 	t.Run("a patch document is no way around the wall", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)

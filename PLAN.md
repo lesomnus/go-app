@@ -120,10 +120,12 @@ Three things to get right:
   no recorder of its own, so it cannot audit itself into a loop; it needs the
   same exemption from the scope, or the trail write walls itself out.
 - **A request with no frame.** `EnsureRoot` runs before there is anybody to be.
-  The hook is the app's, so the app decides, but this repo's hook answers
-  *unscoped* when there is no frame — the same call the trail already makes
-  when it falls back to `Change.Method`. It is the one dangerous default here
-  and it is written down where it is made.
+  The plan was for the hook to answer *unscoped* there, and that was wrong: it
+  is the same answer for a request whose frame went missing by mistake, and the
+  authentication interceptor is the only thing standing between that and every
+  row in the database. What is done instead is to refuse a frameless request
+  and hand the two callers that must go around the wall a server it was never
+  installed on. The bypass is then a wiring decision somebody can read.
 - **How it is installed.** Predicates are typed per entity, so one option
   cannot carry them all.
 
@@ -189,9 +191,9 @@ Not now, and not blocked by anything here.
 | 0.1 `buf breaking` | **done** | against the base of a pull request, or the commit a push moved from; `main` here carries no definitions to compare against |
 | 0.2 default deadline | **done** | `grpcx.Deadline`, `server.timeout`, unary only |
 | 0.3 readiness / liveness | **done** | `""` follows the database, `"liveness"` follows the process |
-| 0.4 more than one recorder | not started | |
-| 1 the `Scope` hook | not started | |
-| 2.1 the Tenant wall | not started | |
+| 0.4 more than one recorder | **done** | `WithRecorder` accumulates; every recorder is required |
+| 1 the `Scope` hook | **done** | `bare.Scopes`, one per entity, into every query the generated servers build |
+| 2.1 the Tenant wall | **done** | `gate.Wall()`; thirteen overrides became three rules and a predicate |
 | 2.2 soft delete | not started | |
 | 3 `object_tenant_id` | not started | |
 | 4 validation and the doctrine | not started | |

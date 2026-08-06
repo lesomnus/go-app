@@ -90,6 +90,12 @@ func (c *Client) Bare() go_app.Client {
 	s, ok := go_app.Find[bare.Server](c.Server.Server)
 	require.True(c.tb, ok, "the stack has no bare server")
 
+	// Without the wall. It is stated by `server/gate` and enforced from inside
+	// this server, so it is one of the rules in front even though it does not
+	// run there -- and this client is for arranging a state the rules would
+	// refuse. A test that wants to see the wall travels the ordinary client.
+	s.Scope = bare.Scopes{}
+
 	c.bare = newClient(c.tb, c.Server, c.Server.GrpcOf(s))
 	return c.bare
 }

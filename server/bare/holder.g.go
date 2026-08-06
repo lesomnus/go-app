@@ -29,19 +29,45 @@ type HolderServiceServer struct {
 	// if it is nil. See [Recorder].
 	Rec Recorder
 
+	// Scope narrows every query this server builds, and it sees every row
+	// if it is nil. See [Scopes].
+	Scope func(ctx context.Context) (predicate.Holder, error)
+
 	go_app.UnimplementedHolderServiceServer
 }
 
 // NewHolderServiceServer answers with a server that runs its queries with `db`.
 //
 // It takes the options of [Server] so that what is built here can be told
-// where to report its writes. Built without that, it reports nowhere.
+// where to report its writes and what it may see. Built without them, it
+// reports nowhere and sees everything.
 func NewHolderServiceServer(db *ent.Client, opts ...Option) go_app.HolderServiceServer {
 	s := Server{Db: db}
 	for _, opt := range opts {
 		opt(&s)
 	}
-	return HolderServiceServer{Db: s.Db, Rec: s.Rec}
+	return HolderServiceServer{Db: s.Db, Rec: s.Rec, Scope: s.Scope.Holder}
+}
+
+// narrow answers with `p` and whatever [HolderServiceServer.Scope]
+// adds to it, which is `p` itself where nothing is out of scope.
+func (s HolderServiceServer) narrow(ctx context.Context, p predicate.Holder) (predicate.Holder, error) {
+	if s.Scope == nil {
+		return p, nil
+	}
+
+	q, err := s.Scope(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case q == nil:
+		return p, nil
+	case p == nil:
+		return q, nil
+	default:
+		return holder.And(p, q), nil
+	}
 }
 
 func (s HolderServiceServer) Add(ctx context.Context, req *go_app.HolderAddRequest) (*go_app.Holder, error) {
@@ -116,13 +142,16 @@ func (s HolderServiceServer) Add(ctx context.Context, req *go_app.HolderAddReque
 }
 
 func (s HolderServiceServer) Get(ctx context.Context, req *go_app.HolderGetRequest) (*go_app.Holder, error) {
-	q := s.Db.Holder.Query()
-
-	if p, err := HolderPick(req.GetRef()); err != nil {
+	p, err := HolderPick(req.GetRef())
+	if err != nil {
 		return nil, err
-	} else {
-		q.Where(p)
 	}
+	p, err = s.narrow(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	q := s.Db.Holder.Query().Where(p)
 	HolderSelectInit(q, req.GetSelect())
 
 	v, err := q.Only(ctx)
@@ -279,7 +308,10 @@ func (s HolderServiceServer) apply(ctx context.Context, ref *go_app.HolderRef, d
 	}
 	at := &go_app.HolderRef{}
 	at.SetId(k[:])
-	p := holder.IDEQ(k)
+	p, err := s.narrow(ctx, holder.IDEQ(k))
+	if err != nil {
+		return nil, err
+	}
 
 	if mod == nil {
 		q := st.Db.Holder.Query().Where(p)
@@ -340,6 +372,10 @@ func (s HolderServiceServer) apply(ctx context.Context, ref *go_app.HolderRef, d
 
 func (s HolderServiceServer) Erase(ctx context.Context, req *go_app.HolderRef) (*emptypb.Empty, error) {
 	p, err := HolderPick(req)
+	if err != nil {
+		return nil, err
+	}
+	p, err = s.narrow(ctx, p)
 	if err != nil {
 		return nil, err
 	}

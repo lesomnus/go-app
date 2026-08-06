@@ -65,6 +65,17 @@ func (s Server) Db() (*ent.Client, error) {
 	return v.Db, nil
 }
 
+// Scope returns what that server narrows its queries with, so that List
+// narrows its own the same way. See [core.Server.Scope].
+func (s Server) Scope() (bare.Scopes, error) {
+	v, ok := go_app.Find[bare.Server](s)
+	if !ok {
+		return bare.Scopes{}, status.Error(codes.Internal, "no database in the server stack")
+	}
+
+	return v.Scope, nil
+}
+
 func Build() go_app.Builder {
 	return builder{}
 }

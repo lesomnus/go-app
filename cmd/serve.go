@@ -70,15 +70,36 @@ func NewCmdServe() *xli.Command {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			// The trail is kept by the servers that do the writing, not by a
-			// layer in front of them: every RPC that changes anything reports
-			// itself, from inside the transaction that changes it. See
-			// `server/audit`.
-			sink, err := bare.NewServer(db.Client, bare.WithRecorder(audit.NewRecorder()))
+			// The server that talks to the database, twice: once as it is, and
+			// once with the wall on it.
+			//
+			// Two things are said to it rather than to the stack, and for the
+			// same reason -- both are about the statement that runs. The trail
+			// is kept by the servers that do the writing, since every RPC that
+			// changes anything has to report itself from inside the
+			// transaction that changes it (`server/audit`). The wall is stated
+			// by the layer that holds the rules and enforced in the query,
+			// since narrowing what a caller may see is a predicate and a
+			// predicate belongs in the WHERE (`server/gate`).
+			rec := audit.NewRecorder()
+
+			// `sink` has no wall, and the two things below are why. Working out
+			// who is calling happens before there is anybody to be walled by,
+			// and the root Tenant is put there before anybody exists at all.
+			// Going around the wall is a wiring decision that should be
+			// readable in one place rather than a rule that quietly opens up
+			// whenever nobody is asking.
+			sink, err := bare.NewServer(db.Client, bare.WithRecorder(rec))
 			if err != nil {
 				return z.Err(err, "build the server that talks to the database")
 			}
-			s, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
+
+			walled, err := bare.NewServer(db.Client, bare.WithRecorder(rec), bare.WithScope(gate.Wall()))
+			if err != nil {
+				return z.Err(err, "build the server that talks to the database")
+			}
+
+			s, err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
 			if err != nil {
 				return z.Err(err, "build server")
 			}

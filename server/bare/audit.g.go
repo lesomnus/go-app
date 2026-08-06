@@ -29,19 +29,45 @@ type AuditServiceServer struct {
 	// if it is nil. See [Recorder].
 	Rec Recorder
 
+	// Scope narrows every query this server builds, and it sees every row
+	// if it is nil. See [Scopes].
+	Scope func(ctx context.Context) (predicate.Audit, error)
+
 	go_app.UnimplementedAuditServiceServer
 }
 
 // NewAuditServiceServer answers with a server that runs its queries with `db`.
 //
 // It takes the options of [Server] so that what is built here can be told
-// where to report its writes. Built without that, it reports nowhere.
+// where to report its writes and what it may see. Built without them, it
+// reports nowhere and sees everything.
 func NewAuditServiceServer(db *ent.Client, opts ...Option) go_app.AuditServiceServer {
 	s := Server{Db: db}
 	for _, opt := range opts {
 		opt(&s)
 	}
-	return AuditServiceServer{Db: s.Db, Rec: s.Rec}
+	return AuditServiceServer{Db: s.Db, Rec: s.Rec, Scope: s.Scope.Audit}
+}
+
+// narrow answers with `p` and whatever [AuditServiceServer.Scope]
+// adds to it, which is `p` itself where nothing is out of scope.
+func (s AuditServiceServer) narrow(ctx context.Context, p predicate.Audit) (predicate.Audit, error) {
+	if s.Scope == nil {
+		return p, nil
+	}
+
+	q, err := s.Scope(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case q == nil:
+		return p, nil
+	case p == nil:
+		return q, nil
+	default:
+		return audit.And(p, q), nil
+	}
 }
 
 func (s AuditServiceServer) Add(ctx context.Context, req *go_app.AuditAddRequest) (*go_app.Audit, error) {
@@ -115,13 +141,16 @@ func (s AuditServiceServer) Add(ctx context.Context, req *go_app.AuditAddRequest
 }
 
 func (s AuditServiceServer) Get(ctx context.Context, req *go_app.AuditGetRequest) (*go_app.Audit, error) {
-	q := s.Db.Audit.Query()
-
-	if p, err := AuditPick(req.GetRef()); err != nil {
+	p, err := AuditPick(req.GetRef())
+	if err != nil {
 		return nil, err
-	} else {
-		q.Where(p)
 	}
+	p, err = s.narrow(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	q := s.Db.Audit.Query().Where(p)
 	AuditSelectInit(q, req.GetSelect())
 
 	v, err := q.Only(ctx)
@@ -278,7 +307,10 @@ func (s AuditServiceServer) apply(ctx context.Context, ref *go_app.AuditRef, doc
 	}
 	at := &go_app.AuditRef{}
 	at.SetId(k[:])
-	p := audit.IDEQ(k)
+	p, err := s.narrow(ctx, audit.IDEQ(k))
+	if err != nil {
+		return nil, err
+	}
 
 	if mod == nil {
 		q := st.Db.Audit.Query().Where(p)
@@ -339,6 +371,10 @@ func (s AuditServiceServer) apply(ctx context.Context, ref *go_app.AuditRef, doc
 
 func (s AuditServiceServer) Erase(ctx context.Context, req *go_app.AuditRef) (*emptypb.Empty, error) {
 	p, err := AuditPick(req)
+	if err != nil {
+		return nil, err
+	}
+	p, err = s.narrow(ctx, p)
 	if err != nil {
 		return nil, err
 	}

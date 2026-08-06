@@ -134,7 +134,9 @@ stacked on top of each other:
   is done from inside the generated servers. See
   [What was changed, and by whom](#what-was-changed-and-by-whom).
 - `server/gate` says what the caller of a request may do with it. It is the
-  outermost one, so nothing behind it has to ask again.
+  outermost one, so nothing behind it has to ask again — though not everything
+  it says is *enforced* there; see
+  [What a caller may see](#what-a-caller-may-see).
 
 What they share is not written here: `go_app` is generated with `Overlay` to
 implement only the services of interest, `Build` to stack them, and `Iter`,
@@ -143,12 +145,13 @@ in terms of the generated `go_app.Server`, so an app that wrote it by hand would
 write the same file.
 
 **A capability is found, not declared.** Whatever a layer can do besides
-answering a service — hold the database, hold a connection — is reached with
-`Find` rather than by adding a method to `go_app.Server`. That is what keeps
-`Server` the generated set it is: extend it and every layer, every `Overlay` and
-every helper above has to be rewritten to match. `core.Server.Db()` is the
-example, and `Find` takes any type so that a one-method interface naming just
-what a caller needs is as good a question as a layer's own type.
+answering a service — hold the database, hold a connection, narrow a query — is
+reached with `Find` rather than by adding a method to `go_app.Server`. That is
+what keeps `Server` the generated set it is: extend it and every layer, every
+`Overlay` and every helper above has to be rewritten to match.
+`core.Server.Db()` and `core.Server.Scope()` are the examples, and `Find` takes
+any type so that a one-method interface naming just what a caller needs is as
+good a question as a layer's own type.
 
 **Except one, and knowingly.** Every layer implements
 [`enttx.Binder`](https://github.com/protobuf-orm/protoc-gen-orm-ent/tree/main/runtime/enttx)
@@ -276,6 +279,55 @@ Tenant nobody holds is a Tenant nobody can do anything with.
 
 It is a sample. An app with more to say about who may do what says it here, in
 front of the rules that hold wherever it runs.
+
+### What a caller may see
+
+The first of those is not enforced in `server/gate`. It is **stated** there —
+`gate.Wall()` — and enforced as a predicate on every query the generated servers
+build:
+
+```go
+sink,   err := bare.NewServer(db, bare.WithRecorder(audit.NewRecorder()))
+walled, err := bare.NewServer(db, bare.WithRecorder(audit.NewRecorder()), bare.WithScope(gate.Wall()))
+s,      err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
+```
+
+Narrowing what a caller may see is a predicate, and a predicate belongs in the
+`WHERE`. Done from in front it is an override of `Get`, `Patch`, `Apply` and
+`Erase`, once per entity and once more for every entity added afterwards. This
+app had thirteen of them across three entities, and they had already started to
+drift: one carried a bug that was fixed in one copy and left in the next.
+
+Three things fall out of it rather than being written:
+
+- **`NotFound`, not `PermissionDenied`.** A row out of the wall is a row the
+  query does not match. Nothing has to remember to answer carefully.
+- **A selection is the caller's alone.** The old wall read the Tenant of a row
+  to decide, so it had to add that column to a selection that did not ask for
+  it and take it back out afterwards — which meant the same request answered
+  different rows depending on who sent it. Nothing reads the answer now.
+- **A list is walled before it is cut short.** A limit taken across every Tenant
+  and filtered afterwards is one that any Tenant can push the others out of by
+  making a hundred rows of its own — and the victim sees an empty list, which
+  reads like "nothing happened" rather than like an error. `List` is written by
+  hand, so it asks for the predicate itself (`core.Server.Scope()`); that is the
+  one read the generated servers do not make.
+
+Two things go around the wall, and they are handed a server it was never
+installed on rather than being special-cased inside it: working out **who is
+calling** happens before there is anybody to be walled by, and `EnsureRoot` puts
+the root Tenant there before anybody exists at all. A request that reaches a
+walled server with no frame is refused.
+
+What stays in `server/gate` is what is genuinely not a predicate — whether a
+Tenant may be put up or taken down, and which Tenant a Holder may be added to.
+Those are about a row that does not exist yet, so there is nothing to narrow.
+
+One consequence is worth knowing: erasing something out of the wall **succeeds
+and erases nothing**, because erasing what is not there succeeds and out of the
+wall is not there. It reads odd and it is the honest answer — an erase is
+idempotent, and answering `NotFound` for a row that exists but is not yours
+would tell a caller apart from the case where it never existed.
 
 ## What was changed, and by whom
 

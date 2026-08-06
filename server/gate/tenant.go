@@ -24,67 +24,47 @@ func (s Server) Tenant() go_app.TenantServiceServer {
 // Add is for whoever administers the deployment. A Tenant is the wall every
 // other rule is about, so putting up another one is not something that happens
 // from inside one.
+//
+// It is here rather than in [Wall] for the same reason [HolderServiceServer.Add]
+// is: the row does not exist yet, and a caller who may see nothing is not the
+// same as a caller who may create nothing.
 func (s TenantServiceServer) Add(ctx context.Context, req *go_app.TenantAddRequest) (*go_app.Tenant, error) {
-	f, err := actor(ctx)
-	if err != nil {
+	if err := administers(ctx, "add a tenant to this deployment"); err != nil {
 		return nil, err
-	}
-	if !unbounded(f) {
-		return nil, errForbidden("add a tenant to this deployment")
 	}
 
 	return s.TenantServiceServer.Add(ctx, req)
 }
 
 // Erase, likewise, and it takes everything in it with it.
+//
+// Unlike Add this one *could* be a predicate -- a Tenant that is not the
+// caller's own is already out of scope, so the erase would quietly erase
+// nothing. That is the wrong answer here. Taking down the Tenant you are
+// standing in is a mistake worth being told about rather than one that silently
+// succeeds, so it is refused by name.
 func (s TenantServiceServer) Erase(ctx context.Context, req *go_app.TenantRef) (*emptypb.Empty, error) {
-	f, err := actor(ctx)
-	if err != nil {
+	if err := administers(ctx, "erase a tenant"); err != nil {
 		return nil, err
-	}
-	if !unbounded(f) {
-		return nil, errForbidden("erase a tenant")
 	}
 
 	return s.TenantServiceServer.Erase(ctx, req)
 }
 
-func (s TenantServiceServer) Get(ctx context.Context, req *go_app.TenantGetRequest) (*go_app.Tenant, error) {
-	f, err := actor(ctx)
+// administers answers nil for whoever administers the deployment, which is the
+// caller no wall is about, and refuses `what` to everybody else.
+func administers(ctx context.Context, what string) error {
+	if _, err := actor(ctx); err != nil {
+		return err
+	}
+
+	t, err := Scope(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if !unbounded(f) && !names(f, req.GetRef()) {
-		return nil, errNotFound("Tenant")
-	}
-
-	return s.TenantServiceServer.Get(ctx, req)
-}
-
-func (s TenantServiceServer) Patch(ctx context.Context, req *go_app.TenantPatchRequest) (*go_app.Tenant, error) {
-	f, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !unbounded(f) && !names(f, req.GetRef()) {
-		return nil, errNotFound("Tenant")
+	if !t.All() {
+		return errForbidden(what)
 	}
 
-	return s.TenantServiceServer.Patch(ctx, req)
-}
-
-// Apply is Patch by another road: what it may change is stated in a document
-// rather than in the request, but it is about the same Tenant, named the same
-// way, so it is the same wall. What the document says is for the server behind
-// this one; whether it may be said at all is settled here.
-func (s TenantServiceServer) Apply(ctx context.Context, req *go_app.TenantApplyRequest) (*go_app.Tenant, error) {
-	f, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !unbounded(f) && !names(f, req.GetRef()) {
-		return nil, errNotFound("Tenant")
-	}
-
-	return s.TenantServiceServer.Apply(ctx, req)
+	return nil
 }

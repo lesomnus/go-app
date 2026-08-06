@@ -5,12 +5,18 @@
 // thing being asked about, and here that is one rule - a Tenant is a wall, and
 // what is inside it is not visible from outside.
 //
+// Most of that rule is stated here and enforced elsewhere. Narrowing what a
+// caller may see is a predicate, and a predicate belongs in the query, so it is
+// [Wall] and it is installed on the innermost server. What is left in the
+// layers of this package is what is not a predicate: whether a Tenant may be
+// put up or taken down, and which Tenant a Holder may be added to, both of
+// which are about a row that does not exist yet.
+//
 // It is a sample. An app with more to say about who may do what says it here,
 // in front of the rules that hold wherever it runs.
 package gate
 
 import (
-	"bytes"
 	"context"
 
 	"entgo.io/ent/dialect"
@@ -19,7 +25,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	go_app "github.com/lesomnus/go-app/go_app"
-	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/frame"
 )
 
@@ -59,14 +64,12 @@ func (builder) Build(next go_app.Server) (go_app.Server, error) {
 	return NewServer(next), nil
 }
 
-// errNotFound is what is answered about something the caller may not see. That
-// it exists is itself something not to say.
-func errNotFound(what string) error {
-	return status.Errorf(codes.NotFound, "%s not found", what)
-}
-
 // errForbidden is for what the caller can see but may not do. Saying "no" here
 // gives nothing away that the caller does not already know.
+//
+// There is no errNotFound beside it any more. What a caller may not see is not
+// answered by this package at all: it is a row the query did not match, and
+// what says so is the server that ran the query. See [Wall].
 func errForbidden(what string) error {
 	return status.Errorf(codes.PermissionDenied, "not yours to %s", what)
 }
@@ -81,22 +84,4 @@ func actor(ctx context.Context) (*frame.Frame, error) {
 	}
 
 	return f, nil
-}
-
-// unbounded reports whether the caller is held by the Tenant that administers
-// the deployment, which is the one Tenant that is not a wall.
-func unbounded(f *frame.Frame) bool {
-	return bytes.Equal(f.Tenant().GetId(), core.RootId[:])
-}
-
-// within reports whether the given Tenant is the caller's own.
-func within(f *frame.Frame, v *go_app.Tenant) bool {
-	return bytes.Equal(v.GetId(), f.Tenant().GetId())
-}
-
-// names reports whether the given reference is to the caller's own Tenant. A
-// reference names a Tenant either by identifier or by alias, and the caller's
-// own is known both ways, so neither has to be looked up.
-func names(f *frame.Frame, ref *go_app.TenantRef) bool {
-	return ref.Picks(f.Tenant())
 }

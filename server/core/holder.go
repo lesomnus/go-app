@@ -53,16 +53,37 @@ const ListLimit = 100
 // List answers with the Holders that match any of the given filters, or with
 // every Holder if there is none.
 //
-// It is not a CRUD operation, so nothing generates it; this is the plainest
-// thing that works and it is meant to be rewritten. A real one would page,
-// order and filter by what the app is actually asked about.
+// It is not a CRUD operation, so nothing generates it; the filtering here is
+// the plainest thing that works and it is meant to be rewritten. A real one
+// would page and order and filter by what the app is actually asked about.
+//
+// What is not meant to be rewritten is the scope. Nothing narrows this query
+// but this line, since a hand-written list is exactly the read the generated
+// servers do not make, and it has to be in the query rather than over the
+// answer: a list cut short at a limit and filtered afterwards is one that any
+// Tenant can push the others out of by making enough Holders of its own.
 func (s HolderServiceServer) List(ctx context.Context, req *go_app.HolderListRequest) (*go_app.HolderListResponse, error) {
 	db, err := s.Db()
 	if err != nil {
 		return nil, err
 	}
 
+	sc, err := s.Scope()
+	if err != nil {
+		return nil, err
+	}
+
 	q := db.Holder.Query()
+	if sc.Holder != nil {
+		p, err := sc.Holder(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if p != nil {
+			q.Where(p)
+		}
+	}
+
 	if fs := req.GetFilters(); len(fs) > 0 {
 		ps := make([]predicate.Holder, 0, len(fs))
 		for i, f := range fs {
