@@ -393,6 +393,24 @@ unique across every table: whatever answers to it is what the row was about. The
 cost is real and worth knowing — a row erased later leaves an identifier nothing
 answers to, and nothing says what it used to be.
 
+**The trail is the actor's, not the object's.** A row is stamped with the Tenant
+the caller was held by, and nothing moves it afterwards. Two things follow, and
+both are on purpose:
+
+- A thing transferred to another Tenant **leaves its whole trail behind**.
+  Receiving something does not come with the right to read what its previous
+  owner did inside their own walls.
+- A Tenant **does not see what was done to its own rows from outside it**. Root
+  writing into acme leaves a row that is root's to read.
+
+Closing the second half means recording the Tenant of the *object* too, at the
+time of the write, and that is deliberately not done. The recorder is told about
+a write after it has happened, and by then an `Erase` has taken away the row it
+would have read. Making it available means either eagerly loading every edge of
+every entity on every `Erase` — in a generator that serves more than this app —
+or recording before the write is known to have happened. A column that is right
+for three RPCs and missing for the fourth is worse than none.
+
 What it costs, and only while a recorder is configured: `Add` and `Erase` open a
 transaction they did not need before, and `Erase` reads the row before deleting
 it — a request may name a row by its alias, and an alias is not what a trail is

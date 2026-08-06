@@ -193,6 +193,24 @@ type Audit_builder struct {
 	// of. It is not the Tenant of the thing that changed: whoever administers
 	// the deployment may write into any of them, and what an audit trail is
 	// asked about first is who did it.
+	//
+	// So this trail is the actor's and not the object's, and two things follow.
+	// A row is stamped with the Tenant that was acting and nothing moves it
+	// afterwards, so a thing that is later transferred to another Tenant leaves
+	// its whole trail behind -- which is the conservative reading, since
+	// receiving something does not come with the right to read what its previous
+	// owner did inside their own walls. And a Tenant does not see what was done
+	// to its own rows from outside it: root writing into acme leaves a row that
+	// is root's to read.
+	//
+	// Closing that second half means recording the Tenant of the *object* as
+	// well, at the time of the write, and it is deliberately not done. The
+	// recorder is told about a write after it has happened, and by then an Erase
+	// has taken the row it would have read; making it available would mean
+	// either eagerly loading every edge of every entity on every Erase, in a
+	// generator that serves more than this app, or recording before the write is
+	// known to have happened. A column that is right for three RPCs and missing
+	// for the fourth is worse than no column.
 	TenantId []byte
 	// The Holder that made the request. It is the zero identifier for a write
 	// nobody asked for, which is what the deployment does to itself at startup;

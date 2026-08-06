@@ -138,21 +138,77 @@ Three things to get right:
   only the rules that are rules: a Tenant is not created from inside one, and a
   Holder is created inside a named one. "Not found rather than denied" comes
   for free — a walled query returns nothing, and nothing is `NotFound`.
-- **2.2 Soft delete.** Declared in proto, emitted by the generator: the column,
-  the read predicate (Phase 1's slot), and `Erase` stamping instead of
-  deleting. It cannot live in `core`, because it is a predicate on every *read*
-  and the reads are all generated. The real work is uniqueness — a soft-deleted
-  `acme` still occupies the unique index, so the same alias cannot be used
-  again until the index is told about the stamp. A hard-delete guide comes with
-  it, and the interesting half of that guide is what happens to the trail.
+- **2.2 Soft delete.** **Blocked — see below.** Declared in proto, emitted by
+  the generator: the column, the read predicate (Phase 1's slot), and `Erase`
+  stamping instead of deleting. A hard-delete guide comes with it, and the
+  interesting half of that guide is what happens to the trail.
 
-### Phase 3 — `object_tenant_id`
+#### Why 2.2 is blocked
 
-A column on `Audit`, stamped at write time, and the wall on the trail reads it
-instead of the actor's Tenant. This is what makes "history stays where it
-happened" true rather than accidental, and it closes the limitation the README
-records today: a Tenant cannot see changes made to its own resources from
-outside it.
+Two of its three parts need a **fourth** repository, `protobuf-orm`, whose
+schema this app consumes from a remote registry (`buf.build/orm/orm`, pinned by
+digest in `buf.lock`). A local edit there cannot be consumed without publishing
+to that registry.
+
+- **Declaring it.** `orm.FieldOptions` would need something like `erased: {}`,
+  the way `version: {}` already marks the version field. There is no other
+  channel: the proto is the source of truth, and the generator reads the
+  options through `protobuf-orm`'s `graph`.
+- **Uniqueness, which is the part that matters.** `orm.Index` has `unique` and
+  no predicate, so a soft-deleted `acme/john` goes on occupying the unique
+  index and the same alias can never be used again. That needs a partial index
+  (`WHERE date_erased IS NULL`), which needs a field on `orm.Index`. Shipping
+  soft delete without it would be worse than not shipping it: an app would
+  discover the hole the first time somebody re-created a deleted thing.
+
+What is *not* blocked is the half this plan said was the hard one. **Reads are
+already free**: soft delete is a predicate, Phase 1 is where predicates go, and
+an app can install `holder.DateErasedIsNil()` next to the Tenant wall today.
+That is the thesis of this plan holding up — the wall and the soft delete are
+the same feature — and it is worth saying that the earlier reasoning here
+("it cannot live in `core`, because the reads are all generated") stopped being
+true the moment Phase 1 landed.
+
+So what is left for a future round, once `protobuf-orm` can say it, is the
+declaration, the `Erase` that stamps, and the partial index.
+
+### Phase 3 — `object_tenant_id` — **not done, and the reason is a correction**
+
+The plan was a column on `Audit`, stamped at write time, so that the wall on the
+trail reads the object's Tenant rather than the actor's. Two things came out of
+building it that change the answer.
+
+**The premise was wrong.** "History stays where it happened" was given as the
+thing this column buys, and it is already true without it: `tenant_id` is the
+Tenant *the actor was held by*, stamped when the write happened, and nothing
+moves it afterwards. A Holder that is later transferred to another Tenant leaves
+every row of its trail behind, because those rows were never about where the
+Holder lives — they are about who did something.
+
+So the column is not "history stays put". It is a **different policy**: let a
+Tenant see what was done *to its own rows*, including from outside it. That is
+the limitation the README records, it is a real one, and it is a widening of the
+wall rather than a tightening — acme would start seeing rows whose actor was
+root. It was not asked for, and it has a disclosure trade-off of its own.
+
+**And it cannot be recorded cheaply.** The recorder runs after the write, inside
+its transaction. For `Add` and `Apply` the row is still there and its Tenant is
+one query away. For `Erase` it is gone: the generated server reads the row's key
+before deleting, deletes, and *then* records. Making the object's Tenant
+available there means one of
+
+- handing the recorder the row itself (`Change.Row`), which for a Holder means
+  the generated `Erase` eagerly loading every edge of every entity, in a
+  general-purpose generator, to serve one app's column; or
+- recording before the delete, which gives up the property that only what
+  actually happened is recorded.
+
+A column that is right for three RPCs and absent for the fourth is worse than no
+column, and `Erase` is the case somebody would most want it for.
+
+The trade-off is written down in `proto/go_app/audit.proto` and in the README
+instead, which is what this phase was really for: a reader should know that the
+trail is the actor's and not the object's, and why.
 
 ### Phase 4 — validation, and what the general write is for
 
@@ -194,7 +250,7 @@ Not now, and not blocked by anything here.
 | 0.4 more than one recorder | **done** | `WithRecorder` accumulates; every recorder is required |
 | 1 the `Scope` hook | **done** | `bare.Scopes`, one per entity, into every query the generated servers build |
 | 2.1 the Tenant wall | **done** | `gate.Wall()`; thirteen overrides became three rules and a predicate |
-| 2.2 soft delete | not started | |
-| 3 `object_tenant_id` | not started | |
+| 2.2 soft delete | **blocked** | needs `orm.FieldOptions` and a partial `orm.Index`, which live in `protobuf-orm` and are consumed from a registry |
+| 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
 | 4 validation and the doctrine | not started | |
 | 5 paging | not started | |
