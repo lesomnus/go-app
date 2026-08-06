@@ -1095,6 +1095,8 @@ type AuditListRequest struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Filters     *[]*AuditFilter        `protobuf:"bytes,1,rep,name=filters"`
 	xxx_hidden_TenantId    []byte                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId"`
+	xxx_hidden_Size        int32                  `protobuf:"varint,3,opt,name=size"`
+	xxx_hidden_After       *string                `protobuf:"bytes,4,opt,name=after"`
 	XXX_raceDetectHookData protoimpl.RaceDetectHookData
 	XXX_presence           [1]uint32
 	unknownFields          protoimpl.UnknownFields
@@ -1142,6 +1144,23 @@ func (x *AuditListRequest) GetTenantId() []byte {
 	return nil
 }
 
+func (x *AuditListRequest) GetSize() int32 {
+	if x != nil {
+		return x.xxx_hidden_Size
+	}
+	return 0
+}
+
+func (x *AuditListRequest) GetAfter() string {
+	if x != nil {
+		if x.xxx_hidden_After != nil {
+			return *x.xxx_hidden_After
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *AuditListRequest) SetFilters(v []*AuditFilter) {
 	x.xxx_hidden_Filters = &v
 }
@@ -1151,7 +1170,17 @@ func (x *AuditListRequest) SetTenantId(v []byte) {
 		v = []byte{}
 	}
 	x.xxx_hidden_TenantId = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 4)
+}
+
+func (x *AuditListRequest) SetSize(v int32) {
+	x.xxx_hidden_Size = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 4)
+}
+
+func (x *AuditListRequest) SetAfter(v string) {
+	x.xxx_hidden_After = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 4)
 }
 
 func (x *AuditListRequest) HasTenantId() bool {
@@ -1161,9 +1190,33 @@ func (x *AuditListRequest) HasTenantId() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
 }
 
+func (x *AuditListRequest) HasSize() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
+}
+
+func (x *AuditListRequest) HasAfter() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
+}
+
 func (x *AuditListRequest) ClearTenantId() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
 	x.xxx_hidden_TenantId = nil
+}
+
+func (x *AuditListRequest) ClearSize() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_Size = 0
+}
+
+func (x *AuditListRequest) ClearAfter() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
+	x.xxx_hidden_After = nil
 }
 
 type AuditListRequest_builder struct {
@@ -1185,6 +1238,12 @@ type AuditListRequest_builder struct {
 	// optional: the field tracks presence, and a rule is not asked about a field
 	// that was not set.
 	TenantId []byte
+	// How many to answer with, and where to carry on from; see
+	// `HolderListRequest`. A trail is the list most likely to outgrow one
+	// answer, and it is read newest first, so a cursor is what reading further
+	// back means.
+	Size  *int32
+	After *string
 }
 
 func (b0 AuditListRequest_builder) Build() *AuditListRequest {
@@ -1193,17 +1252,28 @@ func (b0 AuditListRequest_builder) Build() *AuditListRequest {
 	_, _ = b, x
 	x.xxx_hidden_Filters = &b.Filters
 	if b.TenantId != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 4)
 		x.xxx_hidden_TenantId = b.TenantId
+	}
+	if b.Size != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 4)
+		x.xxx_hidden_Size = *b.Size
+	}
+	if b.After != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 4)
+		x.xxx_hidden_After = b.After
 	}
 	return m0
 }
 
 type AuditListResponse struct {
-	state            protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Items *[]*Audit              `protobuf:"bytes,1,rep,name=items"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Items       *[]*Audit              `protobuf:"bytes,1,rep,name=items"`
+	xxx_hidden_Next        *string                `protobuf:"bytes,2,opt,name=next"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *AuditListResponse) Reset() {
@@ -1240,14 +1310,43 @@ func (x *AuditListResponse) GetItems() []*Audit {
 	return nil
 }
 
+func (x *AuditListResponse) GetNext() string {
+	if x != nil {
+		if x.xxx_hidden_Next != nil {
+			return *x.xxx_hidden_Next
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *AuditListResponse) SetItems(v []*Audit) {
 	x.xxx_hidden_Items = &v
+}
+
+func (x *AuditListResponse) SetNext(v string) {
+	x.xxx_hidden_Next = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+}
+
+func (x *AuditListResponse) HasNext() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *AuditListResponse) ClearNext() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_Next = nil
 }
 
 type AuditListResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Items []*Audit
+	// What to ask for next, and empty when this was the last of them.
+	Next *string
 }
 
 func (b0 AuditListResponse_builder) Build() *AuditListResponse {
@@ -1255,6 +1354,10 @@ func (b0 AuditListResponse_builder) Build() *AuditListResponse {
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Items = &b.Items
+	if b.Next != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		x.xxx_hidden_Next = b.Next
+	}
 	return m0
 }
 
@@ -1377,12 +1480,15 @@ const file_go_app_audit_svc_proto_rawDesc = "" +
 	"\x05patch\x18\x0e \x01(\fR\x05patch\"[\n" +
 	"\x11AuditApplyRequest\x12\"\n" +
 	"\x03ref\x18\x01 \x01(\v2\x10.go_app.AuditRefR\x03ref\x12\"\n" +
-	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"q\n" +
+	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"\xa4\x01\n" +
 	"\x10AuditListRequest\x127\n" +
 	"\afilters\x18\x01 \x03(\v2\x13.go_app.AuditFilterB\b\xbaH\x05\x92\x01\x02\x10 R\afilters\x12$\n" +
-	"\ttenant_id\x18\x02 \x01(\fB\a\xbaH\x04z\x02h\x10R\btenantId\"8\n" +
+	"\ttenant_id\x18\x02 \x01(\fB\a\xbaH\x04z\x02h\x10R\btenantId\x12\x1b\n" +
+	"\x04size\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x04size\x12\x14\n" +
+	"\x05after\x18\x04 \x01(\tR\x05after\"L\n" +
 	"\x11AuditListResponse\x12#\n" +
-	"\x05items\x18\x01 \x03(\v2\r.go_app.AuditR\x05items\"3\n" +
+	"\x05items\x18\x01 \x03(\v2\r.go_app.AuditR\x05items\x12\x12\n" +
+	"\x04next\x18\x02 \x01(\tR\x04next\"3\n" +
 	"\vAuditFilter\x12$\n" +
 	"\tobject_id\x18\x01 \x01(\fB\a\xbaH\x04z\x02h\x10R\bobjectId2\xc2\x02\n" +
 	"\fAuditService\x12-\n" +

@@ -1101,10 +1101,14 @@ func (b0 HolderApplyRequest_builder) Build() *HolderApplyRequest {
 }
 
 type HolderListRequest struct {
-	state              protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Filters *[]*HolderFilter       `protobuf:"bytes,1,rep,name=filters"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Filters     *[]*HolderFilter       `protobuf:"bytes,1,rep,name=filters"`
+	xxx_hidden_Size        int32                  `protobuf:"varint,2,opt,name=size"`
+	xxx_hidden_After       *string                `protobuf:"bytes,3,opt,name=after"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *HolderListRequest) Reset() {
@@ -1141,8 +1145,59 @@ func (x *HolderListRequest) GetFilters() []*HolderFilter {
 	return nil
 }
 
+func (x *HolderListRequest) GetSize() int32 {
+	if x != nil {
+		return x.xxx_hidden_Size
+	}
+	return 0
+}
+
+func (x *HolderListRequest) GetAfter() string {
+	if x != nil {
+		if x.xxx_hidden_After != nil {
+			return *x.xxx_hidden_After
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *HolderListRequest) SetFilters(v []*HolderFilter) {
 	x.xxx_hidden_Filters = &v
+}
+
+func (x *HolderListRequest) SetSize(v int32) {
+	x.xxx_hidden_Size = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 3)
+}
+
+func (x *HolderListRequest) SetAfter(v string) {
+	x.xxx_hidden_After = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
+}
+
+func (x *HolderListRequest) HasSize() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *HolderListRequest) HasAfter() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
+}
+
+func (x *HolderListRequest) ClearSize() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_Size = 0
+}
+
+func (x *HolderListRequest) ClearAfter() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_After = nil
 }
 
 type HolderListRequest_builder struct {
@@ -1150,6 +1205,15 @@ type HolderListRequest_builder struct {
 
 	// Bounded because the work is; see `AuditListRequest.filters`.
 	Filters []*HolderFilter
+	// How many to answer with. Nothing said is `core.PageSize`, and more than
+	// `core.PageLimit` is `core.PageLimit` -- a caller asking for more than
+	// there is meant no harm, so it is not an error, and it is not the whole
+	// table either.
+	Size *int32
+	// Where to carry on from: the `next` of the answer before. It names the last
+	// row of that page rather than counting rows from the start, so a Holder
+	// added while a caller is reading does not shift the page under them.
+	After *string
 }
 
 func (b0 HolderListRequest_builder) Build() *HolderListRequest {
@@ -1157,14 +1221,25 @@ func (b0 HolderListRequest_builder) Build() *HolderListRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Filters = &b.Filters
+	if b.Size != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 3)
+		x.xxx_hidden_Size = *b.Size
+	}
+	if b.After != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		x.xxx_hidden_After = b.After
+	}
 	return m0
 }
 
 type HolderListResponse struct {
-	state            protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Items *[]*Holder             `protobuf:"bytes,1,rep,name=items"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Items       *[]*Holder             `protobuf:"bytes,1,rep,name=items"`
+	xxx_hidden_Next        *string                `protobuf:"bytes,2,opt,name=next"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *HolderListResponse) Reset() {
@@ -1201,14 +1276,49 @@ func (x *HolderListResponse) GetItems() []*Holder {
 	return nil
 }
 
+func (x *HolderListResponse) GetNext() string {
+	if x != nil {
+		if x.xxx_hidden_Next != nil {
+			return *x.xxx_hidden_Next
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *HolderListResponse) SetItems(v []*Holder) {
 	x.xxx_hidden_Items = &v
+}
+
+func (x *HolderListResponse) SetNext(v string) {
+	x.xxx_hidden_Next = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+}
+
+func (x *HolderListResponse) HasNext() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *HolderListResponse) ClearNext() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_Next = nil
 }
 
 type HolderListResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Items []*Holder
+	// What to ask for next, and empty when this was the last of them.
+	//
+	// Empty means there is no more *for now*: a list is read as it is, and one
+	// that has grown since answers a fresh call. It is not empty merely because
+	// the page came back short -- a page is short when the last row of it was
+	// the last row there was, which is a thing this server can only know by
+	// having looked.
+	Next *string
 }
 
 func (b0 HolderListResponse_builder) Build() *HolderListResponse {
@@ -1216,6 +1326,10 @@ func (b0 HolderListResponse_builder) Build() *HolderListResponse {
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Items = &b.Items
+	if b.Next != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		x.xxx_hidden_Next = b.Next
+	}
 	return m0
 }
 
@@ -1333,11 +1447,14 @@ const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +
 	"\x12HolderApplyRequest\x12#\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\"\n" +
-	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"M\n" +
+	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"\x80\x01\n" +
 	"\x11HolderListRequest\x128\n" +
-	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterB\b\xbaH\x05\x92\x01\x02\x10 R\afilters\":\n" +
+	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterB\b\xbaH\x05\x92\x01\x02\x10 R\afilters\x12\x1b\n" +
+	"\x04size\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x04size\x12\x14\n" +
+	"\x05after\x18\x03 \x01(\tR\x05after\"N\n" +
 	"\x12HolderListResponse\x12$\n" +
-	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\";\n" +
+	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\x12\x12\n" +
+	"\x04next\x18\x02 \x01(\tR\x04next\";\n" +
 	"\fHolderFilter\x12+\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefB\x06\xbaH\x03\xc8\x01\x01R\x03ref2\xce\x02\n" +
 	"\rHolderService\x12/\n" +

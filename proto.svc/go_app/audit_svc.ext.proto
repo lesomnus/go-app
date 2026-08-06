@@ -30,7 +30,17 @@ message AuditListRequest {
   // optional: the field tracks presence, and a rule is not asked about a field
   // that was not set.
   bytes tenant_id = 2 [(buf.validate.field).bytes.len = 16];
+
+  // How many to answer with, and where to carry on from; see
+  // `HolderListRequest`. A trail is the list most likely to outgrow one
+  // answer, and it is read newest first, so a cursor is what reading further
+  // back means.
+  int32 size = 3 [(buf.validate.field).int32.gte = 0];
+  string after = 4;
 }
 message AuditListResponse {
   repeated Audit items = 1;
+
+  // What to ask for next, and empty when this was the last of them.
+  string next = 2;
 }

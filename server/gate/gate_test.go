@@ -102,7 +102,7 @@ func TestHolder(t *testing.T) {
 		p := setup(ctx, x, c)
 
 		// More Holders in the other Tenant than a whole answer holds.
-		for i := range core.ListLimit + 20 {
+		for i := range core.PageLimit + 20 {
 			c.CreateHolder(ctx, x, p.hooli.Ref(), fmt.Sprintf("filler-%d", i))
 		}
 

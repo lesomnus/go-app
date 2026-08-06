@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lesomnus/protobuf-patch/patch"
 	"github.com/lesomnus/protobuf-patch/patchpb"
+	"github.com/lesomnus/z"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 
@@ -298,7 +299,7 @@ func TestTrailIsWalled(t *testing.T) {
 		x.NoError(err)
 
 		// The root admin now writes more than a whole answer's worth.
-		for i := range audit.ListLimit + 20 {
+		for i := range audit.PageLimit + 20 {
 			c.CreateHolder(ctx, x, acme.Ref(), fmt.Sprintf("filler-%d", i))
 		}
 
@@ -375,5 +376,62 @@ func TestTrailIsWalled(t *testing.T) {
 		// so these two are not told apart by looking. Nothing here can fix
 		// that; it is the generated conversion's to say.
 		x.Equal(make([]byte, 16), u.GetTenantId())
+	}))
+}
+
+// TestTrailPages is the trail read further back than one answer holds, which is
+// what a trail is for and what it was not able to do.
+func TestTrailPages(t *testing.T) {
+	t.Run("newest first, a page at a time, each row once", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		acme := c.CreateTenant(ctx, x, "acme")
+
+		// Every Holder is two rows of the trail if the Tenant is counted, so
+		// this is comfortably more than one page.
+		const n = 25
+		for i := range n {
+			c.CreateHolder(ctx, x, acme.Ref(), fmt.Sprintf("h-%03d", i))
+		}
+
+		var (
+			seen  []string
+			after string
+		)
+		for range 100 {
+			res, err := c.Audit().List(ctx, go_app.AuditListRequest_builder{
+				Size:  z.Ptr(int32(4)),
+				After: z.Ptr(after),
+			}.Build())
+			x.NoError(err)
+
+			for _, v := range res.GetItems() {
+				seen = append(seen, string(v.GetId()))
+			}
+
+			after = res.GetNext()
+			if after == "" {
+				break
+			}
+		}
+		x.Empty(after, "the trail never ended")
+
+		// Whatever is on it, each row is on it once. The trail grows at the
+		// newest end and is read from there, so the cursor is what makes
+		// reading further back possible without counting past everything
+		// written since.
+		uniq := map[string]bool{}
+		for _, v := range seen {
+			x.False(uniq[v], "a row of the trail came back twice")
+			uniq[v] = true
+		}
+
+		// And there is more of it than one page.
+		x.Greater(len(seen), 4)
+	}))
+
+	t.Run("what is not a cursor is refused", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		_, err := c.Audit().List(ctx, go_app.AuditListRequest_builder{
+			After: z.Ptr("not a cursor"),
+		}.Build())
+		x.ErrCode(codes.InvalidArgument, err)
 	}))
 }

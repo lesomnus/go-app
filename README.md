@@ -247,6 +247,46 @@ The tests of this repository are the exception, and knowingly: `internal/ox`
 serves the general writes, because they are what this repository has to
 demonstrate. An app made from this template tests the RPCs it wrote instead.
 
+### Reading a list
+
+Nothing generates a `List`. What a list filters by is the app's, and there is no
+general answer to it — `HolderService.List` filters by a `Ref` because that is
+the plainest thing that works, and it **is meant to be rewritten**.
+
+The paging is not like that. It looks the same for every entity and it is the
+half that is easy to get wrong, so it is borrowed from
+[`runtime/entpage`](https://github.com/protobuf-orm/protoc-gen-orm-ent/tree/main/runtime/entpage)
+rather than written out:
+
+```go
+vs, _ := c.Holder().List(ctx, go_app.HolderListRequest_builder{Size: z.Ptr(int32(20))}.Build())
+for vs.GetNext() != "" {
+    vs, _ = c.Holder().List(ctx, go_app.HolderListRequest_builder{
+        Size:  z.Ptr(int32(20)),
+        After: z.Ptr(vs.GetNext()),
+    }.Build())
+}
+```
+
+- **A cursor, not an offset.** `after` names the last row of the page before, so
+  a row added while a caller is reading does not shift the page under them and
+  nothing is seen twice or missed. An offset counts rows from the start every
+  time, which is both wrong under writes and slower the further in you read.
+- **The order ends in the key.** Two rows equal in every column of the order are
+  two rows a cursor cannot tell apart, and rows written by one request are
+  stamped a moment apart at best. A key as the last column is what a tiebreaker
+  means.
+- **The size is capped.** Nothing said is `PageSize`; more than `PageLimit` is
+  `PageLimit`, and not an error — a caller asking for more than there is meant
+  no harm.
+- **One row more than the page is read**, which is how "is there another page"
+  is answered without a second query and without a count. A full last page
+  answers with no cursor rather than sending the caller back for an empty one.
+
+A cursor is opaque and it is not secret: a caller who takes one apart asks for
+rows starting somewhere else, which is a question they could have asked anyway
+and which the same wall answers.
+
 ### What a request must say
 
 Constraints are `buf.validate` options in the proto, next to the fields they are
@@ -386,7 +426,8 @@ Three things fall out of it rather than being written:
   making a hundred rows of its own — and the victim sees an empty list, which
   reads like "nothing happened" rather than like an error. `List` is written by
   hand, so it asks for the predicate itself (`core.Server.Scope()`); that is the
-  one read the generated servers do not make.
+  one read the generated servers do not make. See
+  [Reading a list](#reading-a-list).
 
 Two things go around the wall, and they are handed a server it was never
 installed on rather than being special-cased inside it: working out **who is
@@ -492,10 +533,13 @@ it — a request may name a row by its alias, and an alias is not what a trail i
 read back with.
 
 The trail is read with `AuditService.List`, filtered by the identifier of the
-thing it is about, newest first. It is walled the way everything else is: a row belongs to the
-Tenant the caller was held by. Writing one is `Unimplemented` to everybody — the
-RPCs exist because the entity is a CRUD one and a test is far plainer for having
-them, but a trail a deployment can edit is evidence of nothing.
+thing it is about, newest first, and a page at a time — a trail is the list most
+likely to outgrow one answer, and reading further back is what
+[a cursor](#reading-a-list) is for. It is walled the way everything else is: a
+row belongs to the Tenant the caller was held by. Writing one is `Unimplemented`
+to everybody — the RPCs exist because the entity is a CRUD one and a test is far
+plainer for having them, but a trail a deployment can edit is evidence of
+nothing.
 
 ```go
 vs, _ := c.Audit().List(ctx, go_app.AuditListRequest_builder{

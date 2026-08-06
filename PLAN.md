@@ -233,10 +233,16 @@ trail is the actor's and not the object's, and why.
 
 ### Phase 5 — paging
 
-A cursor helper in the runtime, and both hand-written `List`s rewritten to use
-it. The example stops being the simplest thing that works and becomes the
-simplest thing that is *right*, because the paging is what a reader is there to
-copy.
+A cursor helper in the runtime (`runtime/entpage`), and both hand-written
+`List`s rewritten to use it. The example stops being the simplest thing that
+works and becomes the simplest thing that is *right*, because the paging is what
+a reader is there to copy.
+
+Keyset and not offset; the order ends in the key, since a cursor cannot tell
+apart two rows equal in every column of it; the size is capped; and one row more
+than the page is read, so a full last page answers with no cursor rather than
+sending the caller back for an empty one. The filtering stays hand-written and
+stays marked as the part to rewrite.
 
 ### Later
 
@@ -262,4 +268,4 @@ Not now, and not blocked by anything here.
 | 2.2 soft delete | **blocked** | needs `orm.FieldOptions` and a partial `orm.Index`, which live in `protobuf-orm` and are consumed from a registry |
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
 | 4 validation and the doctrine | **done** | `buf.validate` + one interceptor; `Patch`/`Apply` closed at the transport, off by default |
-| 5 paging | not started | |
+| 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |

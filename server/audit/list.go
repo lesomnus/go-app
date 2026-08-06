@@ -2,9 +2,11 @@ package audit
 
 import (
 	"context"
+	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/entpage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -13,21 +15,36 @@ import (
 	"github.com/lesomnus/go-app/internal/ent/predicate"
 )
 
-// ListLimit is the most rows [AuditServiceServer.List] answers with.
-const ListLimit = 100
+const (
+	// PageSize is how many rows [AuditServiceServer.List] answers with when the
+	// request does not say, and PageLimit is the most it will answer with
+	// however loudly the request asks.
+	PageSize  = 50
+	PageLimit = 100
+)
+
+// listOrder is how the trail is read: newest first, which is the opposite of
+// the lists elsewhere in this app and is the point -- what a trail is asked is
+// what happened, and the answer starts with what happened last.
+//
+// The identifier settles a tie, and it is not decoration. Two rows of one
+// transaction are stamped a moment apart and a stamp has only so many digits,
+// so without it the two come back in whatever order the database happens to
+// hold them -- and a cursor cannot tell apart two rows that are equal in every
+// column of the order, so the page after the first of them would either repeat
+// the second or skip it.
+var listOrder = []entpage.Order{
+	{Column: audit.FieldDateCreated, Desc: true},
+	{Column: audit.FieldID, Desc: true},
+}
 
 // List answers with the trail of whatever the filters name, or with the whole
-// of it if there is none.
+// of it if there is none, a page at a time.
 //
 // A filter is the identifier of the row, which is the question this whole thing
 // is for and the index the rows are stored under. Nothing narrower is offered
 // and nothing wider: what kind of thing it was is not stored, because an
 // identifier already answers that for anything that still exists.
-//
-// Newest first, which is the opposite of the lists elsewhere in this app and is
-// the point: what a trail is asked is what happened, and the answer starts with
-// what happened last. Like `core.HolderServiceServer.List` it does not page,
-// and a deployment that keeps a trail long enough to care will want it to.
 func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListRequest) (*go_app.AuditListResponse, error) {
 	db, err := s.Db()
 	if err != nil {
@@ -85,16 +102,41 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 		q.Where(audit.Or(ps...))
 	}
 
-	// The identifier settles a tie. Two rows of one transaction are stamped a
-	// moment apart and a stamp has only so many digits, so without it the two
-	// come back in whatever order the database happens to hold them -- and the
-	// order is the one thing a trail is read for.
+	// Where the page before left off. A trail only grows at the newest end and
+	// is read from there, so a keyset is what makes reading further back
+	// possible at all: an offset would have to count past every row written
+	// since the caller started reading.
+	if v := req.GetAfter(); v != "" {
+		var (
+			at time.Time
+			id uuid.UUID
+		)
+		if err := entpage.Decode(v, &at, &id); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "after: %s", err)
+		}
+
+		p, err := entpage.After(listOrder, []any{at, id})
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "after: %s", err)
+		}
+
+		q.Where(p)
+	}
+
+	// One more than the page, to know whether there is another one without a
+	// second query and without a count.
+	size := entpage.Size(int(req.GetSize()), PageSize, PageLimit)
 	vs, err := q.
 		Order(audit.ByDateCreated(entsql.OrderDesc()), audit.ByID(entsql.OrderDesc())).
-		Limit(ListLimit).
+		Limit(size + 1).
 		All(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	more := len(vs) > size
+	if more {
+		vs = vs[:size]
 	}
 
 	items := make([]*go_app.Audit, len(vs))
@@ -102,7 +144,19 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 		items[i] = v.Proto()
 	}
 
-	return go_app.AuditListResponse_builder{Items: items}.Build(), nil
+	res := go_app.AuditListResponse_builder{Items: items}.Build()
+	if more {
+		last := vs[len(vs)-1]
+
+		next, err := entpage.Encode(last.DateCreated, last.ID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "next: %s", err)
+		}
+
+		res.SetNext(next)
+	}
+
+	return res, nil
 }
 
 // pick turns a filter into the predicate that selects what it names.

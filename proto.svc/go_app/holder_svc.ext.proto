@@ -14,7 +14,27 @@ message HolderFilter {
 message HolderListRequest {
   // Bounded because the work is; see `AuditListRequest.filters`.
   repeated HolderFilter filters = 1 [(buf.validate.field).repeated.max_items = 32];
+
+  // How many to answer with. Nothing said is `core.PageSize`, and more than
+  // `core.PageLimit` is `core.PageLimit` -- a caller asking for more than
+  // there is meant no harm, so it is not an error, and it is not the whole
+  // table either.
+  int32 size = 2 [(buf.validate.field).int32.gte = 0];
+
+  // Where to carry on from: the `next` of the answer before. It names the last
+  // row of that page rather than counting rows from the start, so a Holder
+  // added while a caller is reading does not shift the page under them.
+  string after = 3;
 }
 message HolderListResponse {
   repeated Holder items = 1;
+
+  // What to ask for next, and empty when this was the last of them.
+  //
+  // Empty means there is no more *for now*: a list is read as it is, and one
+  // that has grown since answers a fresh call. It is not empty merely because
+  // the page came back short -- a page is short when the last row of it was
+  // the last row there was, which is a thing this server can only know by
+  // having looked.
+  string next = 2;
 }
