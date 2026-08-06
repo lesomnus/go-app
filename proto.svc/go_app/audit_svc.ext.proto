@@ -1,5 +1,7 @@
 edition = "2023";
 
+import "buf/validate/validate.proto";
+
 service AuditService {
   // List the trail of what happened, newest first.
   rpc List(AuditListRequest) returns (AuditListResponse);
@@ -7,21 +9,27 @@ service AuditService {
 
 // AuditFilter names what a caller is asking the history of.
 message AuditFilter {
-  bytes object_id = 1;
+  bytes object_id = 1 [(buf.validate.field).bytes.len = 16];
 }
 
 message AuditListRequest {
-  repeated AuditFilter filters = 1;
+  // Bounded because the work is: each one is a predicate in the same query,
+  // and a request may carry as many as it likes. It is the request that says
+  // how much of the database to look at, so it is the request that is capped.
+  repeated AuditFilter filters = 1 [(buf.validate.field).repeated.max_items = 32];
 
   // Whose trail it is, which narrows the answer before it is cut short rather
   // than after. A wall that removed rows from what came back would be a wall
   // that any Tenant could push another one's trail out of, just by writing
   // enough of its own; see `audit.ListLimit`.
   //
-  // It is not the caller's to decide: `server/gate` sets it to their own
-  // Tenant, whatever they said, unless they are the one Tenant that is not
-  // walled in.
-  bytes tenant_id = 2;
+  // A filter and not the wall. The wall is `gate.Wall()`, in the query of
+  // every read there is; this is how whoever may see more than one Tenant asks
+  // about one of them.
+  // Sixteen bytes when it is there at all. Nothing more is needed to make it
+  // optional: the field tracks presence, and a rule is not asked about a field
+  // that was not set.
+  bytes tenant_id = 2 [(buf.validate.field).bytes.len = 16];
 }
 message AuditListResponse {
   repeated Audit items = 1;

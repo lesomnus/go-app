@@ -1,6 +1,7 @@
 edition = "2023";
 package go_app;
 
+import "buf/validate/validate.proto";
 import "go_app/holder.proto";
 import "go_app/tenant_svc.proto";
 import "google/protobuf/empty.proto";
@@ -75,7 +76,8 @@ message HolderApplyRequest {
 }
 
 message HolderListRequest {
-  repeated HolderFilter filters = 1;
+  // Bounded because the work is; see `AuditListRequest.filters`.
+  repeated HolderFilter filters = 1 [(buf.validate.field).repeated.max_items = 32];
 }
 
 message HolderListResponse {
@@ -83,5 +85,5 @@ message HolderListResponse {
 }
 
 message HolderFilter {
-  HolderRef ref = 1;
+  HolderRef ref = 1 [(buf.validate.field).required = true];
 }

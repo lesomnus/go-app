@@ -7,6 +7,7 @@
 package go_app
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	patchpb "github.com/lesomnus/protobuf-patch/patchpb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -1147,6 +1148,7 @@ func (x *HolderListRequest) SetFilters(v []*HolderFilter) {
 type HolderListRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	// Bounded because the work is; see `AuditListRequest.filters`.
 	Filters []*HolderFilter
 }
 
@@ -1289,7 +1291,7 @@ var File_go_app_holder_svc_proto protoreflect.FileDescriptor
 
 const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\n" +
-	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xd8\x02\n" +
+	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x1bbuf/validate/validate.proto\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xd8\x02\n" +
 	"\x10HolderAddRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12)\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\x12\x1b\n" +
@@ -1331,13 +1333,13 @@ const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +
 	"\x12HolderApplyRequest\x12#\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\"\n" +
-	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"C\n" +
-	"\x11HolderListRequest\x12.\n" +
-	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterR\afilters\":\n" +
+	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"M\n" +
+	"\x11HolderListRequest\x128\n" +
+	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterB\b\xbaH\x05\x92\x01\x02\x10 R\afilters\":\n" +
 	"\x12HolderListResponse\x12$\n" +
-	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\"3\n" +
-	"\fHolderFilter\x12#\n" +
-	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref2\xce\x02\n" +
+	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\";\n" +
+	"\fHolderFilter\x12+\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefB\x06\xbaH\x03\xc8\x01\x01R\x03ref2\xce\x02\n" +
 	"\rHolderService\x12/\n" +
 	"\x03Add\x12\x18.go_app.HolderAddRequest\x1a\x0e.go_app.Holder\x12/\n" +
 	"\x03Get\x12\x18.go_app.HolderGetRequest\x1a\x0e.go_app.Holder\x123\n" +

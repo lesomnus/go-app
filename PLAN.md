@@ -215,12 +215,21 @@ trail is the actor's and not the object's, and why.
 - **protovalidate.** Field constraints declared where every other declaration
   is, checked by one interceptor. `core` keeps what is genuinely domain —
   normalization, cross-field rules, and anything that has to ask the database.
+
+  One thing found while building it: `protoc-gen-orm-service` does not copy
+  field options into the request messages it generates, so a constraint on
+  `Holder.alias` would not reach `HolderAddRequest.alias`. That turns out not
+  to matter, and for the reason the doctrine below gives — every RPC a caller
+  actually uses is one somebody wrote by hand, and a hand-written RPC has a
+  hand-written request message, which is exactly where the constraint goes.
 - **The doctrine, written down.** A README section on why `Patch` and `Apply`
   are not an API, and what to write instead.
-- **The surface closed.** `gate` currently forwards `Patch` and `Apply` for
-  Holder and Tenant, which contradicts the above. They close the way the trail
-  already closes its writes: by building from the unimplemented server, so an
-  RPC added later is refused rather than forwarded.
+- **The surface closed**, but at the *transport* rather than in a layer, which
+  is the whole point: what is closed is what a caller may ask for, and an RPC
+  written by hand goes on being implemented with `Apply`. Closing it in a
+  server would close it to the servers. `server.general_writes` is off by
+  default; `internal/ox` serves them, knowingly, because they are what this
+  repository has to demonstrate.
 
 ### Phase 5 — paging
 
@@ -252,5 +261,5 @@ Not now, and not blocked by anything here.
 | 2.1 the Tenant wall | **done** | `gate.Wall()`; thirteen overrides became three rules and a predicate |
 | 2.2 soft delete | **blocked** | needs `orm.FieldOptions` and a partial `orm.Index`, which live in `protobuf-orm` and are consumed from a registry |
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
-| 4 validation and the doctrine | not started | |
+| 4 validation and the doctrine | **done** | `buf.validate` + one interceptor; `Patch`/`Apply` closed at the transport, off by default |
 | 5 paging | not started | |

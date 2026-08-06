@@ -186,9 +186,84 @@ s, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
 
 A middleware that has something to say about `Patch` usually has the same thing
 to say about `Apply`, and saying it once does not cover both: one reads a field
-of the request, the other reads a document. `server/gate` guards the two the
-same way, since both name the entity with the same `Ref`; `server/core` reads
-what a document writes by compiling it against the schema (`server/core/patch.go`).
+of the request, the other reads a document. `server/core` reads what a document
+writes by compiling it against the schema (`server/core/patch.go`).
+
+### The general write is not an API
+
+`Patch` and `Apply` are how the servers write. They are **not** how a caller
+asks, and a deployment does not serve them: `server.general_writes` is off, and
+they answer `Unimplemented` to everybody.
+
+Between them they can write anything the schema holds — `Patch` takes a field
+per property, `Apply` takes a document that can address one map entry or assert
+a value before writing it. That is what makes them useful to a server and wrong
+as an API. What a caller may change, and under what conditions, is not something
+a general write can be told: there is no request field for "may this Holder be
+renamed right now", because there is no request — there is a bag of fields, or a
+document.
+
+So an app writes the RPC it means, and implements it with the general write:
+
+```proto
+// proto.svc/go_app/holder_svc.ext.proto
+service HolderService {
+  rpc Rename(HolderRenameRequest) returns (Holder);
+}
+
+message HolderRenameRequest {
+  HolderRef ref  = 1 [(buf.validate.field).required = true];
+  string    name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+}
+```
+
+```go
+// server/core/holder.go
+func (s HolderServiceServer) Rename(ctx context.Context, req *go_app.HolderRenameRequest) (*go_app.Holder, error) {
+    // Whatever renaming means here, said once, in the one place that knows.
+    return s.HolderServiceServer.Apply(ctx, go_app.HolderApplyRequest_builder{
+        Ref:   req.GetRef(),
+        Patch: patch.MustNew("go_app.Holder",
+            patch.Target(patch.Name("name")).Assign(patch.Str(req.GetName())),
+        ),
+    }.Build())
+}
+```
+
+Three things come out of that shape:
+
+- **The validation has somewhere to live.** `Rename` has a request message, so
+  its constraints go on its fields, next to them, where a reader will find them.
+- **The trail says `Rename`.** The write reports itself as `Apply`, but the
+  action stored is the method gRPC dispatched — so "who renamed this" answers
+  with the thing the caller asked for rather than the leg of it that wrote. See
+  [What was changed, and by whom](#what-was-changed-and-by-whom).
+- **`Rename` still works.** The closing is a transport rule
+  (`internal/grpcx.Closed`) and not a layer of the stack, so everything behind
+  it goes on calling `Apply` normally. Closing them in a server would have
+  closed them to the servers.
+
+The tests of this repository are the exception, and knowingly: `internal/ox`
+serves the general writes, because they are what this repository has to
+demonstrate. An app made from this template tests the RPCs it wrote instead.
+
+### What a request must say
+
+Constraints are `buf.validate` options in the proto, next to the fields they are
+about, and one interceptor checks every request against them
+(`internal/grpcx/validate.go`). A field added later carries its rule with it and
+no server has to be told. Constraints that do not compile are a server that does
+not start, rather than one that serves unchecked requests.
+
+What is left for `server/core` is what a declaration cannot say: normalizing a
+value on the way in (`" Acme "` → `acme`), a rule about two fields at once, and
+anything that has to ask the database — an alias being free, for instance.
+
+The generated CRUD requests carry no constraints, and under the rule above they
+do not need to: `Patch` and `Apply` are not served, and what `Add` needs said
+about it is mostly the kind of thing `core` says anyway. Every RPC a caller
+actually uses is one somebody wrote, and a hand-written RPC has a hand-written
+request message.
 
 ## Who is calling
 

@@ -7,6 +7,7 @@
 package go_app
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	patchpb "github.com/lesomnus/protobuf-patch/patchpb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -1168,15 +1169,21 @@ func (x *AuditListRequest) ClearTenantId() {
 type AuditListRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	// Bounded because the work is: each one is a predicate in the same query,
+	// and a request may carry as many as it likes. It is the request that says
+	// how much of the database to look at, so it is the request that is capped.
 	Filters []*AuditFilter
 	// Whose trail it is, which narrows the answer before it is cut short rather
 	// than after. A wall that removed rows from what came back would be a wall
 	// that any Tenant could push another one's trail out of, just by writing
 	// enough of its own; see `audit.ListLimit`.
 	//
-	// It is not the caller's to decide: `server/gate` sets it to their own
-	// Tenant, whatever they said, unless they are the one Tenant that is not
-	// walled in.
+	// A filter and not the wall. The wall is `gate.Wall()`, in the query of
+	// every read there is; this is how whoever may see more than one Tenant asks
+	// about one of them.
+	// Sixteen bytes when it is there at all. Nothing more is needed to make it
+	// optional: the field tracks presence, and a rule is not asked about a field
+	// that was not set.
 	TenantId []byte
 }
 
@@ -1334,7 +1341,7 @@ var File_go_app_audit_svc_proto protoreflect.FileDescriptor
 
 const file_go_app_audit_svc_proto_rawDesc = "" +
 	"\n" +
-	"\x16go_app/audit_svc.proto\x12\x06go_app\x1a\x12go_app/audit.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xa8\x02\n" +
+	"\x16go_app/audit_svc.proto\x12\x06go_app\x1a\x1bbuf/validate/validate.proto\x1a\x12go_app/audit.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xa8\x02\n" +
 	"\x0fAuditAddRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12\"\n" +
 	"\ttenant_id\x18\x02 \x01(\fB\x05\xaa\x01\x02\b\x02R\btenantId\x12 \n" +
@@ -1370,14 +1377,14 @@ const file_go_app_audit_svc_proto_rawDesc = "" +
 	"\x05patch\x18\x0e \x01(\fR\x05patch\"[\n" +
 	"\x11AuditApplyRequest\x12\"\n" +
 	"\x03ref\x18\x01 \x01(\v2\x10.go_app.AuditRefR\x03ref\x12\"\n" +
-	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"^\n" +
-	"\x10AuditListRequest\x12-\n" +
-	"\afilters\x18\x01 \x03(\v2\x13.go_app.AuditFilterR\afilters\x12\x1b\n" +
-	"\ttenant_id\x18\x02 \x01(\fR\btenantId\"8\n" +
+	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"q\n" +
+	"\x10AuditListRequest\x127\n" +
+	"\afilters\x18\x01 \x03(\v2\x13.go_app.AuditFilterB\b\xbaH\x05\x92\x01\x02\x10 R\afilters\x12$\n" +
+	"\ttenant_id\x18\x02 \x01(\fB\a\xbaH\x04z\x02h\x10R\btenantId\"8\n" +
 	"\x11AuditListResponse\x12#\n" +
-	"\x05items\x18\x01 \x03(\v2\r.go_app.AuditR\x05items\"*\n" +
-	"\vAuditFilter\x12\x1b\n" +
-	"\tobject_id\x18\x01 \x01(\fR\bobjectId2\xc2\x02\n" +
+	"\x05items\x18\x01 \x03(\v2\r.go_app.AuditR\x05items\"3\n" +
+	"\vAuditFilter\x12$\n" +
+	"\tobject_id\x18\x01 \x01(\fB\a\xbaH\x04z\x02h\x10R\bobjectId2\xc2\x02\n" +
 	"\fAuditService\x12-\n" +
 	"\x03Add\x12\x17.go_app.AuditAddRequest\x1a\r.go_app.Audit\x12-\n" +
 	"\x03Get\x12\x17.go_app.AuditGetRequest\x1a\r.go_app.Audit\x121\n" +

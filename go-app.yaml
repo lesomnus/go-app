@@ -16,6 +16,14 @@ server:
   # what it offers. On unless it is turned off.
   # reflection: true
   #
+  # Serves `Patch` and `Apply`, the two RPCs every generated service has that
+  # can write anything the schema holds. Off unless it is turned on, and it
+  # should stay off: they are how the servers write, not how a caller asks. An
+  # app that wants a caller to be able to change something writes the RPC that
+  # means it and implements it with one of these. See the README, "The general
+  # write is not an API".
+  # general_writes: false
+  #
   # keepalive:
   #   # Behind a load balancer that only balances new connections, this is what
   #   # makes it balance anything at all.

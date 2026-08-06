@@ -28,7 +28,10 @@ func serve(t *testing.T, ctx context.Context) grpc_health_v1.HealthClient {
 	x := require.New(t)
 
 	l := bufconn.Listen(1 << 20)
-	g := grpc.NewServer(grpcx.ServerOptions(ctx, grpcx.DefaultTimeout)...)
+	opts, err := grpcx.ServerOptions(ctx, grpcx.DefaultTimeout)
+	x.NoError(err)
+
+	g := grpc.NewServer(opts...)
 	grpc_health_v1.RegisterHealthServer(g, health.NewServer())
 
 	done := make(chan struct{})

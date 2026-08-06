@@ -1,16 +1,19 @@
 edition = "2023";
 
+import "buf/validate/validate.proto";
+
 service HolderService {
   // List holders
   rpc List(HolderListRequest) returns (HolderListResponse);
 }
 
 message HolderFilter {
-  HolderRef ref = 1;
+  HolderRef ref = 1 [(buf.validate.field).required = true];
 }
 
 message HolderListRequest {
-  repeated HolderFilter filters = 1;
+  // Bounded because the work is; see `AuditListRequest.filters`.
+  repeated HolderFilter filters = 1 [(buf.validate.field).repeated.max_items = 32];
 }
 message HolderListResponse {
   repeated Holder items = 1;

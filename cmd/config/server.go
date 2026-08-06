@@ -39,6 +39,17 @@ type ServerConfig struct {
 	// definitions. It is on unless it is turned off.
 	Reflection *bool `yaml:"reflection"`
 
+	// GeneralWrites serves `Patch` and `Apply`, the two RPCs every generated
+	// service has that can write anything the schema holds. It is **off**
+	// unless it is turned on, and turning it on is a decision about the API
+	// rather than about a deployment: what a caller may change, and under what
+	// conditions, is not something a general write can be told.
+	//
+	// It closes them at the transport and not in the server stack, so an RPC
+	// written by hand goes on being implemented with them. That is what they
+	// are for. See the README, "The general write is not an API".
+	GeneralWrites *bool `yaml:"general_writes"`
+
 	Keepalive KeepaliveConfig `yaml:"keepalive"`
 }
 
@@ -82,6 +93,20 @@ func (c ServerConfig) CallTimeout() time.Duration {
 	}
 
 	return *c.Timeout
+}
+
+// ServesGeneralWrites reports whether `Patch` and `Apply` are served.
+func (c ServerConfig) ServesGeneralWrites() bool {
+	return c.GeneralWrites != nil && *c.GeneralWrites
+}
+
+// Closed names the methods this server does not serve at all.
+func (c ServerConfig) Closed() func(method string) bool {
+	if c.ServesGeneralWrites() {
+		return nil
+	}
+
+	return grpcx.GeneralWrite
 }
 
 // GrpcOptions is what the configuration says about the server itself, as

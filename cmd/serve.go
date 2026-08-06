@@ -115,9 +115,13 @@ func NewCmdServe() *xli.Command {
 				return z.Err(err, "build authentication")
 			}
 
-			opts := grpcx.ServerOptions(ctx, c.Server.CallTimeout())
+			opts, err := grpcx.ServerOptions(ctx, c.Server.CallTimeout())
+			if err != nil {
+				return z.Err(err, "build the options the app is served with")
+			}
 			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, auth_opts...)
+			opts = append(opts, grpcx.Closed(c.Server.Closed())...)
 			opts = append(opts, grpc.Creds(creds))
 
 			srv := grpc.NewServer(opts...)

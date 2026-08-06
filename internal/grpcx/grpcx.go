@@ -13,21 +13,32 @@ import (
 )
 
 // ServerOptions returns the options the app is served with. Every call is
-// traced, measured, logged, given a deadline if it brought none and, if it
-// panics, reported as an error rather than taken as a reason to end the
-// process.
+// traced, measured, logged, given a deadline if it brought none, checked
+// against what its own definition says about it and, if it panics, reported as
+// an error rather than taken as a reason to end the process.
+//
+// It fails when the `buf.validate` constraints in the schema do not compile,
+// which is a deployment that does not start rather than one that serves
+// unchecked requests.
 //
 // The order matters. The log is written outside the recovery so that a call
 // that panicked is logged like any other one that failed, and outside the
 // deadline so that a call that ran out of time is logged as such rather than
-// not at all.
-func ServerOptions(ctx context.Context, timeout time.Duration) []grpc.ServerOption {
+// not at all. Validation is inside both, and before the handler, so a refused
+// request never reaches a server.
+func ServerOptions(ctx context.Context, timeout time.Duration) ([]grpc.ServerOption, error) {
+	validate, err := Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	opts := []grpc.ServerOption{Inherit(ctx), Otel(ctx)}
 	opts = append(opts, Log()...)
 	opts = append(opts, Recover()...)
 	opts = append(opts, Deadline(timeout)...)
+	opts = append(opts, validate...)
 
-	return opts
+	return opts, nil
 }
 
 // Inherit hands the telemetry of `ctx` over to every call. gRPC builds the
