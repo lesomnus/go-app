@@ -7,6 +7,11 @@ server:
   # max_send_msg_size: 0
   # max_concurrent_streams: 0
   #
+  # How long a call that arrived without a deadline of its own is given. One
+  # that named a deadline is left alone, however far away it is. Streams are
+  # never capped. Unset is 30s; `0` written down caps nothing.
+  # timeout: 30s
+  #
   # Serves the reflection service, which is what lets grpcurl ask the server
   # what it offers. On unless it is turned off.
   # reflection: true

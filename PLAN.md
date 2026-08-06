@@ -186,9 +186,9 @@ Not now, and not blocked by anything here.
 
 | Phase | | |
 | --- | --- | --- |
-| 0.1 `buf breaking` | not started | |
-| 0.2 default deadline | not started | |
-| 0.3 readiness / liveness | not started | |
+| 0.1 `buf breaking` | **done** | against the base of a pull request, or the commit a push moved from; `main` here carries no definitions to compare against |
+| 0.2 default deadline | **done** | `grpcx.Deadline`, `server.timeout`, unary only |
+| 0.3 readiness / liveness | **done** | `""` follows the database, `"liveness"` follows the process |
 | 0.4 more than one recorder | not started | |
 | 1 the `Scope` hook | not started | |
 | 2.1 the Tenant wall | not started | |

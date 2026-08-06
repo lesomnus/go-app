@@ -114,7 +114,7 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 			return handler(srv, grpcx.StreamWithContext(ss, log.Into(ss.Context(), s.log)))
 		}),
 	}
-	opts = append(opts, grpcx.ServerOptions(s.tb.Context())...)
+	opts = append(opts, grpcx.ServerOptions(s.tb.Context(), grpcx.DefaultTimeout)...)
 	// The same way the app works out who is calling, so a test travels that
 	// road as well; `Plain` is what says who without anything to check.
 	opts = append(opts, auth.Interceptor(auth.Plain(), auth.ServerResolver(s.Sink), auth.PublicDefault)...)

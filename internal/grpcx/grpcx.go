@@ -4,6 +4,7 @@ package grpcx
 
 import (
 	"context"
+	"time"
 
 	"github.com/lesomnus/otx"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -12,15 +13,19 @@ import (
 )
 
 // ServerOptions returns the options the app is served with. Every call is
-// traced, measured, logged and, if it panics, reported as an error rather than
-// taken as a reason to end the process.
+// traced, measured, logged, given a deadline if it brought none and, if it
+// panics, reported as an error rather than taken as a reason to end the
+// process.
 //
-// The order matters: the log is written outside the recovery so that a call
-// that panicked is logged like any other one that failed.
-func ServerOptions(ctx context.Context) []grpc.ServerOption {
+// The order matters. The log is written outside the recovery so that a call
+// that panicked is logged like any other one that failed, and outside the
+// deadline so that a call that ran out of time is logged as such rather than
+// not at all.
+func ServerOptions(ctx context.Context, timeout time.Duration) []grpc.ServerOption {
 	opts := []grpc.ServerOption{Inherit(ctx), Otel(ctx)}
 	opts = append(opts, Log()...)
 	opts = append(opts, Recover()...)
+	opts = append(opts, Deadline(timeout)...)
 
 	return opts
 }

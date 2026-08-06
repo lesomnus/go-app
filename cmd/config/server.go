@@ -5,6 +5,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+
+	"github.com/lesomnus/go-app/internal/grpcx"
 )
 
 type ServerConfig struct {
@@ -23,6 +25,14 @@ type ServerConfig struct {
 	// MaxConcurrentStreams is how many calls one connection may have in flight
 	// at a time. Zero leaves gRPC's own limit.
 	MaxConcurrentStreams uint32 `yaml:"max_concurrent_streams"`
+
+	// Timeout is how long a call that arrived without a deadline of its own is
+	// given. A call that named one is left alone, however far away it is.
+	//
+	// Unset is [grpcx.DefaultTimeout]. Zero, written down, means such a call
+	// is not capped at all, which is a thing to mean rather than to end up
+	// with -- hence the pointer.
+	Timeout *time.Duration `yaml:"timeout"`
 
 	// Reflection serves the reflection service, which is what lets grpcurl and
 	// the like ask the server what it offers without holding the protobuf
@@ -63,6 +73,15 @@ type KeepaliveConfig struct {
 // ServesReflection reports whether the reflection service is to be served.
 func (c ServerConfig) ServesReflection() bool {
 	return c.Reflection == nil || *c.Reflection
+}
+
+// CallTimeout is how long a call that arrived without a deadline is given.
+func (c ServerConfig) CallTimeout() time.Duration {
+	if c.Timeout == nil {
+		return grpcx.DefaultTimeout
+	}
+
+	return *c.Timeout
 }
 
 // GrpcOptions is what the configuration says about the server itself, as

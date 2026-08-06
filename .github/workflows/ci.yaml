@@ -63,6 +63,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # The whole history, since the step below reads the commit this push
+          # moved from.
+          fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -73,6 +77,37 @@ jobs:
 
       - name: Lint the protobuf definitions
         run: buf lint
+
+      # The definitions are what everything else is made from, and the step
+      # below checks that the generated code still matches them. Nothing
+      # checked that the definitions themselves stayed compatible, which is
+      # the one change no amount of regenerating catches.
+      - name: The definitions did not break
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # What to compare against: the branch a pull request is aimed at, or
+          # the commit this push moved from.
+          #
+          # An app made from this template compares against its default branch
+          # and nothing else -- `buf breaking --against '.git#branch=main'`.
+          # This repository cannot: it keeps a branch per kind of app, and
+          # `main` carries no definitions at all, so comparing against it
+          # would be comparing against nothing.
+          if [ -n "${BASE_REF}" ]; then
+            git fetch --no-tags --depth=1 origin "${BASE_REF}"
+            against="$(git rev-parse FETCH_HEAD)"
+          elif git rev-parse --verify --quiet "${BEFORE}^{commit}" >/dev/null; then
+            against="${BEFORE}"
+          else
+            # A branch that is new to the remote, or a run started by hand.
+            echo "there is nothing behind this to compare against"
+            exit 0
+          fi
+
+          echo "against ${against}"
+          buf breaking --against ".git#ref=${against}"
 
       - name: Generated code is what the definitions say
         run: |

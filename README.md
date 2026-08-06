@@ -434,10 +434,41 @@ in `go-app.yaml`, since it holds a password; everything else stays in the file.
 
 Every call goes through `internal/grpcx` before it reaches a service: it is
 traced and measured with the providers the app was started with, it is logged
-with its code and how long it took, and a handler that panics is reported as an
-internal error instead of taking the process down with it. Health is answered
-for as long as the database keeps answering, and turns to `NOT_SERVING` as soon
-as the server starts shutting down.
+with its code and how long it took, a handler that panics is reported as an
+internal error instead of taking the process down with it, and a call that
+arrived without a deadline of its own is given one. A call that named a
+deadline is left alone however far away it is — the caller said how long the
+answer is worth waiting for — and what is capped is only the absence of that.
+`server.timeout` says how long; zero, written down, caps nothing. Streams are
+not capped at all, since a stream is long-lived by design.
+
+### Which health question is being asked
+
+Health is answered under two names, because a liveness probe and a readiness
+probe are not asking the same thing and the difference is what a wrong answer
+costs.
+
+| | asked by | says |
+| --- | --- | --- |
+| `""` | a load balancer, and anything that names nothing | the database is answering |
+| `"liveness"` | a container runtime | the process is here |
+
+Every deployment shares one database, so a database that blinks makes every
+process answer the same way at the same moment. Answered as readiness that is a
+few seconds of failed calls; answered as liveness it is every process killed at
+once, restarted into a database that is still not there, and a restart loop
+that outlives the outage that started it. So the database moves readiness and
+nothing moves liveness, and both turn to `NOT_SERVING` as soon as the server
+starts shutting down.
+
+The empty name is the readiness one on purpose. It is what the health protocol
+gives to the server as a whole and what a caller that was not told a name asks
+about, so the answer it gets should be the one that is safe to get wrong.
+
+```yaml
+livenessProbe:  { grpc: { port: 50051, service: liveness } }
+readinessProbe: { grpc: { port: 50051 } }
+```
 
 ### Whose trace is it
 

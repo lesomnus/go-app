@@ -7,9 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/lesomnus/go-app/cmd/config"
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/grpcx"
 	"github.com/lesomnus/go-app/server/audit"
@@ -25,49 +23,6 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
-
-const (
-	// dbCheckInterval is how often the database is asked whether it is still
-	// there, and dbCheckTimeout is how long it is given to answer.
-	dbCheckInterval = 5 * time.Second
-	dbCheckTimeout  = 3 * time.Second
-)
-
-// watchDb reports the app as serving for as long as the database answers. The
-// empty service name stands for the server as a whole, which is what a load
-// balancer or a container runtime asks about.
-func watchDb(ctx context.Context, h *health.Server, db *config.Db) {
-	const service = ""
-
-	t := time.NewTicker(dbCheckInterval)
-	defer t.Stop()
-
-	for {
-		// The status is not ours to set once the server is shutting down.
-		if s := dbStatus(ctx, db); ctx.Err() == nil {
-			h.SetServingStatus(service, s)
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
-	}
-}
-
-// dbStatus is SERVING for as long as the database answers.
-func dbStatus(ctx context.Context, db *config.Db) grpc_health_v1.HealthCheckResponse_ServingStatus {
-	ctx, cancel := context.WithTimeout(ctx, dbCheckTimeout)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		log.From(ctx).WarnContext(ctx, "database is not reachable", slog.String("error", err.Error()))
-		return grpc_health_v1.HealthCheckResponse_NOT_SERVING
-	}
-
-	return grpc_health_v1.HealthCheckResponse_SERVING
-}
 
 func NewCmdServe() *xli.Command {
 	return &xli.Command{
@@ -139,7 +94,7 @@ func NewCmdServe() *xli.Command {
 				return z.Err(err, "build authentication")
 			}
 
-			opts := grpcx.ServerOptions(ctx)
+			opts := grpcx.ServerOptions(ctx, c.Server.CallTimeout())
 			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, auth_opts...)
 			opts = append(opts, grpc.Creds(creds))
@@ -154,8 +109,13 @@ func NewCmdServe() *xli.Command {
 				reflection.Register(srv)
 			}
 
-			// The app is no healthier than the database it runs on.
-			go watchDb(ctx, health_srv, db)
+			// The process is here, and stays here until it is shut down. See
+			// cmd/health.go for why this is not the same answer as the one
+			// below it.
+			health_srv.SetServingStatus(ServiceLiveness, grpc_health_v1.HealthCheckResponse_SERVING)
+
+			// The app has nothing to serve without the database it runs on.
+			go watchDb(ctx, health_srv, db, dbCheckInterval)
 
 			lis, err := net.Listen("tcp", c.Server.Addr)
 			if err != nil {
