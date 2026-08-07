@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/internal/httpx"
 	"github.com/lesomnus/go-app/server/audit"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
@@ -24,6 +28,17 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+)
+
+const (
+	// httpHeaderTimeout is how long the second listener waits for a request's
+	// headers. Without it a connection that says nothing holds a goroutine for
+	// as long as it likes, which is what `grpc.Server` caps on its own and
+	// `http.Server` does not.
+	httpHeaderTimeout = 10 * time.Second
+
+	// httpShutdownGrace is how long it is given to finish what it is serving.
+	httpShutdownGrace = 5 * time.Second
 )
 
 func NewCmdServe() *xli.Command {
@@ -219,6 +234,40 @@ func NewCmdServe() *xli.Command {
 			serve_err := make(chan error, 1)
 			go func() { serve_err <- srv.Serve(lis) }()
 
+			// The second listener, if there is one: grpc-web translated into
+			// the same gRPC server, and whatever a deployment serves over
+			// ordinary HTTP. It is a listener of its own rather than one port
+			// serving both, since gRPC through `net/http` gives up the
+			// transport gRPC brings; see `internal/httpx`.
+			var web *http.Server
+			if h := c.Server.Http; h.Serves() {
+				opts := httpx.Options{
+					Health: health_srv,
+					Pprof:  h.AllowPprof,
+				}
+				if h.AllowGrpcWeb {
+					opts.Grpc = srv
+					opts.Origins = h.Origin()
+				}
+
+				web = &http.Server{
+					Addr:              h.Addr,
+					Handler:           httpx.Handler(opts),
+					ReadHeaderTimeout: httpHeaderTimeout,
+				}
+
+				l.Info("serving http",
+					slog.String("addr", h.Addr),
+					slog.Bool("grpc_web", h.AllowGrpcWeb),
+					slog.Bool("pprof", h.AllowPprof),
+				)
+				go func() {
+					if err := web.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+						serve_err <- z.Err(err, "serve http")
+					}
+				}()
+			}
+
 			sig := make(chan os.Signal, 2)
 			signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 			defer signal.Stop(sig)
@@ -234,6 +283,17 @@ func NewCmdServe() *xli.Command {
 
 			// Stop accepting new connections and let in-flight RPCs finish.
 			l.Info("shutting down")
+			if web != nil {
+				// Given a moment of its own: it is the listener a probe is on,
+				// and one that is refused reads as a process that died rather
+				// than one that is going.
+				ctx, done := context.WithTimeout(context.WithoutCancel(ctx), httpShutdownGrace)
+				defer done()
+
+				if err := web.Shutdown(ctx); err != nil {
+					l.Warn("http did not shut down cleanly", slog.String("error", err.Error()))
+				}
+			}
 			cancel()
 			// Tell whoever is watching to send the traffic elsewhere.
 			health_srv.Shutdown()

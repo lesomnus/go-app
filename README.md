@@ -789,6 +789,38 @@ Three things it is worth knowing before choosing a number:
   known after the call ran; what is here instead is a finer key — put the method
   in it and a `List` comes out of a bucket of its own.
 
+### The second listener
+
+`server.http.addr` starts a second listener, and nothing is served on it unless
+that is written down. It is a port of its own rather than the same one, and that
+is the whole design decision:
+
+**gRPC keeps its own transport.** A `grpc.Server` can be served through
+`net/http` — `ServeHTTP` exists, and one handler could route on the content type
+and serve both protocols on one port. gRPC's own documentation says not to for
+anything that matters: that road uses `net/http`'s HTTP/2 instead of the
+transport gRPC brings, and it is slower and has less of what gRPC does. So the
+fast path is untouched and everything that cannot speak it comes here.
+
+| | |
+| --- | --- |
+| **grpc-web** | `server.http.allow_grpc_web` — gRPC reframed so a browser can send it: the trailers ride in the body. Translated and handed to the **same** `grpc.Server`, so a browser meets the same interceptors, the same authentication and the same wall. That translation does go the slow way, which is the right place for it: a browser is not the throughput. |
+| `/healthz` | Out of the same `health.Server` the gRPC health service answers from, so the two probes can never disagree. `/healthz/liveness` is the other question. |
+| **pprof** | `server.http.allow_pprof`, off unless asked. Note that importing `net/http/pprof` at all registers it on `http.DefaultServeMux` — which is why nothing in this app ever serves that mux, and why there is a test that says so. |
+| your own | `httpx.Options.Mux` is where a deployment puts whatever else it serves. |
+
+`server.http.origins` is who a browser may call from, and nothing written down is
+nobody. It is **not** the wall and not authentication: what an origin check stops
+is a page somebody else wrote making calls as whoever is reading it, and it stops
+nothing else.
+
+The translation is [improbable-eng/grpc-web](https://github.com/improbable-eng/grpc-web),
+and it brings six modules with it — `rs/cors`, `cenkalti/backoff`,
+`desertbit/timer`, `klauspost/compress` and `nhooyr.io/websocket`, the last of
+which is archived. That is the price of not writing a wire protocol by hand, and
+it is worth knowing: an app that has no browser deletes the grpc-web half of
+`internal/httpx` and the dependency goes with it.
+
 ### Which health question is being asked
 
 Health is answered under two names, because a liveness probe and a readiness

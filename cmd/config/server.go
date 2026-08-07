@@ -2,6 +2,7 @@ package config
 
 import (
 	"math"
+	"slices"
 	"time"
 
 	"google.golang.org/grpc"
@@ -59,7 +60,57 @@ type ServerConfig struct {
 
 	Limit LimitConfig `yaml:"limit"`
 
+	Http HttpConfig `yaml:"http"`
+
 	Keepalive KeepaliveConfig `yaml:"keepalive"`
+}
+
+// HttpConfig is the second listener: what this app serves to something that
+// cannot speak gRPC.
+//
+// It is a listener of its own and not the same port, because gRPC served
+// through `net/http` gives up the transport gRPC brings -- see
+// `internal/httpx`. Nothing is served at all unless an address is written down.
+type HttpConfig struct {
+	// Addr is the address to listen on, e.g. ":8080". Nothing written down is
+	// no second listener.
+	Addr string `yaml:"addr"`
+
+	// AllowGrpcWeb translates grpc-web into the gRPC server, so a browser
+	// reaches the same handlers, the same interceptors and the same wall as
+	// anything else.
+	AllowGrpcWeb bool `yaml:"allow_grpc_web"`
+
+	// Origins are the origins a browser may make a grpc-web call from. Nothing
+	// written down is none, so a page nobody named is refused rather than
+	// served -- and `["*"]` is every page on the internet, which is a thing to
+	// mean rather than to reach for.
+	//
+	// It is not the wall and it is not authentication; see `httpx.Options`.
+	Origins []string `yaml:"origins"`
+
+	// AllowPprof serves the profiles under `/debug/pprof/`. It should stay off
+	// anywhere a stranger can reach: it is the heap, the goroutines, and the
+	// ability to make the process spend thirty seconds profiling itself.
+	AllowPprof bool `yaml:"allow_pprof"`
+}
+
+// Serves reports whether there is a second listener at all.
+func (c HttpConfig) Serves() bool {
+	return c.Addr != ""
+}
+
+// Origin reports whether a browser at this origin may make a grpc-web call,
+// and is nothing when no origin was named.
+func (c HttpConfig) Origin() func(origin string) bool {
+	if len(c.Origins) == 0 {
+		return nil
+	}
+	if slices.Contains(c.Origins, "*") {
+		return func(string) bool { return true }
+	}
+
+	return func(v string) bool { return slices.Contains(c.Origins, v) }
 }
 
 // LimitConfig is how often one caller may call. What "one caller" is, is said

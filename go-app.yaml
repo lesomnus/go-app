@@ -45,6 +45,30 @@ server:
   #   # its work in batches is bursty by construction.
   #   burst: 40
 
+  # The second listener: what this app serves to something that cannot speak
+  # gRPC. It is a port of its own rather than the same one, because gRPC served
+  # through Go's HTTP server gives up the transport gRPC brings -- so the fast
+  # path keeps its own listener and browsers come here. Nothing is served at
+  # all unless an address is written down.
+  # http:
+  #   addr: ":8080"
+  #   # Translate grpc-web into the gRPC server, so a browser reaches the same
+  #   # handlers, the same interceptors and the same wall as anything else.
+  #   allow_grpc_web: true
+  #   # Where a browser may call from. Nothing written down is nowhere, so a
+  #   # page nobody named is refused rather than served. `["*"]` is every page
+  #   # on the internet, which is a thing to mean rather than to reach for --
+  #   # and it is not the wall and not authentication either way.
+  #   origins: ["http://localhost:5173"]
+  #   # The heap, the goroutines, and the ability to make the process spend
+  #   # thirty seconds profiling itself. Keep it off anywhere a stranger can
+  #   # reach.
+  #   allow_pprof: false
+  #
+  # `/healthz` and `/healthz/liveness` are served whenever this listener is,
+  # out of the same health server the gRPC ones answer from -- so the two can
+  # never disagree. See the README, "Which health question is being asked".
+
   # keepalive:
   #   # Behind a load balancer that only balances new connections, this is what
   #   # makes it balance anything at all.

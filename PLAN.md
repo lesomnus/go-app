@@ -338,7 +338,10 @@ Not now, and not blocked by anything here.
   told the whole row next time, and one that was cut off asks again and is given
   what is there now. It is not enough for anything that has to act on every
   change exactly once, which is what an outbox is for and why it is still here.
-- grpc-web, and the HTTP listener that brings `pprof` with it.
+- ~~grpc-web, and the HTTP listener that brings `pprof` with it.~~ Done, as a
+  second listener rather than one port serving both: gRPC through `net/http`
+  gives up the transport gRPC brings, and a browser cannot use that transport
+  anyway, so there was no shared answer to find. See `internal/httpx`.
 - **A quota**, as opposed to the rate limit that is done (Phase 8): a budget
   over a window that somebody is billed against. It is not a smaller version of
   the same thing — it has to be counted somewhere every process can see, which
