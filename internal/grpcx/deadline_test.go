@@ -66,6 +66,16 @@ func TestDeadline(t *testing.T) {
 		x.Nil(grpcx.Deadline(-time.Second))
 	})
 
+	t.Run("the options say the cap, or say nothing and get the usual one", func(t *testing.T) {
+		x := require.New(t)
+
+		// A server that caps nothing is a decision, so it is said rather than
+		// left out -- and what saying it does is take an interceptor away.
+		whole := grpcx.ServerOptions(t.Context())
+		none := grpcx.ServerOptions(t.Context(), grpcx.WithDeadline(0))
+		x.Len(none, len(whole)-1, "the deadline interceptor, and only it")
+	})
+
 	t.Run("does not cap a stream", func(t *testing.T) {
 		x := require.New(t)
 

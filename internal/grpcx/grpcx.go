@@ -7,13 +7,30 @@ import (
 	"time"
 
 	"github.com/lesomnus/otx"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"github.com/lesomnus/otx/otxgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/stats"
 )
 
+// Option is something [ServerOptions] is told.
+type Option func(*options)
+
+type options struct {
+	deadline time.Duration
+}
+
+// WithDeadline caps a call that arrived without a deadline of its own. Zero
+// caps nothing, and is a thing to mean rather than to end up with; see
+// [Deadline] for why what is capped is the absence and never the presence.
+//
+// Unset is [DefaultTimeout]. A server that caps nothing is a decision, and a
+// decision is something said rather than something left out.
+func WithDeadline(d time.Duration) Option {
+	return func(o *options) { o.deadline = d }
+}
+
 // ServerOptions returns the options the app is served with. Every call is
-// traced, measured, logged, given a deadline if it brought none and, if it
+// traced, measured, recorded, given a deadline if it brought none and, if it
 // panics, reported as an error rather than taken as a reason to end the
 // process.
 //
@@ -21,32 +38,52 @@ import (
 // in Go, next to the rule it is part of; see the README, "What a request must
 // say".
 //
-// The order matters. The log is written outside the recovery so that a call
-// that panicked is logged like any other one that failed, and outside the
-// deadline so that a call that ran out of time is logged as such rather than
-// not at all.
-func ServerOptions(ctx context.Context, timeout time.Duration) []grpc.ServerOption {
-	opts := []grpc.ServerOption{Inherit(ctx), Otel(ctx)}
-	opts = append(opts, Log()...)
-	opts = append(opts, Recover()...)
-	opts = append(opts, Deadline(timeout)...)
+// The order matters, twice. [Otel] is registered before [Log], so a record
+// carries the ids of the span it happened inside. And both are stats handlers
+// rather than interceptors, which puts the record outside everything that
+// follows -- a call that panicked, one that ran out of time and one that was
+// refused before a handler was reached are all recorded like any other.
+func ServerOptions(ctx context.Context, opts ...Option) []grpc.ServerOption {
+	o := options{deadline: DefaultTimeout}
+	for _, f := range opts {
+		f(&o)
+	}
 
-	return opts
+	out := []grpc.ServerOption{Otel(ctx), Log(ctx)}
+	out = append(out, Recover()...)
+	out = append(out, Deadline(o.deadline)...)
+
+	return out
 }
 
-// Inherit hands the telemetry of `ctx` over to every call. gRPC builds the
+// Otel traces and measures the calls with the providers held by `ctx`, and
+// hands what `ctx` carries to every call.
+//
+// The second half is what makes the first half reachable. gRPC builds the
 // context of a call out of a background one, so without this a handler is
-// served with nothing of what the app was started with and everything it
-// logs goes nowhere.
-func Inherit(ctx context.Context) grpc.ServerOption {
-	o := otx.From(ctx)
-	return grpc.StatsHandler(ctxHandler{func(ctx context.Context) context.Context {
-		return otx.Into(ctx, o)
-	}})
+// served with nothing of what the app was started with and everything it logs
+// or measures goes nowhere.
+//
+// The propagator comes from `ctx` as well, and it is what continues the trace
+// a caller started rather than beginning one of its own. Note that this is the
+// caller's word: see the note on trust in README.md before putting the server
+// where anyone can reach it.
+func Otel(ctx context.Context) grpc.ServerOption {
+	return grpc.StatsHandler(otxgrpc.NewServerHandler(otx.From(ctx)))
+}
+
+// Seed puts something into the context of every call before anything else runs.
+//
+// It is a stats handler because that is the only place gRPC lets one do so, and
+// the difference is not academic: an interceptor runs behind the handlers that
+// read the context as a call arrives and is answered -- the log among them --
+// so what an interceptor puts there is not something they ever see.
+func Seed(f func(ctx context.Context) context.Context) grpc.ServerOption {
+	return grpc.StatsHandler(ctxHandler{f})
 }
 
 // ctxHandler is a [stats.Handler] that does nothing but seed the context of a
-// call, which is the only place gRPC lets one do so.
+// call.
 type ctxHandler struct {
 	f func(ctx context.Context) context.Context
 }
@@ -62,24 +99,6 @@ func (h ctxHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.C
 func (ctxHandler) HandleRPC(context.Context, stats.RPCStats) {}
 
 func (ctxHandler) HandleConn(context.Context, stats.ConnStats) {}
-
-// Otel instruments the calls with the providers held by `ctx`.
-//
-// The propagator comes from `ctx` as well, and it is what continues the trace
-// a caller started rather than beginning one of its own. Note that this is the
-// caller's word: see the note on trust in README.md before putting the server
-// where anyone can reach it.
-func Otel(ctx context.Context) grpc.ServerOption {
-	ps := otx.Providers(ctx)
-	return grpc.StatsHandler(otelgrpc.NewServerHandler(
-		otelgrpc.WithTracerProvider(ps.Tracer()),
-		otelgrpc.WithMeterProvider(ps.Meter()),
-		// Without this the global propagator is used, which is an empty
-		// composite unless something set it, so every call would start a trace
-		// of its own and nothing would ever join up.
-		otelgrpc.WithPropagators(otx.Propagator(ctx)),
-	))
-}
 
 // serverStream carries a context of its own, since a [grpc.ServerStream] hands
 // over the one it was made with.

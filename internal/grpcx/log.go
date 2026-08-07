@@ -2,75 +2,39 @@ package grpcx
 
 import (
 	"context"
-	"log/slog"
 	"strings"
-	"time"
 
-	"github.com/lesomnus/otx/log"
+	"github.com/lesomnus/otx"
+	"github.com/lesomnus/otx/otxgrpc"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/stats"
 )
 
-// Log writes a line for every call that is served.
-func Log() []grpc.ServerOption {
-	return []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(LogUnary()),
-		grpc.ChainStreamInterceptor(LogStream()),
-	}
+// Log writes a record as a call arrives and another as it is answered, the
+// second at a level worked out from the status code.
+//
+// It is a stats handler and not an interceptor, and that is what puts it
+// outside everything else there is: a call that panicked is recorded like any
+// other that failed, and so are one that ran out of the time it was given and
+// one that was refused before a handler was reached. An interceptor can only be
+// outside the interceptors installed after it.
+//
+// The same handler puts the service and the method on the logger the call is
+// served with, so what a handler writes of its own accord says which RPC it was
+// written under without being told.
+func Log(ctx context.Context) grpc.ServerOption {
+	return grpc.StatsHandler(otxgrpc.NewServerLogger(otx.From(ctx), otxgrpc.WithFilter(worth)))
 }
 
-func LogUnary() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		t := time.Now()
-		v, err := handler(ctx, req)
-		logServed(ctx, info.FullMethod, time.Since(t), err)
-
-		return v, err
-	}
+// worth is [isNoise] in the shape a logger is told it in.
+func worth(info *stats.RPCTagInfo) bool {
+	return !isNoise(info.FullMethodName)
 }
 
-func LogStream() grpc.StreamServerInterceptor {
-	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		t := time.Now()
-		err := handler(srv, ss)
-		logServed(ss.Context(), info.FullMethod, time.Since(t), err)
-
-		return err
-	}
-}
-
-func logServed(ctx context.Context, method string, took time.Duration, err error) {
-	if isNoise(method) {
-		return
-	}
-
-	l := log.From(ctx)
-	c := status.Code(err)
-	vs := []any{
-		slog.String("grpc.method", method),
-		slog.String("grpc.code", c.String()),
-		// As text, since a duration is otherwise a count of nanoseconds that
-		// nobody can read.
-		slog.String("took", took.String()),
-	}
-	if err != nil {
-		vs = append(vs, slog.String("error", err.Error()))
-	}
-
-	switch c {
-	case codes.OK:
-		l.InfoContext(ctx, "served", vs...)
-	case codes.Internal, codes.Unknown, codes.DataLoss, codes.Unavailable:
-		// The server is the one to blame.
-		l.ErrorContext(ctx, "served", vs...)
-	default:
-		l.WarnContext(ctx, "served", vs...)
-	}
-}
-
-// isNoise tells whether the method is polled often enough that logging it says
-// nothing.
+// isNoise tells whether a method is polled often enough that recording it says
+// nothing. A readiness probe every few seconds, from every replica, is most of
+// what a log holds and none of what anybody reads -- and the day it matters
+// that a health check failed, the thing that noticed is the prober.
 func isNoise(method string) bool {
 	return strings.HasPrefix(method, "/grpc.health.v1.Health/")
 }

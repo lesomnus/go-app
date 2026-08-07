@@ -115,7 +115,7 @@ func NewCmdServe() *xli.Command {
 				return z.Err(err, "build authentication")
 			}
 
-			opts := grpcx.ServerOptions(ctx, c.Server.CallTimeout())
+			opts := grpcx.ServerOptions(ctx, grpcx.WithDeadline(c.Server.CallTimeout()))
 			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, auth_opts...)
 			// Behind the authentication too, since what a call is counted

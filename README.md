@@ -564,7 +564,10 @@ would refuse to create. See `server/core/tenant_test.go` for the examples.
 
 The test is served with the same options the app is (`internal/grpcx`), and
 whatever the server logs is attached to the test that ran it, so a recovered
-panic is shown with its stack when the test fails.
+panic is shown with its stack when the test fails. It gets there through
+`grpcx.Seed`, which is a stats handler and not an interceptor for a reason worth
+knowing about: the record of a call is written by a stats handler too, and a
+stats handler never sees what an interceptor put in the context.
 
 ## Serve
 
@@ -576,8 +579,9 @@ by default, so it runs without anything else around:
 
 ```sh
 $ go run . serve --db-migrate
-> |........| 19:08:03.037 ○ 000000 000000 serving grpc - addr=[::]:50051 tls=false
-> |........| 19:08:07.455 ○ f3ae6a 2e4d8b served - grpc.method=/go_app.TenantService/Add grpc.code=OK took=11.43ms
+> |........| 19:08:03.037 ○ 000000 000000 serving grpc - addr=[::]:50051 tls=false auth=[plain]
+> |........| 19:08:07.451 ○ 98de37 73b3a4 ›» 127.0.0.1......... 0008B go_app.TenantService/Get
+> |........| 19:08:07.455 ○ 98de37 73b3a4 «‹ .OK 001.18ms 0008B 0081B go_app.TenantService/Get
 ```
 
 `--db-migrate` runs ent's auto migration on startup, which is handy in
@@ -600,14 +604,25 @@ The connection string is given to both by the environment rather than written
 in `go-app.yaml`, since it holds a password; everything else stays in the file.
 
 Every call goes through `internal/grpcx` before it reaches a service: it is
-traced and measured with the providers the app was started with, it is logged
-with its code and how long it took, a handler that panics is reported as an
-internal error instead of taking the process down with it, and a call that
-arrived without a deadline of its own is given one. A call that named a
-deadline is left alone however far away it is — the caller said how long the
+traced and measured with the providers the app was started with, it leaves a
+record as it arrives and another as it is answered, a handler that panics is
+reported as an internal error instead of taking the process down with it, and a
+call that arrived without a deadline of its own is given one. A call that named
+a deadline is left alone however far away it is — the caller said how long the
 answer is worth waiting for — and what is capped is only the absence of that.
-`server.timeout` says how long; zero, written down, caps nothing. Streams are
-not capped at all, since a stream is long-lived by design.
+`grpcx.WithDeadline` says how long, from `server.timeout`; zero, written down,
+caps nothing. Streams are not capped at all, since a stream is long-lived by
+design.
+
+The records come from `otxgrpc` as a stats handler rather than from an
+interceptor, and that is what puts them outside everything else: a call that
+panicked, one that ran out of time and one that was refused before a handler was
+reached are all recorded like any other, where an interceptor is only outside
+the interceptors installed after it. The same handler puts the service and the
+method on the logger the call is served with, so what a handler writes of its
+own accord says which RPC it was under without being told. Health is left out
+(`grpcx.Log`) — a readiness probe every few seconds, from every replica, is most
+of what a log holds and none of what anybody reads.
 
 ### How much one caller may ask for
 

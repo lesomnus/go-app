@@ -69,6 +69,8 @@ github.com/lesomnus/mkot/pretty v0.0.0-20260801183340-9c83100aa7c2 h1:o3F0mdJjq/
 github.com/lesomnus/mkot/pretty v0.0.0-20260801183340-9c83100aa7c2/go.mod h1:z5LyGPdqiA00U2yVh5JG453Cg9Hjizy+0EnatEBoddE=
 github.com/lesomnus/otx v0.0.0-20260801181427-44ac698b8971 h1:Nsc5z4pHtmdYzyPlccENp6tIwgu9rofQS2VQ8wrC2MI=
 github.com/lesomnus/otx v0.0.0-20260801181427-44ac698b8971/go.mod h1:V/UUmEut4XAaAzQ3eaY+giBv3TzRgoQEGZUilY9qJGA=
+github.com/lesomnus/otx/otxgrpc v0.0.0-20260807173743-977a5687d6ba h1:UCZIYVeng2rrhyPUE3eznt8jjVU0Q6llkRpYfXOsEm0=
+github.com/lesomnus/otx/otxgrpc v0.0.0-20260807173743-977a5687d6ba/go.mod h1:v/VS9C5p4/BpSBCqBDFJ+z/9z155Ykq/F02uEteusns=
 github.com/lesomnus/protobuf-patch v0.0.0-20260803175157-e1b7a0c2804f h1:hIDTEG7vZCJ5M+j+OhI97pk6Q1mp1t3gXi1k96IB9f0=
 github.com/lesomnus/protobuf-patch v0.0.0-20260803175157-e1b7a0c2804f/go.mod h1:0sqL1bt/0v8atiVioyoJ25XQnZcn8zA9GYM1DvC4i5o=
 github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7 h1:tQwbwldgmI803eqjgaBCYptj8M8rRQ+No2hgUXaj+P4=

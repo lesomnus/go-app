@@ -46,13 +46,11 @@ func Interceptor(h Handler, r Resolver, public Public) []grpc.ServerOption {
 			var actor, err = r.Resolve(ctx, id)
 			if err == nil {
 				// Who called what, for every RPC there is -- the reads that
-				// leave no other trace included. It says the method itself
-				// rather than leaning on the `served` record of `grpcx`,
-				// which is written by an interceptor in front of this one
-				// and so never sees the frame this line is about. The two
-				// are still one story: both carry the trace of the request.
+				// leave no other trace included. Which RPC is not said here:
+				// `grpcx.Log` puts the service and the method on the logger
+				// every line of a call is written with, so this one carries
+				// them without asking, as does everything a handler writes.
 				log.From(ctx).DebugContext(ctx, "authenticated",
-					slog.String("grpc.method", method),
 					slog.String("auth.method", id.Method),
 					slog.String("actor.alias", actor.GetAlias()),
 					slog.String("actor.tenant", actor.GetTenant().GetAlias()),

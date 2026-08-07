@@ -25,11 +25,21 @@ import (
 // already here; what is under test is what every call goes through.
 func serve(t *testing.T, ctx context.Context) grpc_health_v1.HealthClient {
 	t.Helper()
+	return grpc_health_v1.NewHealthClient(serveConn(t, ctx))
+}
+
+// serveConn is [serve] for a test that has something of its own to register or
+// to call.
+func serveConn(t *testing.T, ctx context.Context, also ...func(*grpc.Server)) *grpc.ClientConn {
+	t.Helper()
 	x := require.New(t)
 
 	l := bufconn.Listen(1 << 20)
-	g := grpc.NewServer(grpcx.ServerOptions(ctx, grpcx.DefaultTimeout)...)
+	g := grpc.NewServer(grpcx.ServerOptions(ctx)...)
 	grpc_health_v1.RegisterHealthServer(g, health.NewServer())
+	for _, f := range also {
+		f(g)
+	}
 
 	done := make(chan struct{})
 	go func() {
@@ -54,7 +64,7 @@ func serve(t *testing.T, ctx context.Context) grpc_health_v1.HealthClient {
 		<-done
 	})
 
-	return grpc_health_v1.NewHealthClient(conn)
+	return conn
 }
 
 func TestOtel(t *testing.T) {

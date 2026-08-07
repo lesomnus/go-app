@@ -145,17 +145,17 @@ func (s *Server) Grpc() *grpc.Server {
 // travels the same stack a request does in production. The credentials are the
 // one thing that differs, since the connection never leaves the process.
 func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
-	// First, so that everything behind it, the panic recovery included, writes
-	// into the log of the test.
+	// First, so that everything behind it writes into the log of the test: the
+	// panic recovery, and the record every call leaves. It has to be a stats
+	// handler rather than an interceptor for the second of those -- the log is
+	// one too, and a stats handler never sees what an interceptor put in the
+	// context.
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-			return handler(log.Into(ctx, s.log), req)
-		}),
-		grpc.ChainStreamInterceptor(func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-			return handler(srv, grpcx.StreamWithContext(ss, log.Into(ss.Context(), s.log)))
+		grpcx.Seed(func(ctx context.Context) context.Context {
+			return log.Into(ctx, s.log)
 		}),
 	}
-	opts = append(opts, grpcx.ServerOptions(s.tb.Context(), grpcx.DefaultTimeout)...)
+	opts = append(opts, grpcx.ServerOptions(s.tb.Context())...)
 	// And not [grpcx.Closed], so `Patch` and `Apply` are served here while a
 	// deployment closes them (`server.general_writes`). It is the one place a
 	// test does not travel what a caller travels, and it is deliberate: they

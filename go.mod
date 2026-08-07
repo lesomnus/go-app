@@ -12,6 +12,7 @@ require (
 	github.com/lesomnus/mkot/mkotx v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/mkot/pretty v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/otx v0.0.0-20260801181427-44ac698b8971
+	github.com/lesomnus/otx/otxgrpc v0.0.0-20260807173743-977a5687d6ba
 	github.com/lesomnus/protobuf-patch v0.0.0-20260803175157-e1b7a0c2804f
 	github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7
 	github.com/lesomnus/z v0.0.0-20260531102454-3f1853bb4278
@@ -19,8 +20,9 @@ require (
 	github.com/protobuf-orm/protobuf-orm v0.0.0-20260807003431-ce1156ba9f29
 	github.com/protobuf-orm/protoc-gen-orm-ent/runtime v0.0.0-20260807043117-c22bcb7b1fd6
 	github.com/stretchr/testify v1.11.1
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/otel v1.44.0
+	go.opentelemetry.io/otel/log v0.20.0
+	go.opentelemetry.io/otel/sdk/log v0.20.0
 	go.opentelemetry.io/otel/trace v1.44.0
 	golang.org/x/time v0.15.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa
@@ -68,10 +70,9 @@ require (
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.18.0 // indirect
-	go.opentelemetry.io/otel/log v0.20.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
-	go.opentelemetry.io/otel/sdk/log v0.20.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.44.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/mod v0.37.0 // indirect
