@@ -500,19 +500,34 @@ a boolean: asked for a boolean per row instead, a list has to fetch rows it may
 not answer with and drop them, which cannot be paged and which any Tenant can use
 to push another's rows out of an answer.
 
-**Unset by default, and that is not a placeholder.** A deployment with no
-`Policy` behaves exactly as this app always has. Nothing here takes a dependency
-on a running service; the interface is the seam, and an integration with a real
-engine belongs in a branch of its own — this repository already keeps
+**It is injected where the server is built**, beside the authentication it runs
+behind:
+
+```go
+opts = append(opts, auth_opts...)
+opts = append(opts, gate.Interceptor(nil)...)   // or whatever a deployment consults
+```
+
+**Unset is not a placeholder.** A deployment that injects nothing behaves exactly
+as this app always has: whoever holds the root Tenant is not walled in, everybody
+else sees their own. Nothing here takes a dependency on a running service; the
+interface is the seam, and an integration with a real engine belongs in a branch
+of its own — this repository already keeps
 [a branch per kind of app](.github/workflows/ci.yaml).
 
-**Ask it once per request.** The hooks `Wall()` installs run per *query*, and a
-request makes several. Whatever implements this is consulted in front and the
-answer is carried, the same way `server/auth` carries who the caller is rather
-than working it out again at each layer. The answer is a function of the actor
-and the method with nothing of the request in it, so it can be held as a snapshot
-and evaluated in process — which is what Kubernetes does with RBAC, and what
-makes an authorization service that is briefly unreachable not an outage.
+**It is asked once per request**, which is why it is an interceptor rather than
+something the wall consults. The hooks `Wall()` installs run per *query*, and a
+request makes several — a `Get` that also asks for the Tenant runs two. The
+answer is worked out in front and carried on the frame, the same way
+`server/auth` carries who the caller is rather than working it out again at each
+layer. And it is a function of the actor and the method with nothing of the
+request in it, so it can be held as a snapshot and evaluated in process — which
+is what Kubernetes does with RBAC, and what makes an authorization service that
+is briefly unreachable not an outage.
+
+The credential is met with the answer **afterwards**, because it can only take
+away: a policy that grants a Tenant and a token that does not name it is a call
+that does not reach it.
 
 **May they do this?** `server/gate` decides, and it holds one rule: a Tenant is
 a wall.

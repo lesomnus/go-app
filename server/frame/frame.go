@@ -25,6 +25,19 @@ type Frame struct {
 	// Grant is what the credential they came with allows, which is at most
 	// what the Actor allows. See [Grant].
 	Grant Grant
+
+	// Scope is which Tenants this request may see: what the Actor may see, met
+	// with what the Grant allows of it. See [Tenants].
+	//
+	// It is worked out once, in front, by whatever decides such things --
+	// `server/gate` -- and read from here by everything after, rather than
+	// asked again. The hooks that narrow a query run once per *query* and a
+	// request makes several, so a scope computed there would consult whatever
+	// answers it several times for one call.
+	//
+	// The zero value sees nothing, so a frame built by hand that says nothing
+	// about this is a frame that reads no rows. Say [Frame.WithScope].
+	Scope Tenants
 }
 
 // New answers with the frame of a request from `actor`, carrying a credential
@@ -36,6 +49,19 @@ type Frame struct {
 // right way round, and still better not to leave to whether somebody remembered.
 func New(actor *go_app.Holder, grant Grant) *Frame {
 	return &Frame{Actor: actor, Grant: grant}
+}
+
+// WithScope answers with this frame, seeing `t`.
+//
+// The scope is set apart from [New] rather than beside the grant because it
+// arrives later and from somewhere else: a credential says what it allows as it
+// is read, and what a caller may see is worked out afterwards, by the layer
+// that holds those rules and by whatever it consults.
+func (f *Frame) WithScope(t Tenants) *Frame {
+	v := *f
+	v.Scope = t
+
+	return &v
 }
 
 func Into(ctx context.Context, v *Frame) context.Context {

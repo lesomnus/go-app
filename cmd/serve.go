@@ -118,6 +118,11 @@ func NewCmdServe() *xli.Command {
 			opts := grpcx.ServerOptions(ctx, c.Server.CallTimeout())
 			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, auth_opts...)
+			// Behind the authentication, since it reads who the caller is, and
+			// this is where a deployment injects what it consults about them.
+			// Nothing is injected here, so the wall is what this app has always
+			// shown; see `gate.Policy`.
+			opts = append(opts, gate.Interceptor(nil)...)
 			opts = append(opts, grpcx.Closed(c.Server.Closed())...)
 			opts = append(opts, grpc.Creds(creds))
 

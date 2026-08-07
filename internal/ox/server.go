@@ -51,6 +51,11 @@ type Server struct {
 	// and reach for it with [Client.AsBearer].
 	Tokens *auth.MemTokenStore
 
+	// Policy is what the servers consult about a caller, and is nothing unless
+	// a test says otherwise -- which is what a deployment that injects none
+	// gets. Set it before making the client that should see it.
+	Policy gate.Policy
+
 	go_app.Server
 }
 
@@ -147,6 +152,8 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 		auth.ServerResolver(s.Sink),
 		auth.PublicDefault,
 	)...)
+	// And behind it, what works out what the caller may see.
+	opts = append(opts, gate.Interceptor(s.Policy)...)
 	opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 
 	g := grpc.NewServer(opts...)

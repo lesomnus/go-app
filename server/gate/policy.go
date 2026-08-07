@@ -3,9 +3,8 @@ package gate
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	go_app "github.com/lesomnus/go-app/go_app"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // Policy is what a deployment consults about a caller, and is deliberately not
@@ -59,7 +58,7 @@ type Policy interface {
 	May(ctx context.Context, d Decision) error
 
 	// Where answers with the Tenants the actor may take `action` in.
-	Where(ctx context.Context, actor *go_app.Holder, action string) (Tenants, error)
+	Where(ctx context.Context, actor *go_app.Holder, action string) (frame.Tenants, error)
 }
 
 // Decision is one call, as a policy sees it: who, and what they asked for.
@@ -73,24 +72,4 @@ type Decision struct {
 	// stores, and for the same reason: it is what the caller asked for rather
 	// than the leg of it that did the work.
 	Action string
-}
-
-// policy is what this deployment was built with, and nothing until it is told.
-//
-// A package variable rather than a field of [Server], because what asks it is
-// [Wall], which is installed on the innermost server and is not a layer of the
-// stack at all. A field would have to be threaded through the one thing that is
-// deliberately not part of the stack.
-var policy Policy
-
-// SetPolicy tells this package what to consult. It is for a deployment to call
-// once, before anything is served.
-func SetPolicy(v Policy) { policy = v }
-
-// method is the RPC gRPC dispatched, or "" for a call that did not come in over
-// the wire -- one server calling another in process, which is how a
-// hand-written RPC reaches the ones it is built from.
-func method(ctx context.Context) string {
-	v, _ := grpc.Method(ctx)
-	return v
 }
