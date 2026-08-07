@@ -592,16 +592,23 @@ both are on purpose:
 
 Closing the second half means recording the Tenant of the *object* too, at the
 time of the write, and that is deliberately not done. The recorder is told about
-a write after it has happened, and by then an `Erase` has taken away the row it
-would have read. Making it available means either eagerly loading every edge of
-every entity on every `Erase` — in a generator that serves more than this app —
-or recording before the write is known to have happened. A column that is right
-for three RPCs and missing for the fourth is worse than none.
+a write after it has happened, and for a `Tenant` — which is erased for real —
+an `Erase` has by then taken away the row it would have read. Making it
+available means either eagerly loading every edge of every entity on every
+`Erase`, in a generator that serves more than this app, or recording before the
+write is known to have happened.
+
+Soft erasure changes that for `Holder` and not for the rest, which is the answer
+rather than a way around it. An erased Holder is still a row, so the recorder
+*could* read it — and a column that is right for the entities that erase softly
+and empty for the ones that do not is the same wrong shape as one that is right
+for three RPCs and missing for the fourth. It would read as "no Tenant" where it
+means "not recorded here".
 
 What it costs, and only while a recorder is configured: `Add` and `Erase` open a
-transaction they did not need before, and `Erase` reads the row before deleting
-it — a request may name a row by its alias, and an alias is not what a trail is
-read back with.
+transaction they did not need before, and `Erase` reads the row before writing
+to it — a request may name a row by its alias, and an alias is not what a trail
+is read back with.
 
 The trail is read with `AuditService.List`, filtered by the identifier of the
 thing it is about, newest first, and a page at a time — a trail is the list most

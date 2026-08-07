@@ -208,8 +208,9 @@ root. It was not asked for, and it has a disclosure trade-off of its own.
 
 **And it cannot be recorded cheaply.** The recorder runs after the write, inside
 its transaction. For `Add` and `Apply` the row is still there and its Tenant is
-one query away. For `Erase` it is gone: the generated server reads the row's key
-before deleting, deletes, and *then* records. Making the object's Tenant
+one query away. For an `Erase` that deletes -- which at the time was every
+`Erase` -- it is gone: the generated server reads the row's key first, deletes,
+and *then* records. Making the object's Tenant
 available there means one of
 
 - handing the recorder the row itself (`Change.Row`), which for a Holder means
@@ -220,6 +221,12 @@ available there means one of
 
 A column that is right for three RPCs and absent for the fourth is worse than no
 column, and `Erase` is the case somebody would most want it for.
+
+Soft delete (2.2) landed afterwards and changed the fact without changing the
+answer. An erased `Holder` is still a row, so the recorder could read it -- but a
+`Tenant` is erased for real, so the column would be right for the entities that
+erase softly and empty for the ones that do not, which is the same wrong shape
+one step over. It would read as "no Tenant" where it means "not recorded here".
 
 The trade-off is written down in `proto/go_app/audit.proto` and in the README
 instead, which is what this phase was really for: a reader should know that the

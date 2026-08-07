@@ -65,8 +65,14 @@ message Audit {
   //
   // Which kind of thing it was is not stored, because an identifier is unique
   // across every one of them: whatever answers to it is what the row is about.
+  //
   // The cost is that a row erased later leaves an identifier nothing answers
-  // to, and no way to say what it used to be.
+  // to, and no way to say what it used to be. It is why a Holder is erased
+  // softly: almost every row here names one in `actor_id`, so a Holder that was
+  // deleted would leave this trail saying who while nobody could find out who.
+  // A Tenant is still erased for real, so a row about one erased since is an
+  // identifier and a shrug -- which is what this cost looks like when it is
+  // not paid.
   bytes object_id = 6 [(orm.field) = {type: TYPE_UUID}];
 
   // The patch document the write was compiled from, as it was marshaled, and
