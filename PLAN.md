@@ -212,16 +212,24 @@ trail is the actor's and not the object's, and why.
 
 ### Phase 4 — validation, and what the general write is for
 
-- **protovalidate.** Field constraints declared where every other declaration
-  is, checked by one interceptor. `core` keeps what is genuinely domain —
-  normalization, cross-field rules, and anything that has to ask the database.
+- **Validation, in Go rather than in the message.** protovalidate was built and
+  then taken back out, which was the right end to arrive at from the wrong
+  direction, so the reasoning is kept.
 
-  One thing found while building it: `protoc-gen-orm-service` does not copy
-  field options into the request messages it generates, so a constraint on
-  `Holder.alias` would not reach `HolderAddRequest.alias`. That turns out not
-  to matter, and for the reason the doctrine below gives — every RPC a caller
-  actually uses is one somebody wrote by hand, and a hand-written RPC has a
-  hand-written request message, which is exactly where the constraint goes.
+  It was tried first because the constraints would be declared where every
+  other declaration is. Two things came out of trying it. `protoc-gen-orm-service`
+  does not copy field options into the request messages it generates, so a
+  constraint on `Holder.alias` never reaches `HolderAddRequest.alias` — which
+  under the doctrine below does not matter, since every RPC a caller uses is one
+  somebody wrote. And then the constraints that were left, on the two
+  hand-written lists, turned out to be either redundant with the code that
+  already reads the value (`HolderPick` refuses a reference that names nothing;
+  `uuid.FromBytes` refuses sixteen bytes that are not) or better said in Go: the
+  filter bound is refused where the page size is clamped, and the reason for it
+  is a sentence about `List` that belongs next to `List`.
+
+  What is left is a rule written beside the thing it is a rule about, and no
+  `cel-go` in the dependency tree.
 - **The doctrine, written down.** A README section on why `Patch` and `Apply`
   are not an API, and what to write instead.
 - **The surface closed**, but at the *transport* rather than in a layer, which
@@ -267,7 +275,7 @@ Not now, and not blocked by anything here.
 | 2.1 the Tenant wall | **done** | `gate.Wall()`; thirteen overrides became three rules and a predicate |
 | 2.2 soft delete | **blocked** | needs `orm.FieldOptions` and a partial `orm.Index`, which live in `protobuf-orm` and are consumed from a registry |
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
-| 4 validation and the doctrine | **done** | `buf.validate` + one interceptor; `Patch`/`Apply` closed at the transport, off by default |
+| 4 validation and the doctrine | **done** | checks in Go beside the rule they belong to; `Patch`/`Apply` closed at the transport, off by default |
 | 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |
 
 Checked against a real PostgreSQL and not only the SQLite the tests run on:
@@ -290,6 +298,7 @@ Worth keeping, since the errors were in the reasoning rather than in the code.
   the answer for a frame that went missing by mistake. Refusing, and handing a
   server with no wall to the two callers that must go around it, makes the
   bypass something a reader can find.
-- **Validation belongs on the request.** It does — but only because `Patch` and
-  `Apply` are not requests anybody sends. The constraint that could not reach a
-  generated CRUD request turned out not to need to.
+- **Validation belongs on the request, declared.** On the request, yes — but
+  written in Go, next to the rule it is part of. Declared, the number survives
+  and the reason for it does not, and there is only the one verb where refusing
+  and clamping are both answers.

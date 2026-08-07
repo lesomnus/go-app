@@ -2,7 +2,6 @@ version: v2
 modules:
   - path: proto
 deps:
-  - buf.build/bufbuild/protovalidate
   - buf.build/orm/orm
   # The generated Apply RPC carries a patch.Patch, so every service contract
   # imports patch/patch.proto. That schema is not frozen yet, so it is pinned

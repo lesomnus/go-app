@@ -122,16 +122,13 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 			return handler(srv, grpcx.StreamWithContext(ss, log.Into(ss.Context(), s.log)))
 		}),
 	}
-	// `Patch` and `Apply` are served here and closed in a deployment
-	// (`server.general_writes`), which is the one place a test does not travel
-	// what a caller travels -- deliberately. They are how the servers write,
-	// and the tests of this repository are what demonstrate them; an app made
-	// from this template tests the RPCs it wrote by hand instead, and those are
-	// served either way. See the README.
-	vs, err := grpcx.ServerOptions(s.tb.Context(), grpcx.DefaultTimeout)
-	require.NoError(s.tb, err)
-
-	opts = append(opts, vs...)
+	opts = append(opts, grpcx.ServerOptions(s.tb.Context(), grpcx.DefaultTimeout)...)
+	// And not [grpcx.Closed], so `Patch` and `Apply` are served here while a
+	// deployment closes them (`server.general_writes`). It is the one place a
+	// test does not travel what a caller travels, and it is deliberate: they
+	// are how the servers write, and the tests of this repository are what
+	// demonstrate them. An app made from this template tests the RPCs it wrote
+	// by hand instead, and those are served either way. See the README.
 	// The same way the app works out who is calling, so a test travels that
 	// road as well; `Plain` is what says who without anything to check.
 	opts = append(opts, auth.Interceptor(auth.Plain(), auth.ServerResolver(s.Sink), auth.PublicDefault)...)

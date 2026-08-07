@@ -57,6 +57,17 @@ const (
 	// with however loudly the request asks.
 	PageSize  = 50
 	PageLimit = 100
+
+	// FilterLimit is how many filters one List may carry.
+	//
+	// Each of them is a predicate in the same query, so the request is what
+	// says how much of the database to read -- and a request that says "all of
+	// it, in one statement" is one somebody sends by accident long before
+	// anybody sends it on purpose. Unlike the page size this is refused rather
+	// than clamped: asking for more rows than there are is a caller being
+	// generous with themselves, and dropping half the filters would answer a
+	// question nobody asked.
+	FilterLimit = 32
 )
 
 // listOrder is how the Holders come back: oldest first, so that what is
@@ -114,8 +125,15 @@ func (s HolderServiceServer) List(ctx context.Context, req *go_app.HolderListReq
 	}
 
 	if fs := req.GetFilters(); len(fs) > 0 {
+		if len(fs) > FilterLimit {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"filters: %d of them, and %d is the most one list carries", len(fs), FilterLimit)
+		}
+
 		ps := make([]predicate.Holder, 0, len(fs))
 		for i, f := range fs {
+			// A filter that names nothing is refused by Pick, which reads the
+			// reference and says which part of it was wrong.
 			p, err := bare.HolderPick(f.GetRef())
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "filters[%d]: %s", i, err)

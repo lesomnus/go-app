@@ -21,6 +21,10 @@ const (
 	// however loudly the request asks.
 	PageSize  = 50
 	PageLimit = 100
+
+	// FilterLimit is how many filters one List may carry; see
+	// [core.FilterLimit] for why it is refused rather than clamped.
+	FilterLimit = 32
 )
 
 // listOrder is how the trail is read: newest first, which is the opposite of
@@ -89,6 +93,11 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 	}
 
 	if fs := req.GetFilters(); len(fs) > 0 {
+		if len(fs) > FilterLimit {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"filters: %d of them, and %d is the most one list carries", len(fs), FilterLimit)
+		}
+
 		ps := make([]predicate.Audit, 0, len(fs))
 		for i, f := range fs {
 			p, err := pick(f)

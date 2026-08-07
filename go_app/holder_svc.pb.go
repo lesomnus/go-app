@@ -7,7 +7,6 @@
 package go_app
 
 import (
-	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	patchpb "github.com/lesomnus/protobuf-patch/patchpb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -1206,9 +1205,9 @@ type HolderListRequest_builder struct {
 	// Bounded because the work is; see `AuditListRequest.filters`.
 	Filters []*HolderFilter
 	// How many to answer with. Nothing said is `core.PageSize`, and more than
-	// `core.PageLimit` is `core.PageLimit` -- a caller asking for more than
-	// there is meant no harm, so it is not an error, and it is not the whole
-	// table either.
+	// `core.PageLimit` is `core.PageLimit` -- a caller asking for more than there
+	// is meant no harm, so it is not an error, and it is not the whole table
+	// either.
 	Size *int32
 	// Where to carry on from: the `next` of the answer before. It names the last
 	// row of that page rather than counting rows from the start, so a Holder
@@ -1315,9 +1314,9 @@ type HolderListResponse_builder struct {
 	//
 	// Empty means there is no more *for now*: a list is read as it is, and one
 	// that has grown since answers a fresh call. It is not empty merely because
-	// the page came back short -- a page is short when the last row of it was
-	// the last row there was, which is a thing this server can only know by
-	// having looked.
+	// the page came back short -- a page is short when the last row of it was the
+	// last row there was, which is a thing this server can only know by having
+	// looked.
 	Next *string
 }
 
@@ -1405,7 +1404,7 @@ var File_go_app_holder_svc_proto protoreflect.FileDescriptor
 
 const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\n" +
-	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x1bbuf/validate/validate.proto\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xd8\x02\n" +
+	"\x17go_app/holder_svc.proto\x12\x06go_app\x1a\x13go_app/holder.proto\x1a\x17go_app/tenant_svc.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11patch/patch.proto\"\xd8\x02\n" +
 	"\x10HolderAddRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12)\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\x12\x1b\n" +
@@ -1447,16 +1446,16 @@ const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +
 	"\x12HolderApplyRequest\x12#\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\"\n" +
-	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"\x80\x01\n" +
-	"\x11HolderListRequest\x128\n" +
-	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterB\b\xbaH\x05\x92\x01\x02\x10 R\afilters\x12\x1b\n" +
-	"\x04size\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x04size\x12\x14\n" +
+	"\x05patch\x18\x02 \x01(\v2\f.patch.PatchR\x05patch\"m\n" +
+	"\x11HolderListRequest\x12.\n" +
+	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterR\afilters\x12\x12\n" +
+	"\x04size\x18\x02 \x01(\x05R\x04size\x12\x14\n" +
 	"\x05after\x18\x03 \x01(\tR\x05after\"N\n" +
 	"\x12HolderListResponse\x12$\n" +
 	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\x12\x12\n" +
-	"\x04next\x18\x02 \x01(\tR\x04next\";\n" +
-	"\fHolderFilter\x12+\n" +
-	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefB\x06\xbaH\x03\xc8\x01\x01R\x03ref2\xce\x02\n" +
+	"\x04next\x18\x02 \x01(\tR\x04next\"3\n" +
+	"\fHolderFilter\x12#\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref2\xce\x02\n" +
 	"\rHolderService\x12/\n" +
 	"\x03Add\x12\x18.go_app.HolderAddRequest\x1a\x0e.go_app.Holder\x12/\n" +
 	"\x03Get\x12\x18.go_app.HolderGetRequest\x1a\x0e.go_app.Holder\x123\n" +

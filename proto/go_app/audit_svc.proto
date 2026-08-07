@@ -1,7 +1,6 @@
 edition = "2023";
 package go_app;
 
-import "buf/validate/validate.proto";
 import "go_app/audit.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
@@ -73,29 +72,26 @@ message AuditApplyRequest {
 }
 
 message AuditListRequest {
-  // Bounded because the work is: each one is a predicate in the same query,
-  // and a request may carry as many as it likes. It is the request that says
-  // how much of the database to look at, so it is the request that is capped.
-  repeated AuditFilter filters = 1 [(buf.validate.field).repeated.max_items = 32];
+  // Bounded because the work is: each one is a predicate in the same query, and
+  // a request may carry as many as it likes. The bound is in `audit.List`,
+  // where a reader of it can see what it costs.
+  repeated AuditFilter filters = 1;
 
   // Whose trail it is, which narrows the answer before it is cut short rather
   // than after. A wall that removed rows from what came back would be a wall
   // that any Tenant could push another one's trail out of, just by writing
-  // enough of its own; see `audit.ListLimit`.
+  // enough of its own; see `audit.PageLimit`.
   //
-  // A filter and not the wall. The wall is `gate.Wall()`, in the query of
-  // every read there is; this is how whoever may see more than one Tenant asks
-  // about one of them.
-  // Sixteen bytes when it is there at all. Nothing more is needed to make it
-  // optional: the field tracks presence, and a rule is not asked about a field
-  // that was not set.
-  bytes tenant_id = 2 [(buf.validate.field).bytes.len = 16];
+  // A filter and not the wall. The wall is `gate.Wall()`, in the query of every
+  // read there is; this is how whoever may see more than one Tenant asks about
+  // one of them.
+  bytes tenant_id = 2;
 
   // How many to answer with, and where to carry on from; see
-  // `HolderListRequest`. A trail is the list most likely to outgrow one
-  // answer, and it is read newest first, so a cursor is what reading further
-  // back means.
-  int32 size = 3 [(buf.validate.field).int32.gte = 0];
+  // `HolderListRequest`. A trail is the list most likely to outgrow one answer,
+  // and it is read newest first, so a cursor is what reading further back
+  // means.
+  int32 size = 3;
   string after = 4;
 }
 
@@ -108,5 +104,5 @@ message AuditListResponse {
 
 // AuditFilter names what a caller is asking the history of.
 message AuditFilter {
-  bytes object_id = 1 [(buf.validate.field).bytes.len = 16];
+  bytes object_id = 1;
 }

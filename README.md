@@ -212,19 +212,25 @@ service HolderService {
 }
 
 message HolderRenameRequest {
-  HolderRef ref  = 1 [(buf.validate.field).required = true];
-  string    name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  HolderRef ref  = 1;
+  string    name = 2;
 }
 ```
 
 ```go
 // server/core/holder.go
 func (s HolderServiceServer) Rename(ctx context.Context, req *go_app.HolderRenameRequest) (*go_app.Holder, error) {
-    // Whatever renaming means here, said once, in the one place that knows.
+    // What a rename will and will not take, said here because here is what
+    // knows -- and whatever renaming means besides writing the column.
+    name, err := ParseName(req.GetName())
+    if err != nil {
+        return nil, err
+    }
+
     return s.HolderServiceServer.Apply(ctx, go_app.HolderApplyRequest_builder{
         Ref:   req.GetRef(),
         Patch: patch.MustNew("go_app.Holder",
-            patch.Target(patch.Name("name")).Assign(patch.Str(req.GetName())),
+            patch.Target(patch.Name("name")).Assign(patch.Str(name)),
         ),
     }.Build())
 }
@@ -232,8 +238,9 @@ func (s HolderServiceServer) Rename(ctx context.Context, req *go_app.HolderRenam
 
 Three things come out of that shape:
 
-- **The validation has somewhere to live.** `Rename` has a request message, so
-  its constraints go on its fields, next to them, where a reader will find them.
+- **The validation has somewhere to live.** `Rename` is a function, so what it
+  will and will not take is said in it, beside the rest of what renaming means.
+  See [What a request must say](#what-a-request-must-say).
 - **The trail says `Rename`.** The write reports itself as `Apply`, but the
   action stored is the method gRPC dispatched — so "who renamed this" answers
   with the thing the caller asked for rather than the leg of it that wrote. See
@@ -289,21 +296,45 @@ and which the same wall answers.
 
 ### What a request must say
 
-Constraints are `buf.validate` options in the proto, next to the fields they are
-about, and one interceptor checks every request against them
-(`internal/grpcx/validate.go`). A field added later carries its rule with it and
-no server has to be told. Constraints that do not compile are a server that does
-not start, rather than one that serves unchecked requests.
+**In Go, in the server, beside the rule it is part of.** There are no
+constraints in the messages — no `buf.validate`, no validating interceptor. A
+request is checked by the code that is about to act on it.
 
-What is left for `server/core` is what a declaration cannot say: normalizing a
-value on the way in (`" Acme "` → `acme`), a rule about two fields at once, and
-anything that has to ask the database — an alias being free, for instance.
+```go
+// server/core/holder.go
+if len(fs) > FilterLimit {
+    return nil, status.Errorf(codes.InvalidArgument,
+        "filters: %d of them, and %d is the most one list carries", len(fs), FilterLimit)
+}
+```
 
-The generated CRUD requests carry no constraints, and under the rule above they
-do not need to: `Patch` and `Apply` are not served, and what `Add` needs said
-about it is mostly the kind of thing `core` says anyway. Every RPC a caller
-actually uses is one somebody wrote, and a hand-written RPC has a hand-written
-request message.
+The reason is that almost none of the interesting checks are declarable, and
+mixing the two makes it harder to know where to look:
+
+- **A rule usually has a reason, and the reason lives in the server.**
+  `FilterLimit` is not "32 because 32". Each filter is a predicate in the same
+  query, so the request is what says how much of the database to read — which
+  is a sentence about `List`, next to `List`, where the `PageLimit` it argues
+  against also lives. As `max_items: 32` on a field it is a number with the
+  reason left somewhere else.
+- **Refusing and clamping are both answers.** A page size past the cap is
+  clamped, because a caller asking for more rows than there are meant no harm.
+  A filter count past the cap is refused, because dropping half the filters
+  would answer a question nobody asked. A declaration has only the one verb.
+- **Most of it is already covered by the code that reads the value.**
+  `HolderPick` refuses a reference that names nothing and says which part was
+  wrong; `uuid.FromBytes` refuses sixteen bytes that are not sixteen bytes.
+  Declaring `required` and `len: 16` over the top would be a second copy of
+  the same rule, drifting.
+- **And the rest was never declarable.** Normalizing a value on the way in
+  (`" Acme "` → `acme`), a rule about two fields at once, an alias being free —
+  `server/core` is full of these, and it is where a reader already goes.
+
+The one thing given up is that a check has to be written rather than inherited.
+That is the same trade the [general write](#the-general-write-is-not-an-api)
+makes and for the same reason: an app that wants a caller to be able to do
+something writes the RPC that means it, and an RPC somebody wrote is one where
+there is already a place to say what it will and will not take.
 
 ## Who is calling
 

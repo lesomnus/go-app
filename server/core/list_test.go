@@ -151,4 +151,35 @@ func TestList(t *testing.T) {
 		}.Build())
 		x.ErrCode(codes.InvalidArgument, err)
 	}))
+
+	t.Run("more filters than one list carries is refused", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		seed(ctx, x, c, 2)
+
+		fs := make([]*go_app.HolderFilter, core.FilterLimit+1)
+		for i := range fs {
+			fs[i] = go_app.HolderFilter_builder{Ref: go_app.HolderById(make([]byte, 16))}.Build()
+		}
+
+		// Refused rather than clamped, which is the opposite of what the page
+		// size gets: each filter is a predicate in the same query, so this is
+		// the request saying how much of the database to read -- and dropping
+		// half of them would answer a question nobody asked.
+		_, err := c.Holder().List(ctx, go_app.HolderListRequest_builder{Filters: fs}.Build())
+		x.ErrCode(codes.InvalidArgument, err)
+
+		// One under the line is served.
+		_, err = c.Holder().List(ctx, go_app.HolderListRequest_builder{Filters: fs[:core.FilterLimit]}.Build())
+		x.NoError(err)
+	}))
+
+	t.Run("a filter that names nothing is refused", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+		seed(ctx, x, c, 2)
+
+		// Said by the reference reader rather than by a rule of its own, which
+		// is why there is no rule of its own.
+		_, err := c.Holder().List(ctx, go_app.HolderListRequest_builder{
+			Filters: []*go_app.HolderFilter{{}},
+		}.Build())
+		x.ErrCode(codes.InvalidArgument, err)
+	}))
 }
