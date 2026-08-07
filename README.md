@@ -515,7 +515,7 @@ it: an event is published in this process, to whoever is listening in this
 process, and a crash between the commit and the dispatch loses it. Something that
 must not be lost is written in the transaction, as a row somebody else picks up.
 
-#### `HolderService.Watch` — state, not deltas
+#### `Watch` — state, not deltas
 
 What a client gets is **the row as it is now**, never a description of what
 changed. That is what makes a stream that missed something still correct: the
@@ -555,6 +555,18 @@ RPCs this app does not serve them.
 A stream that falls more than `watch.Backlog` behind is cut off with
 `ResourceExhausted`. Asking again is the recovery: a fresh stream begins with
 everything that matches now.
+
+`TenantService.Watch` is the same in every way. **`AuditService.Watch` is not**,
+and every difference comes from one fact: a trail row is written once, never
+changed and never erased. So it sends no first message — there is nothing to
+converge on, and what happened before is what `List` is for — and it answers
+with rows rather than the wrapper, since a row does not stop being a row and
+there is no removal to say by absence.
+
+Serving it needed one small door: the trail is deliberately not on the trail, so
+its own writes are the one thing nothing is told about. `audit.WithRecorder`
+opens that to something that only wants to *hear*, and comes with the rule that
+whatever is given must not write through the server it is handed.
 
 **The trail is the actor's, not the object's.** A row is stamped with the Tenant
 the caller was held by, and nothing moves it afterwards. Two things follow, and

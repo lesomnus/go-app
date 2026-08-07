@@ -3,6 +3,16 @@ edition = "2023";
 service AuditService {
   // List the trail of what happened, newest first.
   rpc List(AuditListRequest) returns (AuditListResponse);
+
+  // Watch the trail as it is written.
+  //
+  // It answers with rows and not with the wrapper the other watches use, and
+  // **it sends no first message**. Both are the same fact about a trail: it is
+  // a log rather than a set of things that have a current state. There is
+  // nothing to converge on -- a row is written once and never changes and is
+  // never erased -- so there is no state to be told and no removal to say by
+  // absence. What happened before the stream opened is what `List` is for.
+  rpc Watch(AuditWatchRequest) returns (stream AuditWatchResponse);
 }
 
 // AuditFilter names what a caller is asking the history of.
@@ -38,4 +48,16 @@ message AuditListResponse {
 
   // What to ask for next, and empty when this was the last of them.
   string next = 2;
+}
+
+message AuditWatchRequest {
+  // Which rows to watch, in the same words `List` takes them.
+  repeated AuditFilter filters = 1;
+
+  // Whose trail it is; see `AuditListRequest.tenant_id`. Zero bytes is every
+  // Tenant this caller may see.
+  bytes tenant_id = 2;
+}
+message AuditWatchResponse {
+  repeated Audit items = 1;
 }

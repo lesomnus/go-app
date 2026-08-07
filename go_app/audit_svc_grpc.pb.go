@@ -26,6 +26,7 @@ const (
 	AuditService_Apply_FullMethodName = "/go_app.AuditService/Apply"
 	AuditService_Erase_FullMethodName = "/go_app.AuditService/Erase"
 	AuditService_List_FullMethodName  = "/go_app.AuditService/List"
+	AuditService_Watch_FullMethodName = "/go_app.AuditService/Watch"
 )
 
 // AuditServiceClient is the client API for AuditService service.
@@ -44,6 +45,15 @@ type AuditServiceClient interface {
 	Erase(ctx context.Context, in *AuditRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// List the trail of what happened, newest first.
 	List(ctx context.Context, in *AuditListRequest, opts ...grpc.CallOption) (*AuditListResponse, error)
+	// Watch the trail as it is written.
+	//
+	// It answers with rows and not with the wrapper the other watches use, and
+	// **it sends no first message**. Both are the same fact about a trail: it is
+	// a log rather than a set of things that have a current state. There is
+	// nothing to converge on -- a row is written once and never changes and is
+	// never erased -- so there is no state to be told and no removal to say by
+	// absence. What happened before the stream opened is what `List` is for.
+	Watch(ctx context.Context, in *AuditWatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AuditWatchResponse], error)
 }
 
 type auditServiceClient struct {
@@ -114,6 +124,25 @@ func (c *auditServiceClient) List(ctx context.Context, in *AuditListRequest, opt
 	return out, nil
 }
 
+func (c *auditServiceClient) Watch(ctx context.Context, in *AuditWatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AuditWatchResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AuditService_ServiceDesc.Streams[0], AuditService_Watch_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[AuditWatchRequest, AuditWatchResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AuditService_WatchClient = grpc.ServerStreamingClient[AuditWatchResponse]
+
 // AuditServiceServer is the server API for AuditService service.
 // All implementations must embed UnimplementedAuditServiceServer
 // for forward compatibility.
@@ -130,6 +159,15 @@ type AuditServiceServer interface {
 	Erase(context.Context, *AuditRef) (*emptypb.Empty, error)
 	// List the trail of what happened, newest first.
 	List(context.Context, *AuditListRequest) (*AuditListResponse, error)
+	// Watch the trail as it is written.
+	//
+	// It answers with rows and not with the wrapper the other watches use, and
+	// **it sends no first message**. Both are the same fact about a trail: it is
+	// a log rather than a set of things that have a current state. There is
+	// nothing to converge on -- a row is written once and never changes and is
+	// never erased -- so there is no state to be told and no removal to say by
+	// absence. What happened before the stream opened is what `List` is for.
+	Watch(*AuditWatchRequest, grpc.ServerStreamingServer[AuditWatchResponse]) error
 	mustEmbedUnimplementedAuditServiceServer()
 }
 
@@ -157,6 +195,9 @@ func (UnimplementedAuditServiceServer) Erase(context.Context, *AuditRef) (*empty
 }
 func (UnimplementedAuditServiceServer) List(context.Context, *AuditListRequest) (*AuditListResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedAuditServiceServer) Watch(*AuditWatchRequest, grpc.ServerStreamingServer[AuditWatchResponse]) error {
+	return status.Error(codes.Unimplemented, "method Watch not implemented")
 }
 func (UnimplementedAuditServiceServer) mustEmbedUnimplementedAuditServiceServer() {}
 func (UnimplementedAuditServiceServer) testEmbeddedByValue()                      {}
@@ -287,6 +328,17 @@ func _AuditService_List_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuditService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AuditWatchRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AuditServiceServer).Watch(m, &grpc.GenericServerStream[AuditWatchRequest, AuditWatchResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AuditService_WatchServer = grpc.ServerStreamingServer[AuditWatchResponse]
+
 // AuditService_ServiceDesc is the grpc.ServiceDesc for AuditService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -319,6 +371,12 @@ var AuditService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuditService_List_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Watch",
+			Handler:       _AuditService_Watch_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "go_app/audit_svc.proto",
 }

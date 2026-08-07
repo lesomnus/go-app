@@ -11,39 +11,35 @@ import (
 	"github.com/lesomnus/go-app/internal/ox"
 )
 
-// watching opens a Watch and answers with a function that takes the next
-// message, and one that fails the test if another arrives.
-func watching(ctx context.Context, x *ox.X, c *ox.Client, fs ...*go_app.HolderFilter) (func() []*go_app.HolderWatchItem, func()) {
+// recving reads a stream on a goroutine of its own -- so that a test which
+// expects nothing does not have to block to find out -- and answers with a
+// function that takes the next message and one that fails if another arrives.
+func recving[T any](x *ox.X, recv func() ([]T, error)) (func() []T, func()) {
 	x.TB().Helper()
 
-	stream, err := c.Holder().Watch(ctx, go_app.HolderWatchRequest_builder{Filters: fs}.Build())
-	x.NoError(err)
-
-	// Read on a goroutine of its own, so that a test that expects nothing does
-	// not have to block to find out.
 	type got struct {
-		res *go_app.HolderWatchResponse
-		err error
+		items []T
+		err   error
 	}
 	ch := make(chan got, 8)
 	go func() {
 		defer close(ch)
 		for {
-			res, err := stream.Recv()
-			ch <- got{res, err}
+			items, err := recv()
+			ch <- got{items, err}
 			if err != nil {
 				return
 			}
 		}
 	}()
 
-	next := func() []*go_app.HolderWatchItem {
+	next := func() []T {
 		x.TB().Helper()
 
 		select {
 		case v := <-ch:
 			x.NoError(v.err)
-			return v.res.GetItems()
+			return v.items
 		case <-time.After(3 * time.Second):
 			x.FailNow("nothing was sent")
 			return nil
@@ -57,12 +53,25 @@ func watching(ctx context.Context, x *ox.X, c *ox.Client, fs ...*go_app.HolderFi
 		select {
 		case v := <-ch:
 			x.NoError(v.err)
-			x.FailNow("something was sent", "%v", v.res.GetItems())
+			x.FailNow("something was sent", "%v", v.items)
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
 
 	return next, quiet
+}
+
+// watching opens a Holder Watch.
+func watching(ctx context.Context, x *ox.X, c *ox.Client, fs ...*go_app.HolderFilter) (func() []*go_app.HolderWatchItem, func()) {
+	x.TB().Helper()
+
+	stream, err := c.Holder().Watch(ctx, go_app.HolderWatchRequest_builder{Filters: fs}.Build())
+	x.NoError(err)
+
+	return recving(x, func() ([]*go_app.HolderWatchItem, error) {
+		res, err := stream.Recv()
+		return res.GetItems(), err
+	})
 }
 
 // only is the one item of a message, failing the test if there are more.

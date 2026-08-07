@@ -2,8 +2,11 @@ package core
 
 import (
 	"context"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/lesomnus/z"
+	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/entpage"
 	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/enttx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -11,6 +14,7 @@ import (
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent/holder"
+	"github.com/lesomnus/go-app/internal/ent/predicate"
 	"github.com/lesomnus/go-app/internal/ent/tenant"
 	"github.com/lesomnus/go-app/server/bare"
 )
@@ -151,4 +155,110 @@ func (s TenantServiceServer) Apply(ctx context.Context, req *go_app.TenantApplyR
 	}
 
 	return s.TenantServiceServer.Apply(ctx, req)
+}
+
+// tenantListOrder is how the Tenants come back: oldest first, and by identifier
+// where two were made in the same instant. See [listOrder] for why the last
+// column of an order has to be unique.
+var tenantListOrder = []entpage.Order{
+	{Column: tenant.FieldDateCreated},
+	{Column: tenant.FieldID},
+}
+
+// List answers with the Tenants that match any of the given filters, or with
+// every Tenant this caller may see if there is none, a page at a time.
+//
+// For most callers that is one, and the list is worth having anyway. A
+// deployment that injects a [gate.Policy] may hand somebody several, and
+// without this there is no way for them to ask which -- the wall answers
+// NotFound for what is not theirs and says nothing about what is. It is also
+// what `Watch` reads its first message from.
+//
+// The shape is `HolderServiceServer.List`'s, and so are the reasons; see there.
+func (s TenantServiceServer) List(ctx context.Context, req *go_app.TenantListRequest) (*go_app.TenantListResponse, error) {
+	db, err := s.Db()
+	if err != nil {
+		return nil, err
+	}
+
+	sc, err := s.Scope()
+	if err != nil {
+		return nil, err
+	}
+
+	q := db.Tenant.Query()
+	if p, err := bare.TenantNarrow(ctx, sc, nil); err != nil {
+		return nil, err
+	} else if p != nil {
+		q.Where(p)
+	}
+
+	if fs := req.GetFilters(); len(fs) > 0 {
+		if len(fs) > FilterLimit {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"filters: %d of them, and %d is the most one list carries", len(fs), FilterLimit)
+		}
+
+		ps := make([]predicate.Tenant, 0, len(fs))
+		for i, f := range fs {
+			p, err := bare.TenantPick(f.GetRef())
+			if err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "filters[%d]: %s", i, err)
+			}
+
+			ps = append(ps, p)
+		}
+
+		q.Where(tenant.Or(ps...))
+	}
+
+	if v := req.GetAfter(); v != "" {
+		var (
+			at time.Time
+			id uuid.UUID
+		)
+		if err := entpage.Decode(v, &at, &id); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "after: %s", err)
+		}
+
+		p, err := entpage.After(tenantListOrder, []any{at, id})
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "after: %s", err)
+		}
+
+		q.Where(p)
+	}
+
+	size := entpage.Size(int(req.GetSize()), PageSize, PageLimit)
+	us, err := q.
+		Order(tenant.ByDateCreated(), tenant.ByID()).
+		Limit(size + 1).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	more := len(us) > size
+	if more {
+		us = us[:size]
+	}
+
+	items := make([]*go_app.Tenant, len(us))
+	for i, u := range us {
+		items[i] = u.Proto()
+	}
+
+	res := go_app.TenantListResponse_builder{Items: items}.Build()
+	if more {
+		last := us[len(us)-1]
+
+		next, err := entpage.Encode(last.DateCreated, last.ID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "next: %s", err)
+		}
+
+		res.SetNext(next)
+	}
+
+	return res, nil
 }

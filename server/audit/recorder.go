@@ -24,10 +24,38 @@ var _ bare.Recorder = Recorder{}
 // call it from inside the transaction that makes the write, so every RPC that
 // changes anything is on the trail without anybody having listed them, and one
 // added later is on it without anybody remembering to.
-type Recorder struct{}
+type Recorder struct {
+	// echo is told about the rows this one writes, and is nothing by default.
+	// See [WithRecorder].
+	echo bare.Recorder
+}
 
-func NewRecorder() Recorder {
-	return Recorder{}
+// Option adjusts a [Recorder] as it is built.
+type Option func(*Recorder)
+
+// WithRecorder has the rows this recorder writes reported to `v`.
+//
+// The trail is deliberately not on the trail: a recorder that recorded its own
+// writes would not stop, so the server it writes through carries none, and a
+// row of the trail is the one write in this app that nothing is told about.
+// That is right for another trail and wrong for anything that merely wants to
+// *hear* -- `server/watch` serves the trail live, and cannot unless it is told.
+//
+// So this is narrow on purpose, and there is one rule that comes with it: what
+// is given here must not write through the server it is handed. That server
+// does carry this recorder, and a recorder that wrote through it would be told
+// about its own write, and so on.
+func WithRecorder(v bare.Recorder) Option {
+	return func(r *Recorder) { r.echo = v }
+}
+
+func NewRecorder(opts ...Option) Recorder {
+	r := Recorder{}
+	for _, opt := range opts {
+		opt(&r)
+	}
+
+	return r
 }
 
 // Record writes what happened. It runs inside the write's transaction, so an
@@ -40,7 +68,7 @@ func NewRecorder() Recorder {
 // whoever began the transaction decides whether the whole of it still holds. A
 // caller that puts several writes on one transaction and carries on past a
 // failed one commits a change that nothing recorded. See [bare.Recorder].
-func (Recorder) Record(ctx context.Context, s bare.Server, c bare.Change) error {
+func (r Recorder) Record(ctx context.Context, s bare.Server, c bare.Change) error {
 	object, err := identifier(c.Key)
 	if err != nil {
 		return err
@@ -60,8 +88,13 @@ func (Recorder) Record(ctx context.Context, s bare.Server, c bare.Change) error 
 	}
 
 	// Through the server it was handed, which runs on the transaction of the
-	// write it is about and does not record: see [bare.Recorder].
-	_, err = s.Audit().Add(ctx, go_app.AuditAddRequest_builder{
+	// write it is about and does not record: see [bare.Recorder]. Except for
+	// whatever [WithRecorder] named, which is told about this row and nothing
+	// else -- it is how the trail can be served live.
+	u := s
+	u.Rec = r.echo
+
+	_, err = u.Audit().Add(ctx, go_app.AuditAddRequest_builder{
 		TenantId: tenant[:],
 		ActorId:  actor[:],
 		TraceId:  traceId(ctx),

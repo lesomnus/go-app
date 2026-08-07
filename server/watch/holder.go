@@ -57,8 +57,8 @@ func (s Server) Holder() go_app.HolderServiceServer {
 // are the caller's own and are tested here, which is a different kind of thing:
 // getting a filter wrong shows a caller a row of *theirs* that they asked not
 // to be shown, and getting the wall wrong shows them somebody else's.
-func (s HolderServiceServer) Watch(req *go_app.HolderWatchRequest, stream grpc.ServerStreamingServer[go_app.HolderWatchResponse]) error {
-	ctx := stream.Context()
+func (s HolderServiceServer) Watch(req *go_app.HolderWatchRequest, out grpc.ServerStreamingServer[go_app.HolderWatchResponse]) error {
+	ctx := out.Context()
 
 	// Refused before anything is subscribed to, and with the same bound the
 	// list it reads has: a watch is that list, over and over.
@@ -67,61 +67,42 @@ func (s HolderServiceServer) Watch(req *go_app.HolderWatchRequest, stream grpc.S
 			"filters: %d of them, and %d is the most one watch carries", n, core.FilterLimit)
 	}
 
-	// First. See the note on the order above.
-	events, stop := s.w.subscribe()
-	defer stop()
+	return stream(ctx, s.w, holderService,
+		func(sent seen) error { return s.snapshot(ctx, req, out, sent) },
+		func(ks map[uuid.UUID]string, sent seen) error {
+			items := make([]*go_app.HolderWatchItem, 0, len(ks))
+			for k, action := range ks {
+				v, err := s.read(ctx, req, k)
+				if err != nil {
+					return err
+				}
+				if v == nil && !sent[k] {
+					// Not theirs, or not what they asked for, and they have
+					// never been told otherwise. There is nothing to say.
+					continue
+				}
 
-	// Which Holders this stream has carried, so that one leaving the answer can
-	// be said and one that was never in it is not news. It grows with what the
-	// caller is shown and not with what happens, which is what keeps it bounded
-	// by the filters they asked with.
-	sent := map[uuid.UUID]bool{}
-
-	if err := s.snapshot(ctx, req, stream, sent); err != nil {
-		return err
-	}
-
-	for {
-		ks, err := next(ctx, events, holderService)
-		if err != nil {
-			return err
-		}
-
-		items := make([]*go_app.HolderWatchItem, 0, len(ks))
-		for k, action := range ks {
-			v, err := s.read(ctx, req, k)
-			if err != nil {
-				return err
+				sent[k] = v != nil
+				items = append(items, go_app.HolderWatchItem_builder{
+					Id:     k[:],
+					Value:  v,
+					Action: &action,
+				}.Build())
 			}
-			if v == nil && !sent[k] {
-				// Not theirs, or not what they asked for, and they have never
-				// been told otherwise. There is nothing to say.
-				continue
+			if len(items) == 0 {
+				return nil
 			}
 
-			sent[k] = v != nil
-			items = append(items, go_app.HolderWatchItem_builder{
-				Id:     k[:],
-				Value:  v,
-				Action: &action,
-			}.Build())
-		}
-		if len(items) == 0 {
-			continue
-		}
-
-		if err := stream.Send(go_app.HolderWatchResponse_builder{Items: items}.Build()); err != nil {
-			return err
-		}
-	}
+			return out.Send(go_app.HolderWatchResponse_builder{Items: items}.Build())
+		})
 }
 
 // snapshot sends everything that matches now, in the pages `List` answers with.
 func (s HolderServiceServer) snapshot(
 	ctx context.Context,
 	req *go_app.HolderWatchRequest,
-	stream grpc.ServerStreamingServer[go_app.HolderWatchResponse],
-	sent map[uuid.UUID]bool,
+	out grpc.ServerStreamingServer[go_app.HolderWatchResponse],
+	sent seen,
 ) error {
 	var after string
 	for {
@@ -145,7 +126,7 @@ func (s HolderServiceServer) snapshot(
 			items = append(items, go_app.HolderWatchItem_builder{Id: v.GetId(), Value: v}.Build())
 		}
 		if len(items) > 0 {
-			if err := stream.Send(go_app.HolderWatchResponse_builder{Items: items}.Build()); err != nil {
+			if err := out.Send(go_app.HolderWatchResponse_builder{Items: items}.Build()); err != nil {
 				return err
 			}
 		}
@@ -210,19 +191,6 @@ func matchesHolderRef(r *go_app.HolderRef, v *go_app.Holder) bool {
 	default:
 		// A reference that names nothing was refused by the snapshot, which
 		// runs first and reads it the same way every other read does.
-		return false
-	}
-}
-
-func matchesTenantRef(r *go_app.TenantRef, v *go_app.Tenant) bool {
-	switch r.WhichKey() {
-	case go_app.TenantRef_Id_case:
-		return bytes.Equal(r.GetId(), v.GetId())
-
-	case go_app.TenantRef_Alias_case:
-		return r.GetAlias() == v.GetAlias()
-
-	default:
 		return false
 	}
 }

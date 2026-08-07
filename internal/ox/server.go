@@ -101,23 +101,23 @@ func NewServer(tb testing.TB) *Server {
 	tb.Cleanup(func() { c.Close() })
 	x.NoError(c.Schema.Create(tb.Context()))
 
-	// The stack the app is served with, whole: the rules that hold everywhere,
-	// the gate that says who may ask for what, and the trail the writes leave
-	// behind them.
-	rec := audit.NewRecorder()
-
 	// And what a call that changed something is published to, the way the app
 	// installs it; see cmd/serve.go.
 	events := watch.Signal()
 	wat := watch.New(events)
 
+	// The stack the app is served with, whole: the rules that hold everywhere,
+	// the gate that says who may ask for what, and the trail the writes leave
+	// behind them.
+	rec := audit.NewRecorder(audit.WithRecorder(wat.Recorder()))
+
 	// Without the wall, which is what works out who is calling and what puts
 	// the root Tenant there before anybody exists; see cmd/serve.go.
-	sink, err := bare.NewServer(c, bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()))
+	sink, err := bare.NewServer(c, bare.WithRecorder(wat.Recorder()), bare.WithRecorder(rec))
 	x.NoError(err)
 
 	walled, err := bare.NewServer(c,
-		bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()),
+		bare.WithRecorder(wat.Recorder()), bare.WithRecorder(rec),
 		bare.WithScope(gate.Wall()),
 	)
 	x.NoError(err)

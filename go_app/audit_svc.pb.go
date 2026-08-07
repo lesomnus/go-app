@@ -1436,6 +1436,162 @@ func (b0 AuditFilter_builder) Build() *AuditFilter {
 	return m0
 }
 
+type AuditWatchRequest struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Filters     *[]*AuditFilter        `protobuf:"bytes,1,rep,name=filters"`
+	xxx_hidden_TenantId    []byte                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AuditWatchRequest) Reset() {
+	*x = AuditWatchRequest{}
+	mi := &file_go_app_audit_svc_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditWatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditWatchRequest) ProtoMessage() {}
+
+func (x *AuditWatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_audit_svc_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *AuditWatchRequest) GetFilters() []*AuditFilter {
+	if x != nil {
+		if x.xxx_hidden_Filters != nil {
+			return *x.xxx_hidden_Filters
+		}
+	}
+	return nil
+}
+
+func (x *AuditWatchRequest) GetTenantId() []byte {
+	if x != nil {
+		return x.xxx_hidden_TenantId
+	}
+	return nil
+}
+
+func (x *AuditWatchRequest) SetFilters(v []*AuditFilter) {
+	x.xxx_hidden_Filters = &v
+}
+
+func (x *AuditWatchRequest) SetTenantId(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_TenantId = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+}
+
+func (x *AuditWatchRequest) HasTenantId() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *AuditWatchRequest) ClearTenantId() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_TenantId = nil
+}
+
+type AuditWatchRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Which rows to watch, in the same words `List` takes them.
+	Filters []*AuditFilter
+	// Whose trail it is; see `AuditListRequest.tenant_id`. Zero bytes is every
+	// Tenant this caller may see.
+	TenantId []byte
+}
+
+func (b0 AuditWatchRequest_builder) Build() *AuditWatchRequest {
+	m0 := &AuditWatchRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Filters = &b.Filters
+	if b.TenantId != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		x.xxx_hidden_TenantId = b.TenantId
+	}
+	return m0
+}
+
+type AuditWatchResponse struct {
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Items *[]*Audit              `protobuf:"bytes,1,rep,name=items"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AuditWatchResponse) Reset() {
+	*x = AuditWatchResponse{}
+	mi := &file_go_app_audit_svc_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditWatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditWatchResponse) ProtoMessage() {}
+
+func (x *AuditWatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_audit_svc_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *AuditWatchResponse) GetItems() []*Audit {
+	if x != nil {
+		if x.xxx_hidden_Items != nil {
+			return *x.xxx_hidden_Items
+		}
+	}
+	return nil
+}
+
+func (x *AuditWatchResponse) SetItems(v []*Audit) {
+	x.xxx_hidden_Items = &v
+}
+
+type AuditWatchResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Items []*Audit
+}
+
+func (b0 AuditWatchResponse_builder) Build() *AuditWatchResponse {
+	m0 := &AuditWatchResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Items = &b.Items
+	return m0
+}
+
 var File_go_app_audit_svc_proto protoreflect.FileDescriptor
 
 const file_go_app_audit_svc_proto_rawDesc = "" +
@@ -1486,16 +1642,22 @@ const file_go_app_audit_svc_proto_rawDesc = "" +
 	"\x05items\x18\x01 \x03(\v2\r.go_app.AuditR\x05items\x12\x12\n" +
 	"\x04next\x18\x02 \x01(\tR\x04next\"*\n" +
 	"\vAuditFilter\x12\x1b\n" +
-	"\tobject_id\x18\x01 \x01(\fR\bobjectId2\xc2\x02\n" +
+	"\tobject_id\x18\x01 \x01(\fR\bobjectId\"_\n" +
+	"\x11AuditWatchRequest\x12-\n" +
+	"\afilters\x18\x01 \x03(\v2\x13.go_app.AuditFilterR\afilters\x12\x1b\n" +
+	"\ttenant_id\x18\x02 \x01(\fR\btenantId\"9\n" +
+	"\x12AuditWatchResponse\x12#\n" +
+	"\x05items\x18\x01 \x03(\v2\r.go_app.AuditR\x05items2\x84\x03\n" +
 	"\fAuditService\x12-\n" +
 	"\x03Add\x12\x17.go_app.AuditAddRequest\x1a\r.go_app.Audit\x12-\n" +
 	"\x03Get\x12\x17.go_app.AuditGetRequest\x1a\r.go_app.Audit\x121\n" +
 	"\x05Patch\x12\x19.go_app.AuditPatchRequest\x1a\r.go_app.Audit\x121\n" +
 	"\x05Apply\x12\x19.go_app.AuditApplyRequest\x1a\r.go_app.Audit\x121\n" +
 	"\x05Erase\x12\x10.go_app.AuditRef\x1a\x16.google.protobuf.Empty\x12;\n" +
-	"\x04List\x12\x18.go_app.AuditListRequest\x1a\x19.go_app.AuditListResponseB\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
+	"\x04List\x12\x18.go_app.AuditListRequest\x1a\x19.go_app.AuditListResponse\x12@\n" +
+	"\x05Watch\x12\x19.go_app.AuditWatchRequest\x1a\x1a.go_app.AuditWatchResponse0\x01B\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
 
-var file_go_app_audit_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_go_app_audit_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_go_app_audit_svc_proto_goTypes = []any{
 	(*AuditAddRequest)(nil),       // 0: go_app.AuditAddRequest
 	(*AuditGetRequest)(nil),       // 1: go_app.AuditGetRequest
@@ -1506,37 +1668,43 @@ var file_go_app_audit_svc_proto_goTypes = []any{
 	(*AuditListRequest)(nil),      // 6: go_app.AuditListRequest
 	(*AuditListResponse)(nil),     // 7: go_app.AuditListResponse
 	(*AuditFilter)(nil),           // 8: go_app.AuditFilter
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*patchpb.Patch)(nil),         // 10: patch.Patch
-	(*Audit)(nil),                 // 11: go_app.Audit
-	(*emptypb.Empty)(nil),         // 12: google.protobuf.Empty
+	(*AuditWatchRequest)(nil),     // 9: go_app.AuditWatchRequest
+	(*AuditWatchResponse)(nil),    // 10: go_app.AuditWatchResponse
+	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*patchpb.Patch)(nil),         // 12: patch.Patch
+	(*Audit)(nil),                 // 13: go_app.Audit
+	(*emptypb.Empty)(nil),         // 14: google.protobuf.Empty
 }
 var file_go_app_audit_svc_proto_depIdxs = []int32{
-	9,  // 0: go_app.AuditAddRequest.date_created:type_name -> google.protobuf.Timestamp
+	11, // 0: go_app.AuditAddRequest.date_created:type_name -> google.protobuf.Timestamp
 	2,  // 1: go_app.AuditGetRequest.ref:type_name -> go_app.AuditRef
 	3,  // 2: go_app.AuditGetRequest.select:type_name -> go_app.AuditSelect
 	2,  // 3: go_app.AuditPatchRequest.ref:type_name -> go_app.AuditRef
 	2,  // 4: go_app.AuditApplyRequest.ref:type_name -> go_app.AuditRef
-	10, // 5: go_app.AuditApplyRequest.patch:type_name -> patch.Patch
+	12, // 5: go_app.AuditApplyRequest.patch:type_name -> patch.Patch
 	8,  // 6: go_app.AuditListRequest.filters:type_name -> go_app.AuditFilter
-	11, // 7: go_app.AuditListResponse.items:type_name -> go_app.Audit
-	0,  // 8: go_app.AuditService.Add:input_type -> go_app.AuditAddRequest
-	1,  // 9: go_app.AuditService.Get:input_type -> go_app.AuditGetRequest
-	4,  // 10: go_app.AuditService.Patch:input_type -> go_app.AuditPatchRequest
-	5,  // 11: go_app.AuditService.Apply:input_type -> go_app.AuditApplyRequest
-	2,  // 12: go_app.AuditService.Erase:input_type -> go_app.AuditRef
-	6,  // 13: go_app.AuditService.List:input_type -> go_app.AuditListRequest
-	11, // 14: go_app.AuditService.Add:output_type -> go_app.Audit
-	11, // 15: go_app.AuditService.Get:output_type -> go_app.Audit
-	11, // 16: go_app.AuditService.Patch:output_type -> go_app.Audit
-	11, // 17: go_app.AuditService.Apply:output_type -> go_app.Audit
-	12, // 18: go_app.AuditService.Erase:output_type -> google.protobuf.Empty
-	7,  // 19: go_app.AuditService.List:output_type -> go_app.AuditListResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	13, // 7: go_app.AuditListResponse.items:type_name -> go_app.Audit
+	8,  // 8: go_app.AuditWatchRequest.filters:type_name -> go_app.AuditFilter
+	13, // 9: go_app.AuditWatchResponse.items:type_name -> go_app.Audit
+	0,  // 10: go_app.AuditService.Add:input_type -> go_app.AuditAddRequest
+	1,  // 11: go_app.AuditService.Get:input_type -> go_app.AuditGetRequest
+	4,  // 12: go_app.AuditService.Patch:input_type -> go_app.AuditPatchRequest
+	5,  // 13: go_app.AuditService.Apply:input_type -> go_app.AuditApplyRequest
+	2,  // 14: go_app.AuditService.Erase:input_type -> go_app.AuditRef
+	6,  // 15: go_app.AuditService.List:input_type -> go_app.AuditListRequest
+	9,  // 16: go_app.AuditService.Watch:input_type -> go_app.AuditWatchRequest
+	13, // 17: go_app.AuditService.Add:output_type -> go_app.Audit
+	13, // 18: go_app.AuditService.Get:output_type -> go_app.Audit
+	13, // 19: go_app.AuditService.Patch:output_type -> go_app.Audit
+	13, // 20: go_app.AuditService.Apply:output_type -> go_app.Audit
+	14, // 21: go_app.AuditService.Erase:output_type -> google.protobuf.Empty
+	7,  // 22: go_app.AuditService.List:output_type -> go_app.AuditListResponse
+	10, // 23: go_app.AuditService.Watch:output_type -> go_app.AuditWatchResponse
+	17, // [17:24] is the sub-list for method output_type
+	10, // [10:17] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_go_app_audit_svc_proto_init() }
@@ -1554,7 +1722,7 @@ func file_go_app_audit_svc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_audit_svc_proto_rawDesc), len(file_go_app_audit_svc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

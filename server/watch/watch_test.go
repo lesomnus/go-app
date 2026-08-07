@@ -80,19 +80,25 @@ func TestWatch(t *testing.T) {
 		x.Equal(acme.GetId(), res.GetId())
 
 		// And what the call actually wrote, which is more than the response
-		// says: a Tenant comes with the Holder that administers it.
-		x.Len(v.Changes, 2)
-		x.Equal(go_app.TenantService_Add_FullMethodName, v.Changes[0].By)
-		x.Equal(go_app.HolderService_Add_FullMethodName, v.Changes[1].By)
+		// says: a Tenant comes with the Holder that administers it, and each of
+		// those leaves a row of the trail, which is a write like any other.
+		var by []string
 		for _, u := range v.Changes {
+			by = append(by, u.By)
 			x.Equal(go_app.TenantService_Add_FullMethodName, u.Method,
 				"every write of one call says the one thing the caller asked for")
 		}
+		x.Equal([]string{
+			go_app.TenantService_Add_FullMethodName,
+			go_app.AuditService_Add_FullMethodName,
+			go_app.HolderService_Add_FullMethodName,
+			go_app.AuditService_Add_FullMethodName,
+		}, by, "the row, then its trail row, twice")
 
-		// The second call is john's, and is one write.
+		// The second call is john's: one Holder, and its trail row.
 		v = next()
 		x.Equal(go_app.HolderService_Add_FullMethodName, v.Method)
-		x.Len(v.Changes, 1)
+		x.Len(v.Changes, 2)
 		x.Equal(john.GetId(), v.Response.(*go_app.Holder).GetId())
 	}))
 
