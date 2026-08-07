@@ -9,20 +9,22 @@ server:
   #
   # How long a call that arrived without a deadline of its own is given. One
   # that named a deadline is left alone, however far away it is. Streams are
-  # never capped. Unset is 30s; `0` written down caps nothing.
+  # never capped. Nothing written down is 30s; a *negative* one caps nothing,
+  # which reads oddly because letting a call run forever is a thing to mean.
   # timeout: 30s
   #
   # Serves the reflection service, which is what lets grpcurl ask the server
-  # what it offers. On unless it is turned off.
-  # reflection: true
+  # what it offers -- handy, and a listing of every RPC there is. Written down
+  # here so that the template is pleasant to run; what is unwritten is off,
+  # everywhere in this file.
+  allow_reflection: true
   #
   # Serves `Patch` and `Apply`, the two RPCs every generated service has that
-  # can write anything the schema holds. Off unless it is turned on, and it
-  # should stay off: they are how the servers write, not how a caller asks. An
-  # app that wants a caller to be able to change something writes the RPC that
-  # means it and implements it with one of these. See the README, "The general
-  # write is not an API".
-  # general_writes: false
+  # can write anything the schema holds. It should stay off: they are how the
+  # servers write, not how a caller asks. An app that wants a caller to be able
+  # to change something writes the RPC that means it and implements it with one
+  # of these. See the README, "The general write is not an API".
+  # allow_general_writes: true
   #
   # How often one caller may call, counted against the Tenant they are held by
   # -- not the Holder and not the credential, since a Tenant makes as many of

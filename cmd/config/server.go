@@ -30,26 +30,32 @@ type ServerConfig struct {
 	// Timeout is how long a call that arrived without a deadline of its own is
 	// given. A call that named one is left alone, however far away it is.
 	//
-	// Unset is [grpcx.DefaultTimeout]. Zero, written down, means such a call
-	// is not capped at all, which is a thing to mean rather than to end up
-	// with -- hence the pointer.
-	Timeout *time.Duration `yaml:"timeout"`
+	// Zero is [grpcx.DefaultTimeout], and a **negative** one caps nothing at
+	// all. That is the odd case and it reads oddly on purpose: a server that
+	// lets a call run forever is a thing to mean rather than to end up with,
+	// and this way the ordinary meaning of an unwritten field is the ordinary
+	// answer.
+	Timeout time.Duration `yaml:"timeout"`
 
-	// Reflection serves the reflection service, which is what lets grpcurl and
-	// the like ask the server what it offers without holding the protobuf
-	// definitions. It is on unless it is turned off.
-	Reflection *bool `yaml:"reflection"`
+	// AllowReflection serves the reflection service, which is what lets grpcurl
+	// and the like ask the server what it offers without holding the protobuf
+	// definitions.
+	//
+	// Handy, and a listing of every RPC there is. `go-app.yaml` turns it on;
+	// what is unwritten is off, so a deployment that trimmed the file down to
+	// what it meant does not serve it by having forgotten to say no.
+	AllowReflection bool `yaml:"allow_reflection"`
 
-	// GeneralWrites serves `Patch` and `Apply`, the two RPCs every generated
-	// service has that can write anything the schema holds. It is **off**
-	// unless it is turned on, and turning it on is a decision about the API
-	// rather than about a deployment: what a caller may change, and under what
-	// conditions, is not something a general write can be told.
+	// AllowGeneralWrites serves `Patch` and `Apply`, the two RPCs every
+	// generated service has that can write anything the schema holds. It is
+	// **off** unless it is turned on, and turning it on is a decision about the
+	// API rather than about a deployment: what a caller may change, and under
+	// what conditions, is not something a general write can be told.
 	//
 	// It closes them at the transport and not in the server stack, so an RPC
 	// written by hand goes on being implemented with them. That is what they
 	// are for. See the README, "The general write is not an API".
-	GeneralWrites *bool `yaml:"general_writes"`
+	AllowGeneralWrites bool `yaml:"allow_general_writes"`
 
 	Limit LimitConfig `yaml:"limit"`
 
@@ -136,28 +142,20 @@ type KeepaliveConfig struct {
 	PermitWithoutStream bool `yaml:"permit_without_stream"`
 }
 
-// ServesReflection reports whether the reflection service is to be served.
-func (c ServerConfig) ServesReflection() bool {
-	return c.Reflection == nil || *c.Reflection
-}
-
-// CallTimeout is how long a call that arrived without a deadline is given.
+// CallTimeout is how long a call that arrived without a deadline is given, in
+// the terms [grpcx.WithDeadline] is told it in -- where what is not positive
+// caps nothing.
 func (c ServerConfig) CallTimeout() time.Duration {
-	if c.Timeout == nil {
+	if c.Timeout == 0 {
 		return grpcx.DefaultTimeout
 	}
 
-	return *c.Timeout
-}
-
-// ServesGeneralWrites reports whether `Patch` and `Apply` are served.
-func (c ServerConfig) ServesGeneralWrites() bool {
-	return c.GeneralWrites != nil && *c.GeneralWrites
+	return c.Timeout
 }
 
 // Closed names the methods this server does not serve at all.
 func (c ServerConfig) Closed() func(method string) bool {
-	if c.ServesGeneralWrites() {
+	if c.AllowGeneralWrites {
 		return nil
 	}
 

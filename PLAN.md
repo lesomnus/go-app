@@ -258,7 +258,7 @@ trail is the actor's and not the object's, and why.
 - **The surface closed**, but at the *transport* rather than in a layer, which
   is the whole point: what is closed is what a caller may ask for, and an RPC
   written by hand goes on being implemented with `Apply`. Closing it in a
-  server would close it to the servers. `server.general_writes` is off by
+  server would close it to the servers. `server.allow_general_writes` is off by
   default; `internal/ox` serves them, knowingly, because they are what this
   repository has to demonstrate.
 

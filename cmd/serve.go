@@ -138,7 +138,7 @@ func NewCmdServe() *xli.Command {
 			health_srv := health.NewServer()
 			grpc_health_v1.RegisterHealthServer(srv, health_srv)
 
-			if c.Server.ServesReflection() {
+			if c.Server.AllowReflection {
 				reflection.Register(srv)
 			}
 

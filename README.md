@@ -192,8 +192,8 @@ writes by compiling it against the schema (`server/core/patch.go`).
 ### The general write is not an API
 
 `Patch` and `Apply` are how the servers write. They are **not** how a caller
-asks, and a deployment does not serve them: `server.general_writes` is off, and
-they answer `Unimplemented` to everybody.
+asks, and a deployment does not serve them: `server.allow_general_writes` is off
+unless it is written down, and they answer `Unimplemented` to everybody.
 
 Between them they can write anything the schema holds — `Patch` takes a field
 per property, `Apply` takes a document that can address one map entry or assert
@@ -610,9 +610,8 @@ reported as an internal error instead of taking the process down with it, and a
 call that arrived without a deadline of its own is given one. A call that named
 a deadline is left alone however far away it is — the caller said how long the
 answer is worth waiting for — and what is capped is only the absence of that.
-`grpcx.WithDeadline` says how long, from `server.timeout`; zero, written down,
-caps nothing. Streams are not capped at all, since a stream is long-lived by
-design.
+`grpcx.WithDeadline` says how long, from `server.timeout`; a negative one caps
+nothing. Streams are not capped at all, since a stream is long-lived by design.
 
 The records come from `otxgrpc` as a stats handler rather than from an
 interceptor, and that is what puts them outside everything else: a call that
