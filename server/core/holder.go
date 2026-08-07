@@ -113,15 +113,15 @@ func (s HolderServiceServer) List(ctx context.Context, req *go_app.HolderListReq
 		return nil, err
 	}
 
+	// Through the same function the generated reads go through, and not by
+	// asking the scope hook: narrowing a read of a Holder means the wall *and*
+	// leaving out the ones that were erased, and a list that reached past it
+	// for the hook alone would quietly answer with the erased ones.
 	q := db.Holder.Query()
-	if sc.Holder != nil {
-		p, err := sc.Holder(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if p != nil {
-			q.Where(p)
-		}
+	if p, err := bare.HolderNarrow(ctx, sc.Holder, nil); err != nil {
+		return nil, err
+	} else if p != nil {
+		q.Where(p)
 	}
 
 	if fs := req.GetFilters(); len(fs) > 0 {

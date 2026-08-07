@@ -138,28 +138,27 @@ Three things to get right:
   only the rules that are rules: a Tenant is not created from inside one, and a
   Holder is created inside a named one. "Not found rather than denied" comes
   for free — a walled query returns nothing, and nothing is `NotFound`.
-- **2.2 Soft delete.** **Blocked — see below.** Declared in proto, emitted by
-  the generator: the column, the read predicate (Phase 1's slot), and `Erase`
-  stamping instead of deleting. A hard-delete guide comes with it, and the
-  interesting half of that guide is what happens to the trail.
+- **2.2 Soft delete.** **Done**, once `protobuf-orm` could say it. Declared in
+  proto, emitted by the generator: the column, the read predicate (Phase 1's
+  slot), `Erase` stamping instead of deleting, and the partial unique index that
+  lets an erased row give up its name. `Holder` uses it; `Tenant` does not, and
+  the reason is the interesting part.
 
-#### Why 2.2 is blocked
+#### What 2.2 was blocked on, and what came of it
 
-Two of its three parts need a **fourth** repository, `protobuf-orm`, whose
+Two of its three parts needed a **fourth** repository, `protobuf-orm`, whose
 schema this app consumes from a remote registry (`buf.build/orm/orm`, pinned by
 digest in `buf.lock`). A local edit there cannot be consumed without publishing
-to that registry.
+to that registry -- so the work stopped here until that was done, and then went
+on. Both parts are now in `protobuf-orm` and published.
 
-- **Declaring it.** `orm.FieldOptions` would need something like `erased: {}`,
-  the way `version: {}` already marks the version field. There is no other
-  channel: the proto is the source of truth, and the generator reads the
-  options through `protobuf-orm`'s `graph`.
-- **Uniqueness, which is the part that matters.** `orm.Index` has `unique` and
-  no predicate, so a soft-deleted `acme/john` goes on occupying the unique
-  index and the same alias can never be used again. That needs a partial index
-  (`WHERE date_erased IS NULL`), which needs a field on `orm.Index`. Shipping
-  soft delete without it would be worse than not shipping it: an app would
-  discover the hole the first time somebody re-created a deleted thing.
+- **Declaring it** — now `(orm.field) = {erased: {}}`, the way `version: {}`
+  already marks the version field.
+- **Uniqueness, which is the part that matters** — now `orm.Index` defaults a
+  unique index of a soft-erasing entity to covering only the rows that are
+  still there, with `includes_erased` to opt back out. Shipping soft delete
+  without that would have been worse than not shipping it: an app would find
+  the hole the first time somebody re-created a deleted thing.
 
 What is *not* blocked is the half this plan said was the hard one. **Reads are
 already free**: soft delete is a predicate, Phase 1 is where predicates go, and
@@ -169,8 +168,20 @@ the same feature — and it is worth saying that the earlier reasoning here
 ("it cannot live in `core`, because the reads are all generated") stopped being
 true the moment Phase 1 landed.
 
-So what is left for a future round, once `protobuf-orm` can say it, is the
-declaration, the `Erase` that stamps, and the partial index.
+What the adoption turned up, which no amount of planning would have:
+
+**Soft deletion does not cascade, and a foreign key does not care that a row is
+"gone".** Erasing a Holder softly leaves the row, and the row keeps its key to
+its Tenant -- so `Tenant.Erase` began failing on that constraint, for ever,
+however many Holders had been erased first. It is a real capability regression
+introduced by the feature, and the fix is a sentence the entity that owns the
+others has to say: `core.TenantServiceServer.Erase` takes its Holders with it,
+in one transaction, which is what erasing a Tenant already meant.
+
+**And a field-level `unique` cannot be made partial.** Only an `indexes` entry
+can, so `Tenant.alias` would keep its name across a soft erasure while
+`Holder.alias` gives it up. It does not bite here -- a Tenant is not erased
+softly -- but it is the sort of asymmetry that would.
 
 ### Phase 3 — `object_tenant_id` — **not done, and the reason is a correction**
 
@@ -273,7 +284,7 @@ Not now, and not blocked by anything here.
 | 0.4 more than one recorder | **done** | `WithRecorder` accumulates; every recorder is required |
 | 1 the `Scope` hook | **done** | `bare.Scopes`, one per entity, into every query the generated servers build |
 | 2.1 the Tenant wall | **done** | `gate.Wall()`; thirteen overrides became three rules and a predicate |
-| 2.2 soft delete | **blocked** | needs `orm.FieldOptions` and a partial `orm.Index`, which live in `protobuf-orm` and are consumed from a registry |
+| 2.2 soft delete | **done** | `erased: {}` in `protobuf-orm`, stamped by the generated `Erase`, partial unique index; `Holder` uses it |
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
 | 4 validation and the doctrine | **done** | checks in Go beside the rule they belong to; `Patch`/`Apply` closed at the transport, off by default |
 | 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |
@@ -289,9 +300,13 @@ answering `NotFound` from inside a Tenant.
 Worth keeping, since the errors were in the reasoning rather than in the code.
 
 - **Soft delete "cannot live in `core`, because the reads are all generated"**
-  stopped being true the moment the `Scope` hook landed. Reads are now the easy
-  half; what blocks it is the uniqueness of a soft-deleted row, which is a
-  schema question.
+  stopped being true the moment the `Scope` hook landed — and then turned out
+  not to belong in `core` anyway. It is not a scope: a scope says what *this
+  caller* may see, and this says what there is to see at all, so it is
+  unconditional in the generated `<Entity>Narrow`. What `core` does have to say
+  is the part nobody predicted: that erasing a Tenant takes its Holders with
+  it, because soft deletion does not cascade and a foreign key does not care
+  that a row is "gone".
 - **`object_tenant_id` makes "history stays where it happened" true.** It was
   already true. The column is a different policy, and a widening one.
 - **The scope should see everything when a request has no frame.** That is also

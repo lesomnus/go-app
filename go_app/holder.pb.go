@@ -30,6 +30,7 @@ type Holder struct {
 	xxx_hidden_Name        string                 `protobuf:"bytes,5,opt,name=name"`
 	xxx_hidden_Desc        string                 `protobuf:"bytes,6,opt,name=desc"`
 	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,7,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_DateErased  *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=date_erased,json=dateErased"`
 	xxx_hidden_DateCreated *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=date_created,json=dateCreated"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
@@ -102,6 +103,13 @@ func (x *Holder) GetLabels() map[string]string {
 	return nil
 }
 
+func (x *Holder) GetDateErased() *timestamppb.Timestamp {
+	if x != nil {
+		return x.xxx_hidden_DateErased
+	}
+	return nil
+}
+
 func (x *Holder) GetDateCreated() *timestamppb.Timestamp {
 	if x != nil {
 		return x.xxx_hidden_DateCreated
@@ -136,6 +144,10 @@ func (x *Holder) SetLabels(v map[string]string) {
 	x.xxx_hidden_Labels = v
 }
 
+func (x *Holder) SetDateErased(v *timestamppb.Timestamp) {
+	x.xxx_hidden_DateErased = v
+}
+
 func (x *Holder) SetDateCreated(v *timestamppb.Timestamp) {
 	x.xxx_hidden_DateCreated = v
 }
@@ -145,6 +157,13 @@ func (x *Holder) HasTenant() bool {
 		return false
 	}
 	return x.xxx_hidden_Tenant != nil
+}
+
+func (x *Holder) HasDateErased() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_DateErased != nil
 }
 
 func (x *Holder) HasDateCreated() bool {
@@ -158,6 +177,10 @@ func (x *Holder) ClearTenant() {
 	x.xxx_hidden_Tenant = nil
 }
 
+func (x *Holder) ClearDateErased() {
+	x.xxx_hidden_DateErased = nil
+}
+
 func (x *Holder) ClearDateCreated() {
 	x.xxx_hidden_DateCreated = nil
 }
@@ -165,12 +188,29 @@ func (x *Holder) ClearDateCreated() {
 type Holder_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Id          []byte
-	Tenant      *Tenant
-	Alias       string
-	Name        string
-	Desc        string
-	Labels      map[string]string
+	Id     []byte
+	Tenant *Tenant
+	Alias  string
+	Name   string
+	Desc   string
+	Labels map[string]string
+	// When this Holder was erased, and null for as long as it is here.
+	//
+	// A Holder is erased softly and a Tenant is not, and the difference is the
+	// audit trail. Every row of it names the Holder that did something, and a
+	// Holder that was deleted leaves an identifier nothing answers to -- so the
+	// trail keeps saying who, and nobody can look up who that was. Stamping
+	// instead means the answer survives the person leaving, which is most of
+	// what a trail is kept for.
+	//
+	// What follows is what soft erasure always follows with: an erased Holder
+	// cannot be read, cannot be changed, and cannot authenticate, because every
+	// read is narrowed by this column -- `server/auth` reads one to work out who
+	// is calling, and finds nothing. The `slug` index below covers only the rows
+	// that are still here, so the alias comes free again.
+	//
+	// A Tenant is left as it was on purpose; see the README.
+	DateErased  *timestamppb.Timestamp
 	DateCreated *timestamppb.Timestamp
 }
 
@@ -184,6 +224,7 @@ func (b0 Holder_builder) Build() *Holder {
 	x.xxx_hidden_Name = b.Name
 	x.xxx_hidden_Desc = b.Desc
 	x.xxx_hidden_Labels = b.Labels
+	x.xxx_hidden_DateErased = b.DateErased
 	x.xxx_hidden_DateCreated = b.DateCreated
 	return m0
 }
@@ -192,14 +233,16 @@ var File_go_app_holder_proto protoreflect.FileDescriptor
 
 const file_go_app_holder_proto_rawDesc = "" +
 	"\n" +
-	"\x13go_app/holder.proto\x12\x06go_app\x1a\x13go_app/tenant.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\torm.proto\"\xfd\x02\n" +
+	"\x13go_app/holder.proto\x12\x06go_app\x1a\x13go_app/tenant.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\torm.proto\"\xc3\x03\n" +
 	"\x06Holder\x12\x1b\n" +
 	"\x02id\x18\x01 \x01(\fB\v\xea\x82\x16\a\x10@(\x01\x82\x01\x00R\x02id\x12.\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x0e.go_app.TenantB\x06\xf2\x82\x16\x02@\x01R\x06tenant\x12\x14\n" +
 	"\x05alias\x18\x04 \x01(\tR\x05alias\x12\x12\n" +
 	"\x04name\x18\x05 \x01(\tR\x04name\x12\x12\n" +
 	"\x04desc\x18\x06 \x01(\tR\x04desc\x122\n" +
-	"\x06labels\x18\a \x03(\v2\x1a.go_app.Holder.LabelsEntryR\x06labels\x12H\n" +
+	"\x06labels\x18\a \x03(\v2\x1a.go_app.Holder.LabelsEntryR\x06labels\x12D\n" +
+	"\vdate_erased\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampB\a\xea\x82\x16\x03\x92\x01\x00R\n" +
+	"dateErased\x12H\n" +
 	"\fdate_created\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampB\t\xea\x82\x16\x05@\x01\x82\x01\x00R\vdateCreated\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -218,12 +261,13 @@ var file_go_app_holder_proto_goTypes = []any{
 var file_go_app_holder_proto_depIdxs = []int32{
 	2, // 0: go_app.Holder.tenant:type_name -> go_app.Tenant
 	1, // 1: go_app.Holder.labels:type_name -> go_app.Holder.LabelsEntry
-	3, // 2: go_app.Holder.date_created:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 2: go_app.Holder.date_erased:type_name -> google.protobuf.Timestamp
+	3, // 3: go_app.Holder.date_created:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_go_app_holder_proto_init() }

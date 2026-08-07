@@ -20,6 +20,8 @@ const (
 	FieldDesc = "desc"
 	// FieldLabels holds the string denoting the labels field in the database.
 	FieldLabels = "labels"
+	// FieldDateErased holds the string denoting the date_erased field in the database.
+	FieldDateErased = "date_erased"
 	// FieldDateCreated holds the string denoting the date_created field in the database.
 	FieldDateCreated = "date_created"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
@@ -42,6 +44,7 @@ var Columns = []string{
 	FieldName,
 	FieldDesc,
 	FieldLabels,
+	FieldDateErased,
 	FieldDateCreated,
 }
 
@@ -87,6 +90,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByDesc orders the results by the desc field.
 func ByDesc(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDesc, opts...).ToFunc()
+}
+
+// ByDateErased orders the results by the date_erased field.
+func ByDateErased(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDateErased, opts...).ToFunc()
 }
 
 // ByDateCreated orders the results by the date_created field.

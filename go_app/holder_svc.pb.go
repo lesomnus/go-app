@@ -581,6 +581,7 @@ type HolderSelect struct {
 	xxx_hidden_Name        bool                   `protobuf:"varint,5,opt,name=name"`
 	xxx_hidden_Desc        bool                   `protobuf:"varint,6,opt,name=desc"`
 	xxx_hidden_Labels      bool                   `protobuf:"varint,7,opt,name=labels"`
+	xxx_hidden_DateErased  bool                   `protobuf:"varint,14,opt,name=date_erased,json=dateErased"`
 	xxx_hidden_DateCreated bool                   `protobuf:"varint,15,opt,name=date_created,json=dateCreated"`
 	XXX_raceDetectHookData protoimpl.RaceDetectHookData
 	XXX_presence           [1]uint32
@@ -655,6 +656,13 @@ func (x *HolderSelect) GetLabels() bool {
 	return false
 }
 
+func (x *HolderSelect) GetDateErased() bool {
+	if x != nil {
+		return x.xxx_hidden_DateErased
+	}
+	return false
+}
+
 func (x *HolderSelect) GetDateCreated() bool {
 	if x != nil {
 		return x.xxx_hidden_DateCreated
@@ -664,7 +672,7 @@ func (x *HolderSelect) GetDateCreated() bool {
 
 func (x *HolderSelect) SetAll(v bool) {
 	x.xxx_hidden_All = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 8)
 }
 
 func (x *HolderSelect) SetTenant(v *TenantSelect) {
@@ -673,27 +681,32 @@ func (x *HolderSelect) SetTenant(v *TenantSelect) {
 
 func (x *HolderSelect) SetAlias(v bool) {
 	x.xxx_hidden_Alias = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 8)
 }
 
 func (x *HolderSelect) SetName(v bool) {
 	x.xxx_hidden_Name = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 8)
 }
 
 func (x *HolderSelect) SetDesc(v bool) {
 	x.xxx_hidden_Desc = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 8)
 }
 
 func (x *HolderSelect) SetLabels(v bool) {
 	x.xxx_hidden_Labels = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 8)
+}
+
+func (x *HolderSelect) SetDateErased(v bool) {
+	x.xxx_hidden_DateErased = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 8)
 }
 
 func (x *HolderSelect) SetDateCreated(v bool) {
 	x.xxx_hidden_DateCreated = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 8)
 }
 
 func (x *HolderSelect) HasAll() bool {
@@ -738,11 +751,18 @@ func (x *HolderSelect) HasLabels() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
 }
 
-func (x *HolderSelect) HasDateCreated() bool {
+func (x *HolderSelect) HasDateErased() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
+}
+
+func (x *HolderSelect) HasDateCreated() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 7)
 }
 
 func (x *HolderSelect) ClearAll() {
@@ -774,8 +794,13 @@ func (x *HolderSelect) ClearLabels() {
 	x.xxx_hidden_Labels = false
 }
 
-func (x *HolderSelect) ClearDateCreated() {
+func (x *HolderSelect) ClearDateErased() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 6)
+	x.xxx_hidden_DateErased = false
+}
+
+func (x *HolderSelect) ClearDateCreated() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 7)
 	x.xxx_hidden_DateCreated = false
 }
 
@@ -788,6 +813,7 @@ type HolderSelect_builder struct {
 	Name        *bool
 	Desc        *bool
 	Labels      *bool
+	DateErased  *bool
 	DateCreated *bool
 }
 
@@ -796,28 +822,32 @@ func (b0 HolderSelect_builder) Build() *HolderSelect {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.All != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 8)
 		x.xxx_hidden_All = *b.All
 	}
 	x.xxx_hidden_Tenant = b.Tenant
 	if b.Alias != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 8)
 		x.xxx_hidden_Alias = *b.Alias
 	}
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 8)
 		x.xxx_hidden_Name = *b.Name
 	}
 	if b.Desc != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 8)
 		x.xxx_hidden_Desc = *b.Desc
 	}
 	if b.Labels != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 8)
 		x.xxx_hidden_Labels = *b.Labels
 	}
+	if b.DateErased != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 8)
+		x.xxx_hidden_DateErased = *b.DateErased
+	}
 	if b.DateCreated != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 8)
 		x.xxx_hidden_DateCreated = *b.DateCreated
 	}
 	return m0
@@ -1425,14 +1455,16 @@ const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\x03key\"R\n" +
 	"\x0fHolderRefBySlug\x12\x14\n" +
 	"\x05alias\x18\x04 \x01(\tR\x05alias\x12)\n" +
-	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\"\xc7\x01\n" +
+	"\x06tenant\x18\x02 \x01(\v2\x11.go_app.TenantRefR\x06tenant\"\xe8\x01\n" +
 	"\fHolderSelect\x12\x10\n" +
 	"\x03all\x18\x01 \x01(\bR\x03all\x12,\n" +
 	"\x06tenant\x18\x02 \x01(\v2\x14.go_app.TenantSelectR\x06tenant\x12\x14\n" +
 	"\x05alias\x18\x04 \x01(\bR\x05alias\x12\x12\n" +
 	"\x04name\x18\x05 \x01(\bR\x04name\x12\x12\n" +
 	"\x04desc\x18\x06 \x01(\bR\x04desc\x12\x16\n" +
-	"\x06labels\x18\a \x01(\bR\x06labels\x12!\n" +
+	"\x06labels\x18\a \x01(\bR\x06labels\x12\x1f\n" +
+	"\vdate_erased\x18\x0e \x01(\bR\n" +
+	"dateErased\x12!\n" +
 	"\fdate_created\x18\x0f \x01(\bR\vdateCreated\"\xf2\x01\n" +
 	"\x12HolderPatchRequest\x12#\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\x12\x14\n" +

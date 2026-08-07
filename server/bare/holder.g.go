@@ -49,25 +49,44 @@ func NewHolderServiceServer(db *ent.Client, opts ...Option) go_app.HolderService
 	return HolderServiceServer{Db: s.Db, Rec: s.Rec, Scope: s.Scope.Holder}
 }
 
-// narrow answers with `p` and whatever [HolderServiceServer.Scope]
-// adds to it, which is `p` itself where nothing is out of scope.
-func (s HolderServiceServer) narrow(ctx context.Context, p predicate.Holder) (predicate.Holder, error) {
-	if s.Scope == nil {
-		return p, nil
+// HolderNarrow answers with `p` and everything else that narrows a
+// read of a Holder: the rows that have not been erased, and whatever
+// `scope` says of those.
+//
+// Every read this package makes goes through it, and a read written by
+// hand should too -- a List is the one read nothing generates, and so the
+// one that would otherwise answer with rows nobody should be given.
+func HolderNarrow(ctx context.Context, scope func(context.Context) (predicate.Holder, error), p predicate.Holder) (predicate.Holder, error) {
+	ps := make([]predicate.Holder, 0, 3)
+
+	// A row that was erased is not a row a read answers with.
+	ps = append(ps, holder.DateErasedIsNil())
+	if p != nil {
+		ps = append(ps, p)
+	}
+	if scope != nil {
+		q, err := scope(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if q != nil {
+			ps = append(ps, q)
+		}
 	}
 
-	q, err := s.Scope(ctx)
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case q == nil:
-		return p, nil
-	case p == nil:
-		return q, nil
+	switch len(ps) {
+	case 0:
+		return nil, nil
+	case 1:
+		return ps[0], nil
 	default:
-		return holder.And(p, q), nil
+		return holder.And(ps...), nil
 	}
+}
+
+// narrow is [HolderNarrow] with this server's own scope.
+func (s HolderServiceServer) narrow(ctx context.Context, p predicate.Holder) (predicate.Holder, error) {
+	return HolderNarrow(ctx, s.Scope, p)
 }
 
 func (s HolderServiceServer) Add(ctx context.Context, req *go_app.HolderAddRequest) (*go_app.Holder, error) {
@@ -189,6 +208,9 @@ func HolderSelectedFields(m *go_app.HolderSelect) []string {
 	if m.GetLabels() {
 		vs = append(vs, holder.FieldLabels)
 	}
+	if m.GetDateErased() {
+		vs = append(vs, holder.FieldDateErased)
+	}
 	if m.GetDateCreated() {
 		vs = append(vs, holder.FieldDateCreated)
 	}
@@ -263,7 +285,7 @@ func HolderGetKey(ctx context.Context, db *ent.Client, ref *go_app.HolderRef) (u
 var holderOrmEntity = ormpatch.MustEntityOf(go_app.File_go_app_holder_proto, "Holder")
 
 var holderPatchColumns = entpatch.Columns{
-	1: holder.FieldID, 2: holder.TenantColumn, 4: holder.FieldAlias, 5: holder.FieldName, 6: holder.FieldDesc, 7: holder.FieldLabels, 15: holder.FieldDateCreated}
+	1: holder.FieldID, 2: holder.TenantColumn, 4: holder.FieldAlias, 5: holder.FieldName, 6: holder.FieldDesc, 7: holder.FieldLabels, 14: holder.FieldDateErased, 15: holder.FieldDateCreated}
 
 func (s HolderServiceServer) Apply(ctx context.Context, req *go_app.HolderApplyRequest) (*go_app.Holder, error) {
 	if !req.HasPatch() {
@@ -403,7 +425,9 @@ func (s HolderServiceServer) Erase(ctx context.Context, req *go_app.HolderRef) (
 		p = holder.IDEQ(v)
 	}
 
-	n, err := st.Db.Holder.Delete().Where(p).Exec(ctx)
+	u := st.Db.Holder.Update().Where(p)
+	u.SetDateErased(time.Now().UTC())
+	n, err := u.Save(ctx)
 	if err != nil {
 		return nil, err
 	}

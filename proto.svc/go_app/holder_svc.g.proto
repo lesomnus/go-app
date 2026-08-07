@@ -61,6 +61,7 @@ message HolderSelect {
 	bool name = 5;
 	bool desc = 6;
 	bool labels = 7;
+	bool date_erased = 14;
 	bool date_created = 15;
 }
 

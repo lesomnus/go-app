@@ -46,6 +46,20 @@ func (_c *HolderCreate) SetLabels(v map[string]string) *HolderCreate {
 	return _c
 }
 
+// SetDateErased sets the "date_erased" field.
+func (_c *HolderCreate) SetDateErased(v time.Time) *HolderCreate {
+	_c.mutation.SetDateErased(v)
+	return _c
+}
+
+// SetNillableDateErased sets the "date_erased" field if the given value is not nil.
+func (_c *HolderCreate) SetNillableDateErased(v *time.Time) *HolderCreate {
+	if v != nil {
+		_c.SetDateErased(*v)
+	}
+	return _c
+}
+
 // SetDateCreated sets the "date_created" field.
 func (_c *HolderCreate) SetDateCreated(v time.Time) *HolderCreate {
 	_c.mutation.SetDateCreated(v)
@@ -173,6 +187,10 @@ func (_c *HolderCreate) createSpec() (*Holder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Labels(); ok {
 		_spec.SetField(holder.FieldLabels, field.TypeJSON, value)
 		_node.Labels = value
+	}
+	if value, ok := _c.mutation.DateErased(); ok {
+		_spec.SetField(holder.FieldDateErased, field.TypeTime, value)
+		_node.DateErased = &value
 	}
 	if value, ok := _c.mutation.DateCreated(); ok {
 		_spec.SetField(holder.FieldDateCreated, field.TypeTime, value)

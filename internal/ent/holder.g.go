@@ -18,6 +18,9 @@ func (e *Holder) Proto() *go_app.Holder {
 	x.SetName(e.Name)
 	x.SetDesc(e.Desc)
 	x.SetLabels(e.Labels)
+	if e.DateErased != nil {
+		x.SetDateErased(timestamppb.New(*e.DateErased))
+	}
 	x.SetDateCreated(timestamppb.New(e.DateCreated))
 	return x
 }

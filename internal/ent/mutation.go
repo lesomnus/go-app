@@ -720,6 +720,7 @@ type HolderMutation struct {
 	name          *string
 	desc          *string
 	labels        *map[string]string
+	date_erased   *time.Time
 	date_created  *time.Time
 	clearedFields map[string]struct{}
 	tenant        *uuid.UUID
@@ -990,6 +991,55 @@ func (m *HolderMutation) ResetLabels() {
 	delete(m.clearedFields, holder.FieldLabels)
 }
 
+// SetDateErased sets the "date_erased" field.
+func (m *HolderMutation) SetDateErased(t time.Time) {
+	m.date_erased = &t
+}
+
+// DateErased returns the value of the "date_erased" field in the mutation.
+func (m *HolderMutation) DateErased() (r time.Time, exists bool) {
+	v := m.date_erased
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDateErased returns the old "date_erased" field's value of the Holder entity.
+// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HolderMutation) OldDateErased(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDateErased is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDateErased requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDateErased: %w", err)
+	}
+	return oldValue.DateErased, nil
+}
+
+// ClearDateErased clears the value of the "date_erased" field.
+func (m *HolderMutation) ClearDateErased() {
+	m.date_erased = nil
+	m.clearedFields[holder.FieldDateErased] = struct{}{}
+}
+
+// DateErasedCleared returns if the "date_erased" field was cleared in this mutation.
+func (m *HolderMutation) DateErasedCleared() bool {
+	_, ok := m.clearedFields[holder.FieldDateErased]
+	return ok
+}
+
+// ResetDateErased resets all changes to the "date_erased" field.
+func (m *HolderMutation) ResetDateErased() {
+	m.date_erased = nil
+	delete(m.clearedFields, holder.FieldDateErased)
+}
+
 // SetDateCreated sets the "date_created" field.
 func (m *HolderMutation) SetDateCreated(t time.Time) {
 	m.date_created = &t
@@ -1112,7 +1162,7 @@ func (m *HolderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *HolderMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.alias != nil {
 		fields = append(fields, holder.FieldAlias)
 	}
@@ -1124,6 +1174,9 @@ func (m *HolderMutation) Fields() []string {
 	}
 	if m.labels != nil {
 		fields = append(fields, holder.FieldLabels)
+	}
+	if m.date_erased != nil {
+		fields = append(fields, holder.FieldDateErased)
 	}
 	if m.date_created != nil {
 		fields = append(fields, holder.FieldDateCreated)
@@ -1144,6 +1197,8 @@ func (m *HolderMutation) Field(name string) (ent.Value, bool) {
 		return m.Desc()
 	case holder.FieldLabels:
 		return m.Labels()
+	case holder.FieldDateErased:
+		return m.DateErased()
 	case holder.FieldDateCreated:
 		return m.DateCreated()
 	}
@@ -1163,6 +1218,8 @@ func (m *HolderMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldDesc(ctx)
 	case holder.FieldLabels:
 		return m.OldLabels(ctx)
+	case holder.FieldDateErased:
+		return m.OldDateErased(ctx)
 	case holder.FieldDateCreated:
 		return m.OldDateCreated(ctx)
 	}
@@ -1201,6 +1258,13 @@ func (m *HolderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLabels(v)
+		return nil
+	case holder.FieldDateErased:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDateErased(v)
 		return nil
 	case holder.FieldDateCreated:
 		v, ok := value.(time.Time)
@@ -1242,6 +1306,9 @@ func (m *HolderMutation) ClearedFields() []string {
 	if m.FieldCleared(holder.FieldLabels) {
 		fields = append(fields, holder.FieldLabels)
 	}
+	if m.FieldCleared(holder.FieldDateErased) {
+		fields = append(fields, holder.FieldDateErased)
+	}
 	if m.FieldCleared(holder.FieldDateCreated) {
 		fields = append(fields, holder.FieldDateCreated)
 	}
@@ -1261,6 +1328,9 @@ func (m *HolderMutation) ClearField(name string) error {
 	switch name {
 	case holder.FieldLabels:
 		m.ClearLabels()
+		return nil
+	case holder.FieldDateErased:
+		m.ClearDateErased()
 		return nil
 	case holder.FieldDateCreated:
 		m.ClearDateCreated()
@@ -1284,6 +1354,9 @@ func (m *HolderMutation) ResetField(name string) error {
 		return nil
 	case holder.FieldLabels:
 		m.ResetLabels()
+		return nil
+	case holder.FieldDateErased:
+		m.ResetDateErased()
 		return nil
 	case holder.FieldDateCreated:
 		m.ResetDateCreated()

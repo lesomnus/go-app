@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -82,6 +83,26 @@ func (_u *HolderUpdate) ClearLabels() *HolderUpdate {
 	return _u
 }
 
+// SetDateErased sets the "date_erased" field.
+func (_u *HolderUpdate) SetDateErased(v time.Time) *HolderUpdate {
+	_u.mutation.SetDateErased(v)
+	return _u
+}
+
+// SetNillableDateErased sets the "date_erased" field if the given value is not nil.
+func (_u *HolderUpdate) SetNillableDateErased(v *time.Time) *HolderUpdate {
+	if v != nil {
+		_u.SetDateErased(*v)
+	}
+	return _u
+}
+
+// ClearDateErased clears the value of the "date_erased" field.
+func (_u *HolderUpdate) ClearDateErased() *HolderUpdate {
+	_u.mutation.ClearDateErased()
+	return _u
+}
+
 // Mutation returns the HolderMutation object of the builder.
 func (_u *HolderUpdate) Mutation() *HolderMutation {
 	return _u.mutation
@@ -154,6 +175,12 @@ func (_u *HolderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LabelsCleared() {
 		_spec.ClearField(holder.FieldLabels, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DateErased(); ok {
+		_spec.SetField(holder.FieldDateErased, field.TypeTime, value)
+	}
+	if _u.mutation.DateErasedCleared() {
+		_spec.ClearField(holder.FieldDateErased, field.TypeTime)
 	}
 	if _u.mutation.DateCreatedCleared() {
 		_spec.ClearField(holder.FieldDateCreated, field.TypeTime)
@@ -231,6 +258,26 @@ func (_u *HolderUpdateOne) SetLabels(v map[string]string) *HolderUpdateOne {
 // ClearLabels clears the value of the "labels" field.
 func (_u *HolderUpdateOne) ClearLabels() *HolderUpdateOne {
 	_u.mutation.ClearLabels()
+	return _u
+}
+
+// SetDateErased sets the "date_erased" field.
+func (_u *HolderUpdateOne) SetDateErased(v time.Time) *HolderUpdateOne {
+	_u.mutation.SetDateErased(v)
+	return _u
+}
+
+// SetNillableDateErased sets the "date_erased" field if the given value is not nil.
+func (_u *HolderUpdateOne) SetNillableDateErased(v *time.Time) *HolderUpdateOne {
+	if v != nil {
+		_u.SetDateErased(*v)
+	}
+	return _u
+}
+
+// ClearDateErased clears the value of the "date_erased" field.
+func (_u *HolderUpdateOne) ClearDateErased() *HolderUpdateOne {
+	_u.mutation.ClearDateErased()
 	return _u
 }
 
@@ -336,6 +383,12 @@ func (_u *HolderUpdateOne) sqlSave(ctx context.Context) (_node *Holder, err erro
 	}
 	if _u.mutation.LabelsCleared() {
 		_spec.ClearField(holder.FieldLabels, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DateErased(); ok {
+		_spec.SetField(holder.FieldDateErased, field.TypeTime, value)
+	}
+	if _u.mutation.DateErasedCleared() {
+		_spec.ClearField(holder.FieldDateErased, field.TypeTime)
 	}
 	if _u.mutation.DateCreatedCleared() {
 		_spec.ClearField(holder.FieldDateCreated, field.TypeTime)

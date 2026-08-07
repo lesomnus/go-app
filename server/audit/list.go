@@ -13,6 +13,7 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent/audit"
 	"github.com/lesomnus/go-app/internal/ent/predicate"
+	"github.com/lesomnus/go-app/server/bare"
 )
 
 const (
@@ -68,17 +69,14 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 	// hundred rows of your own and everybody else's trail answers "nothing
 	// happened". Which is worse than an error, because it reads like one.
 	//
-	// The narrowing is the same one the generated servers apply to every row
-	// they read; a hand-written list is the read they do not make, so it is
-	// asked for here rather than inherited.
-	if sc.Audit != nil {
-		p, err := sc.Audit(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if p != nil {
-			q.Where(p)
-		}
+	// Through the same function the generated reads go through, rather than by
+	// asking the scope hook: what narrows a read is the wall today and would be
+	// the wall and something else tomorrow, and a list that reached past it for
+	// the hook alone would be the one read that missed the something else.
+	if p, err := bare.AuditNarrow(ctx, sc.Audit, nil); err != nil {
+		return nil, err
+	} else if p != nil {
+		q.Where(p)
 	}
 
 	// A filter, and not the wall: the wall is above. This is how whoever can

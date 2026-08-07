@@ -26,6 +26,24 @@ message Holder {
   // Start data field from with the number 8.
   // string data = 8;
 
+  // When this Holder was erased, and null for as long as it is here.
+  //
+  // A Holder is erased softly and a Tenant is not, and the difference is the
+  // audit trail. Every row of it names the Holder that did something, and a
+  // Holder that was deleted leaves an identifier nothing answers to -- so the
+  // trail keeps saying who, and nobody can look up who that was. Stamping
+  // instead means the answer survives the person leaving, which is most of
+  // what a trail is kept for.
+  //
+  // What follows is what soft erasure always follows with: an erased Holder
+  // cannot be read, cannot be changed, and cannot authenticate, because every
+  // read is narrowed by this column -- `server/auth` reads one to work out who
+  // is calling, and finds nothing. The `slug` index below covers only the rows
+  // that are still here, so the alias comes free again.
+  //
+  // A Tenant is left as it was on purpose; see the README.
+  google.protobuf.Timestamp date_erased = 14 [(orm.field) = {erased: {}}];
+
   google.protobuf.Timestamp date_created = 15 [(orm.field) = {
     immutable: true
     default: ""

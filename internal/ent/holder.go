@@ -28,6 +28,8 @@ type Holder struct {
 	Desc string `json:"desc,omitempty"`
 	// Labels holds the value of the "labels" field.
 	Labels map[string]string `json:"labels,omitempty"`
+	// DateErased holds the value of the "date_erased" field.
+	DateErased *time.Time `json:"date_erased,omitempty"`
 	// DateCreated holds the value of the "date_created" field.
 	DateCreated time.Time `json:"date_created,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -66,7 +68,7 @@ func (*Holder) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case holder.FieldAlias, holder.FieldName, holder.FieldDesc:
 			values[i] = new(sql.NullString)
-		case holder.FieldDateCreated:
+		case holder.FieldDateErased, holder.FieldDateCreated:
 			values[i] = new(sql.NullTime)
 		case holder.FieldID:
 			values[i] = new(uuid.UUID)
@@ -118,6 +120,13 @@ func (_m *Holder) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Labels); err != nil {
 					return fmt.Errorf("unmarshal field labels: %w", err)
 				}
+			}
+		case holder.FieldDateErased:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field date_erased", values[i])
+			} else if value.Valid {
+				_m.DateErased = new(time.Time)
+				*_m.DateErased = value.Time
 			}
 		case holder.FieldDateCreated:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -184,6 +193,11 @@ func (_m *Holder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("labels=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Labels))
+	builder.WriteString(", ")
+	if v := _m.DateErased; v != nil {
+		builder.WriteString("date_erased=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("date_created=")
 	builder.WriteString(_m.DateCreated.Format(time.ANSIC))

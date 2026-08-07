@@ -213,6 +213,14 @@ func NewServer(db *ent.Client, opts ...Option) (Server, error) {
 	if d := db.Dialect(); !entpatch.Supports(d) {
 		return Server{}, fmt.Errorf("%w: %s", entpatch.ErrDialect, d)
 	}
+
+	// Holder erases softly, and that is only true where a
+	// unique index can be made partial. MySQL has no such thing, so the
+	// index would come up covering every row and an alias freed by an
+	// erasure would stay taken -- with nothing anywhere to say so.
+	if d := db.Dialect(); d == dialect.MySQL {
+		return Server{}, fmt.Errorf("%s cannot make a unique index partial, which is what an erased row needs to give up its name: %s", d, "Holder")
+	}
 	return s, nil
 }
 

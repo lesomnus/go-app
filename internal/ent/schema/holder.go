@@ -27,6 +27,9 @@ func (Holder) Fields() []ent.Field {
 		field.String("desc"),
 		field.JSON("labels", map[string]string{}).
 			Optional(),
+		field.Time("date_erased").
+			Nillable().
+			Optional(),
 		field.Time("date_created").
 			Immutable().
 			Optional(),
@@ -46,7 +49,8 @@ func (Holder) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("alias").
 			Edges("tenant").
-			Unique(),
+			Unique().
+			Annotations(entsql.IndexWhere("date_erased IS NULL")),
 	}
 }
 

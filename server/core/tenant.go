@@ -4,8 +4,15 @@ import (
 	"context"
 
 	"github.com/lesomnus/z"
+	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/enttx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	go_app "github.com/lesomnus/go-app/go_app"
+	"github.com/lesomnus/go-app/internal/ent/holder"
+	"github.com/lesomnus/go-app/internal/ent/tenant"
+	"github.com/lesomnus/go-app/server/bare"
 )
 
 type TenantServiceServer struct {
@@ -58,6 +65,68 @@ func (s TenantServiceServer) Add(ctx context.Context, req *go_app.TenantAddReque
 		}
 
 		return nil, z.Err(err, "add the admin holder")
+	}
+
+	return v, nil
+}
+
+// Erase takes the Holders with it, for real, and then the Tenant.
+//
+// This is what soft deletion costs at the join between two entities, and it is
+// worth reading once. A Holder is erased softly, so `Holder.Erase` leaves the
+// row -- and the row holds a foreign key to its Tenant. Without this, erasing a
+// Tenant that ever had a Holder would fail on that key, for ever, however many
+// Holders had been "erased" first. Soft deletion does not cascade; the entity
+// that owns the others has to say what happens to them.
+//
+// What it says here is what erasing a Tenant already meant: it takes everything
+// in it with it. So the Holders are deleted rather than stamped -- there is
+// nothing left for them to belong to, and a row kept so that the trail can name
+// it is a row kept for a trail that is about a Tenant nobody can reach either.
+//
+// The two are one transaction, since half of this is worse than neither: the
+// Holders gone and the Tenant still there is a Tenant nobody administers.
+func (s TenantServiceServer) Erase(ctx context.Context, req *go_app.TenantRef) (*emptypb.Empty, error) {
+	db, err := s.Db()
+	if err != nil {
+		return nil, err
+	}
+
+	k, err := bare.TenantGetKey(ctx, db, req)
+	if err != nil {
+		// Nothing to erase is not a failure to erase; hand it on and let the
+		// server behind answer the way it answers for anything else that is
+		// not there.
+		if status.Code(err) == codes.NotFound {
+			return s.TenantServiceServer.Erase(ctx, req)
+		}
+
+		return nil, err
+	}
+
+	drv, tx, err := enttx.Begin(ctx, db.Driver())
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	next, err := enttx.Rebind(s.Next(), drv)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := db.WithDriver(drv).Holder.Delete().
+		Where(holder.HasTenantWith(tenant.IDEQ(k))).
+		Exec(ctx); err != nil {
+		return nil, err
+	}
+
+	v, err := next.Tenant().Erase(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 
 	return v, nil

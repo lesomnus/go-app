@@ -16,8 +16,8 @@ require (
 	github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7
 	github.com/lesomnus/z v0.0.0-20260531102454-3f1853bb4278
 	github.com/ncruces/go-sqlite3 v0.35.2
-	github.com/protobuf-orm/protobuf-orm v0.0.0-20260803215149-ab3bf02e1efb
-	github.com/protobuf-orm/protoc-gen-orm-ent/runtime v0.0.0-20260806114355-d9763cbba427
+	github.com/protobuf-orm/protobuf-orm v0.0.0-20260807003431-ce1156ba9f29
+	github.com/protobuf-orm/protoc-gen-orm-ent/runtime v0.0.0-20260807034626-1bf3be4b825e
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/otel v1.44.0
@@ -57,9 +57,9 @@ require (
 	github.com/olekukonko/ll v0.1.4-0.20260115111900-9e59c2286df0 // indirect
 	github.com/olekukonko/tablewriter v1.1.3 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/protobuf-orm/protoc-gen-orm-ent v0.0.0-20260806111314-529e3b109b88 // indirect
+	github.com/protobuf-orm/protoc-gen-orm-ent v0.0.0-20260807034626-1bf3be4b825e // indirect
 	github.com/protobuf-orm/protoc-gen-orm-go v0.0.0-20260804121030-6619a23a2859 // indirect
-	github.com/protobuf-orm/protoc-gen-orm-service v0.0.0-20260803211533-cc4b0f42cefc // indirect
+	github.com/protobuf-orm/protoc-gen-orm-service v0.0.0-20260807033829-df58c6f1abb6 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/zclconf/go-cty v1.14.4 // indirect

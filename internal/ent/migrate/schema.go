@@ -45,6 +45,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "desc", Type: field.TypeString},
 		{Name: "labels", Type: field.TypeJSON, Nullable: true},
+		{Name: "date_erased", Type: field.TypeTime, Nullable: true},
 		{Name: "date_created", Type: field.TypeTime, Nullable: true},
 		{Name: "holder_tenant", Type: field.TypeUUID},
 	}
@@ -56,7 +57,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "holder_tenant_tenant",
-				Columns:    []*schema.Column{HolderColumns[6]},
+				Columns:    []*schema.Column{HolderColumns[7]},
 				RefColumns: []*schema.Column{TenantColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -65,7 +66,10 @@ var (
 			{
 				Name:    "holder_alias_holder_tenant",
 				Unique:  true,
-				Columns: []*schema.Column{HolderColumns[1], HolderColumns[6]},
+				Columns: []*schema.Column{HolderColumns[1], HolderColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "date_erased IS NULL",
+				},
 			},
 		},
 	}

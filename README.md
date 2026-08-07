@@ -254,6 +254,42 @@ The tests of this repository are the exception, and knowingly: `internal/ox`
 serves the general writes, because they are what this repository has to
 demonstrate. An app made from this template tests the RPCs it wrote instead.
 
+### Erasing a Holder, and erasing a Tenant
+
+A **Holder is erased softly**. `Erase` stamps `date_erased` and the row stays;
+every read is narrowed by that column, so the Holder is gone from `Get`, from
+`List`, from `Patch` and `Apply`, and — because `server/auth` looks a Holder up
+to work out who is calling — from authentication. The alias comes free, because
+the unique index covers only the rows that are still there.
+
+The reason is the trail. Every row of it names the Holder that did something,
+and a deleted Holder leaves that identifier answering to nothing: the trail goes
+on saying who while nobody can find out who. Stamping means the answer outlives
+the person leaving, which is most of what a trail is kept for.
+
+A **Tenant is erased for real**, and it takes its Holders with it — including
+the ones that were only stamped. That is not a second opinion about soft
+deletion; it is what erasing a Tenant already meant, and it is now something
+`server/core` has to say out loud, because **soft deletion does not cascade**. A
+stamped Holder keeps its row, and the row keeps a foreign key to its Tenant, so
+without the cascade a Tenant that ever had a Holder could never be erased at
+all, however many of them had been "erased" first.
+
+That is the thing to take from this if you are adding an entity that erases
+softly: the row surviving is the point, and it survives for the foreign keys
+too. Whatever owns it has to decide what happens to it.
+
+Two smaller edges, both worth knowing before you copy this:
+
+- **`Tenant.alias` would not come free**, if a Tenant were erased softly. It is
+  `unique` on the field rather than an `indexes` entry, and only an index can be
+  made partial. A name that has to be reusable after an erasure has to be
+  declared as a unique index.
+- **Nothing can read an erased row through these servers**, and there is no
+  option asking for one. Restoring something, or looking at what was erased, is
+  written by hand against `core.Server.Db()` — like every other RPC nothing
+  generates.
+
 ### Reading a list
 
 Nothing generates a `List`. What a list filters by is the app's, and there is no
@@ -538,7 +574,10 @@ is the only name it has.
 The row is named by its identifier and not by its kind, because an identifier is
 unique across every table: whatever answers to it is what the row was about. The
 cost is real and worth knowing — a row erased later leaves an identifier nothing
-answers to, and nothing says what it used to be.
+answers to, and nothing says what it used to be. Which is why a Holder is
+[erased softly](#erasing-a-holder-and-erasing-a-tenant): the trail names one on
+every row it writes, and a Holder who left should not turn the answer to "who
+did this" into an identifier and a shrug.
 
 **The trail is the actor's, not the object's.** A row is stamped with the Tenant
 the caller was held by, and nothing moves it afterwards. Two things follow, and

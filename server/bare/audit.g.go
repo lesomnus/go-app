@@ -49,25 +49,40 @@ func NewAuditServiceServer(db *ent.Client, opts ...Option) go_app.AuditServiceSe
 	return AuditServiceServer{Db: s.Db, Rec: s.Rec, Scope: s.Scope.Audit}
 }
 
-// narrow answers with `p` and whatever [AuditServiceServer.Scope]
-// adds to it, which is `p` itself where nothing is out of scope.
-func (s AuditServiceServer) narrow(ctx context.Context, p predicate.Audit) (predicate.Audit, error) {
-	if s.Scope == nil {
-		return p, nil
+// AuditNarrow answers with `p` and everything else that narrows a
+// read of a Audit, which is whatever `scope` says.
+//
+// Every read this package makes goes through it, and a read written by
+// hand should too -- a List is the one read nothing generates, and so the
+// one that would otherwise answer with rows nobody should be given.
+func AuditNarrow(ctx context.Context, scope func(context.Context) (predicate.Audit, error), p predicate.Audit) (predicate.Audit, error) {
+	ps := make([]predicate.Audit, 0, 2)
+	if p != nil {
+		ps = append(ps, p)
+	}
+	if scope != nil {
+		q, err := scope(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if q != nil {
+			ps = append(ps, q)
+		}
 	}
 
-	q, err := s.Scope(ctx)
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case q == nil:
-		return p, nil
-	case p == nil:
-		return q, nil
+	switch len(ps) {
+	case 0:
+		return nil, nil
+	case 1:
+		return ps[0], nil
 	default:
-		return audit.And(p, q), nil
+		return audit.And(ps...), nil
 	}
+}
+
+// narrow is [AuditNarrow] with this server's own scope.
+func (s AuditServiceServer) narrow(ctx context.Context, p predicate.Audit) (predicate.Audit, error) {
+	return AuditNarrow(ctx, s.Scope, p)
 }
 
 func (s AuditServiceServer) Add(ctx context.Context, req *go_app.AuditAddRequest) (*go_app.Audit, error) {
