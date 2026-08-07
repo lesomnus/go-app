@@ -3,18 +3,19 @@ package gate
 import (
 	"bytes"
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent/audit"
 	"github.com/lesomnus/go-app/internal/ent/holder"
 	"github.com/lesomnus/go-app/internal/ent/predicate"
 	"github.com/lesomnus/go-app/internal/ent/tenant"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // Wall answers with the scopes that put every read behind the Tenant it belongs
@@ -49,8 +50,7 @@ func Wall() bare.Scopes {
 			return nil, true, err
 		}
 
-		vs, err := s.Ids()
-		return vs, false, err
+		return s.Ids(), false, nil
 	}
 
 	return bare.Scopes{
@@ -93,6 +93,12 @@ func Wall() bare.Scopes {
 
 // Scope is which Tenants the caller of ctx may see.
 //
+// Two things narrow it and they are asked in that order. What the *Holder* may
+// see is the wall, and a deployment can say more about it than this does; see
+// [Policy]. What the *credential* they came with allows is then met with that,
+// and can only take away -- a token that names every Tenant, held by somebody
+// who may see one, still sees one.
+//
 // A request with no frame is refused rather than served as anybody, and there
 // is no scope that means "everything, because nobody asked". Some calls do have
 // to go around the wall -- working out who is calling happens before there is a
@@ -104,7 +110,22 @@ func Wall() bare.Scopes {
 func Scope(ctx context.Context) (Tenants, error) {
 	f, err := actor(ctx)
 	if err != nil {
-		return Tenants{}, err
+		return Nothing, err
+	}
+
+	t, err := holds(ctx, f)
+	if err != nil {
+		return Nothing, err
+	}
+
+	return t.Meet(f.Grant), nil
+}
+
+// holds is what the Holder may see, before the credential is met with it.
+func holds(ctx context.Context, f *frame.Frame) (Tenants, error) {
+	if p := policy; p != nil {
+		v, err := p.Where(ctx, f.Actor, method(ctx))
+		return v, err
 	}
 
 	// Whoever holds the root Tenant administers the deployment, and is the one
@@ -114,29 +135,44 @@ func Scope(ctx context.Context) (Tenants, error) {
 		return Everything, nil
 	}
 
-	return Only(v), nil
+	k, err := uuid.FromBytes(v.GetId())
+	if err != nil {
+		// It came out of the database with the actor, so this is the app
+		// disagreeing with itself rather than a request being wrong.
+		return Nothing, status.Errorf(codes.Internal, "the caller's tenant has no identifier: %s", err)
+	}
+
+	return Only(k), nil
 }
 
 // Tenants is a set of Tenants, or all of them.
 //
 // A set, and not the one Tenant the caller belongs to beside a flag saying
 // whether the wall applies to them. "Everything" and "my own" are the two
-// answers there are today, and spelling the second as "not the first" is what
-// would make a third expensive: a deployment that lets a resource be shared
-// with another Tenant, or transferred to one, has callers who may see two, and
-// every place that read the flag would have to learn about it. Here that is a
-// longer list and nothing else.
+// answers a Holder alone gives, and spelling the second as "not the first" is
+// what would make a third expensive. There are already more than two: a
+// credential carries an attenuation ([frame.Grant]), and what a caller may see
+// is the meet of the two. A deployment that later lets a resource be shared
+// with another Tenant adds a fourth, and it is a longer list and nothing else.
+//
+// Identifiers rather than Tenants, because that is what a query narrows by and
+// what two scopes are intersected on. Nothing needs the rest of the row.
 type Tenants struct {
 	all bool
-	vs  []*go_app.Tenant
+	ids []uuid.UUID
 }
 
 // Everything is the scope of a caller no wall is about.
 var Everything = Tenants{all: true}
 
+// Nothing is the scope of a caller who may see none, which is what the meet of
+// two disjoint scopes is. It narrows a query to no rows at all rather than to
+// all of them; see [Tenants.Ids].
+var Nothing = Tenants{}
+
 // Only is the scope of a caller who may see the given Tenants and no others.
-func Only(vs ...*go_app.Tenant) Tenants {
-	return Tenants{vs: vs}
+func Only(ids ...uuid.UUID) Tenants {
+	return Tenants{ids: ids}
 }
 
 // All reports whether this is every Tenant there is, in which case there is
@@ -144,37 +180,32 @@ func Only(vs ...*go_app.Tenant) Tenants {
 func (t Tenants) All() bool { return t.all }
 
 // Ids is what a query narrows by.
-func (t Tenants) Ids() ([]uuid.UUID, error) {
-	vs := make([]uuid.UUID, len(t.vs))
-	for i, v := range t.vs {
-		k, err := uuid.FromBytes(v.GetId())
-		if err != nil {
-			// These came out of the database with the actor, so this is the
-			// app disagreeing with itself rather than a request being wrong.
-			return nil, status.Errorf(codes.Internal, "a tenant in scope has no identifier: %s", err)
-		}
-
-		vs[i] = k
-	}
-
-	return vs, nil
-}
-
-// Picks reports whether the given reference names a Tenant in this scope.
 //
-// A reference names a Tenant by identifier or by alias, and both are known for
-// every Tenant in scope, so neither costs a query. A scope that ever holds a
-// Tenant this app has not already read would have to look it up here.
-func (t Tenants) Picks(ref *go_app.TenantRef) bool {
+// An empty answer is not the same as no narrowing, and the difference is the
+// whole safety of this: `IDIn()` with nothing renders as `WHERE FALSE`, so a
+// caller who may see no Tenant sees no rows. Read the other way round it would
+// be a scope that opened up as it ran out.
+func (t Tenants) Ids() []uuid.UUID { return t.ids }
+
+// Meet answers with what is in both this scope and `g`, which is how a
+// credential narrows what its Holder may see.
+//
+// It only ever narrows. A grant that names Tenants its Holder cannot see does
+// not reach them: the meet of "my own" and "every tenant there is" is my own.
+func (t Tenants) Meet(g frame.Grant) Tenants {
+	if g.AnyTenant() {
+		return t
+	}
 	if t.all {
-		return true
+		return Only(g.TenantIds()...)
 	}
 
-	for _, v := range t.vs {
-		if ref.Picks(v) {
-			return true
+	vs := make([]uuid.UUID, 0, min(len(t.ids), len(g.TenantIds())))
+	for _, v := range t.ids {
+		if slices.Contains(g.TenantIds(), v) {
+			vs = append(vs, v)
 		}
 	}
 
-	return false
+	return Only(vs...)
 }

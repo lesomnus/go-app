@@ -46,6 +46,11 @@ type Server struct {
 	// authentication looks callers up on.
 	Sink go_app.Server
 
+	// Tokens is the bearer store this app is served with, so that a test can
+	// travel as a credential that allows less than its Holder does. Add one
+	// and reach for it with [Client.AsBearer].
+	Tokens *auth.MemTokenStore
+
 	go_app.Server
 }
 
@@ -94,6 +99,8 @@ func NewServer(tb testing.TB) *Server {
 		tb:  tb,
 		log: logger(tb),
 
+		Tokens: auth.NewMemTokenStore(),
+
 		Db:    c,
 		Root:  root,
 		Admin: admin,
@@ -129,9 +136,17 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 	// are how the servers write, and the tests of this repository are what
 	// demonstrate them. An app made from this template tests the RPCs it wrote
 	// by hand instead, and those are served either way. See the README.
+
 	// The same way the app works out who is calling, so a test travels that
-	// road as well; `Plain` is what says who without anything to check.
-	opts = append(opts, auth.Interceptor(auth.Plain(), auth.ServerResolver(s.Sink), auth.PublicDefault)...)
+	// road as well. `Plain` is what says who without anything to check; the
+	// token store in front of it is empty unless a test puts something in it,
+	// and is there because a header has nowhere to carry an attenuation and a
+	// token does.
+	opts = append(opts, auth.Interceptor(
+		auth.Seq(auth.Bearer(s.Tokens), auth.Plain()),
+		auth.ServerResolver(s.Sink),
+		auth.PublicDefault,
+	)...)
 	opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 
 	g := grpc.NewServer(opts...)

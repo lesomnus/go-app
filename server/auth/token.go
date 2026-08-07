@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	go_app "github.com/lesomnus/go-app/go_app"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // MethodBearer is what [Bearer] calls itself.
@@ -27,7 +28,11 @@ const BearerScheme = "Bearer"
 // certificate carry a name; a token carries nothing, so somebody has to be
 // asked, and being asked can go wrong in a way the caller did not cause.
 type TokenStore interface {
-	// Lookup returns the Holder the token stands for.
+	// Lookup returns the Holder the token stands for, and what the token
+	// allows of what that Holder allows. A token that narrows nothing answers
+	// [frame.Whole]; the zero Grant allows nothing, so a store that forgets
+	// hands out a credential that can do nothing rather than one that can do
+	// everything.
 	//
 	// A token that is not known, or no longer good, is an error wrapping
 	// neither [ErrNoCredential] nor [ErrUnavailable]: it is a credential that
@@ -39,12 +44,12 @@ type TokenStore interface {
 	// A store that cannot answer -- unreachable, timed out -- wraps
 	// [ErrUnavailable], and the caller is told to come back rather than told
 	// their token is bad. That one is passed on, because it is not about them.
-	Lookup(ctx context.Context, token string) (*go_app.HolderRef, error)
+	Lookup(ctx context.Context, token string) (*go_app.HolderRef, frame.Grant, error)
 }
 
-type TokenStoreFunc func(ctx context.Context, token string) (*go_app.HolderRef, error)
+type TokenStoreFunc func(ctx context.Context, token string) (*go_app.HolderRef, frame.Grant, error)
 
-func (f TokenStoreFunc) Lookup(ctx context.Context, token string) (*go_app.HolderRef, error) {
+func (f TokenStoreFunc) Lookup(ctx context.Context, token string) (*go_app.HolderRef, frame.Grant, error) {
 	return f(ctx, token)
 }
 
@@ -73,7 +78,7 @@ func Bearer(store TokenStore) Handler {
 				return Identity{}, fmt.Errorf("%s: says nothing", BearerScheme)
 			}
 
-			ref, err := store.Lookup(ctx, token)
+			ref, grant, err := store.Lookup(ctx, token)
 			if err != nil {
 				// A store that could not answer is not the caller's fault, and
 				// saying which it was is the whole reason for the third answer.
@@ -92,7 +97,7 @@ func Bearer(store TokenStore) Handler {
 				return Identity{}, fmt.Errorf("%s: %w", BearerScheme, ErrUnknownToken)
 			}
 
-			return Identity{Method: MethodBearer, Ref: ref}, nil
+			return Identity{Method: MethodBearer, Ref: ref, Grant: grant}, nil
 		}
 
 		return Identity{}, ErrNoCredential
@@ -142,7 +147,8 @@ type MemTokenStore struct {
 }
 
 type memToken struct {
-	ref *go_app.HolderRef
+	ref   *go_app.HolderRef
+	grant frame.Grant
 	// exp is when the token stops being honoured; zero means never. A
 	// certificate and a header have no such thing -- they are good for as long
 	// as the Holder is -- and this is the difference a store has to carry.
@@ -153,16 +159,16 @@ func NewMemTokenStore() *MemTokenStore {
 	return &MemTokenStore{vs: map[[sha256.Size]byte]memToken{}}
 }
 
-// Add records that `token` stands for the Holder `ref` names, until `exp`. A
-// zero `exp` never expires.
-func (s *MemTokenStore) Add(token string, ref *go_app.HolderRef, exp time.Time) {
+// Add records that `token` stands for the Holder `ref` names and allows
+// `grant` of what that Holder allows, until `exp`. A zero `exp` never expires.
+func (s *MemTokenStore) Add(token string, ref *go_app.HolderRef, grant frame.Grant, exp time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.vs == nil {
 		s.vs = map[[sha256.Size]byte]memToken{}
 	}
-	s.vs[sha256.Sum256([]byte(token))] = memToken{ref: ref, exp: exp}
+	s.vs[sha256.Sum256([]byte(token))] = memToken{ref: ref, grant: grant, exp: exp}
 }
 
 // Remove forgets a token, which is what revoking one is here.
@@ -180,7 +186,7 @@ func (s *MemTokenStore) Len() int {
 	return len(s.vs)
 }
 
-func (s *MemTokenStore) Lookup(_ context.Context, token string) (*go_app.HolderRef, error) {
+func (s *MemTokenStore) Lookup(_ context.Context, token string) (*go_app.HolderRef, frame.Grant, error) {
 	sum := sha256.Sum256([]byte(token))
 
 	s.mu.RLock()
@@ -188,13 +194,13 @@ func (s *MemTokenStore) Lookup(_ context.Context, token string) (*go_app.HolderR
 	s.mu.RUnlock()
 
 	if !ok {
-		return nil, ErrUnknownToken
+		return nil, frame.Grant{}, ErrUnknownToken
 	}
 	if !v.exp.IsZero() && !s.now().Before(v.exp) {
-		return nil, fmt.Errorf("expired: %w", ErrUnknownToken)
+		return nil, frame.Grant{}, fmt.Errorf("expired: %w", ErrUnknownToken)
 	}
 
-	return v.ref, nil
+	return v.ref, v.grant, nil
 }
 
 func (s *MemTokenStore) now() time.Time {

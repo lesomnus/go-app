@@ -5,10 +5,12 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/auth"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 type AuthConfig struct {
@@ -44,11 +46,12 @@ type BearerConfig struct {
 	//
 	//	bearer:
 	//	  holders:
-	//	    acme/admin: "${env:ADMIN_TOKEN}"
+	//	    acme/admin:
+	//	      token: "${env:ADMIN_TOKEN}"
 	//
 	// A Holder is named the way anything else names one: `<tenant>/<alias>`,
 	// or its identifier.
-	Holders map[string]string `yaml:"holders"`
+	Holders map[string]TokenConfig `yaml:"holders"`
 
 	// TTL is how long each of them is honoured for, counted from when the
 	// server started. Zero means they do not expire.
@@ -57,6 +60,53 @@ type BearerConfig struct {
 	// makes it different from a header or a certificate, and a sample that
 	// left it out would be a sample of the easy half.
 	TTL time.Duration `yaml:"ttl"`
+}
+
+// TokenConfig is one sample token: the secret, and what it may be used for.
+//
+// What it may be used for is an attenuation and never a widening -- it can only
+// take away from what the Holder it names could do. Saying nothing takes
+// nothing away, which is what a token with no attenuation is.
+type TokenConfig struct {
+	// Token is the secret itself.
+	Token string `yaml:"token"`
+
+	// Tenants narrows the token to these, by identifier. Saying none leaves it
+	// usable wherever the Holder may act.
+	//
+	// By identifier and not by alias, which is the sample showing its seams: a
+	// configuration file is read before anything is connected, so there is
+	// nothing to resolve an alias against. A real store is a table, where the
+	// identifier is what is there anyway.
+	Tenants []string `yaml:"tenants"`
+
+	// Actions narrows the token to these RPCs, by the name gRPC knows them by
+	// -- "/go_app.HolderService/Get". Saying none leaves it usable for every
+	// RPC the Holder may call.
+	Actions []string `yaml:"actions"`
+}
+
+// Grant is what this token allows of what its Holder allows.
+func (c TokenConfig) Grant() (frame.Grant, error) {
+	v := frame.Whole()
+	if len(c.Tenants) > 0 {
+		ks := make([]uuid.UUID, len(c.Tenants))
+		for i, t := range c.Tenants {
+			k, err := uuid.Parse(t)
+			if err != nil {
+				return frame.Grant{}, fmt.Errorf("tenants[%d]: %w", i, err)
+			}
+
+			ks[i] = k
+		}
+
+		v = v.In(ks...)
+	}
+	if len(c.Actions) > 0 {
+		v = v.To(c.Actions...)
+	}
+
+	return v, nil
 }
 
 // Store builds the sample token store.
@@ -68,8 +118,8 @@ func (c BearerConfig) Store(now time.Time) (auth.TokenStore, error) {
 		exp = now.Add(c.TTL)
 	}
 
-	for holder, token := range c.Holders {
-		if token == "" {
+	for holder, tc := range c.Holders {
+		if tc.Token == "" {
 			return nil, fmt.Errorf("bearer.holders[%q]: no token", holder)
 		}
 
@@ -78,7 +128,12 @@ func (c BearerConfig) Store(now time.Time) (auth.TokenStore, error) {
 			return nil, fmt.Errorf("bearer.holders: %w", err)
 		}
 
-		s.Add(token, ref, exp)
+		grant, err := tc.Grant()
+		if err != nil {
+			return nil, fmt.Errorf("bearer.holders[%q].%w", holder, err)
+		}
+
+		s.Add(tc.Token, ref, grant, exp)
 	}
 
 	return s, nil

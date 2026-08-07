@@ -44,7 +44,7 @@ func TestWithDriver(t *testing.T) {
 		x.ErrCode(codes.Unauthenticated, err)
 
 		// And another tenant's Holder is still not there to be seen.
-		as := frame.Into(ctx, frame.New(john))
+		as := frame.Into(ctx, frame.New(john, frame.Whole()))
 		_, err = s.Holder().Get(as, go_app.HolderGetById(p.erlich.GetId()))
 		x.ErrCode(codes.NotFound, err)
 

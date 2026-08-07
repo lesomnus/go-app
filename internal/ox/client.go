@@ -118,6 +118,13 @@ func (c *Client) AsHolder(ctx context.Context, v *go_app.Holder) context.Context
 	return auth.PlainProvider(auth.PlainOf(v)).Provide(ctx)
 }
 
+// AsBearer says the call comes with the given token, which is how a test
+// travels as a credential that allows less than its Holder does. Put one in
+// [Server.Tokens] first.
+func (c *Client) AsBearer(ctx context.Context, token string) context.Context {
+	return auth.BearerProvider(token).Provide(ctx)
+}
+
 // AsNobody says nothing about who is calling, which is what a caller that has
 // not authenticated looks like.
 func (c *Client) AsNobody(ctx context.Context) context.Context {

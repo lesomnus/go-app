@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	go_app "github.com/lesomnus/go-app/go_app"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // MethodPlain is what [Plain] calls itself.
@@ -45,7 +46,10 @@ func Plain() Handler {
 				return Identity{}, fmt.Errorf("%s: %w", PlainScheme, err)
 			}
 
-			return Identity{Method: MethodPlain, Ref: ref}, nil
+			// A header has nowhere to carry an attenuation, so it
+			// narrows nothing and says so rather than leaving the zero
+			// Grant, which allows nothing at all.
+			return Identity{Method: MethodPlain, Ref: ref, Grant: frame.Whole()}, nil
 		}
 
 		return Identity{}, ErrNoCredential

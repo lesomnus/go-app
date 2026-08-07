@@ -174,13 +174,14 @@ func TestTrail(t *testing.T) {
 
 		before := of(ctx, x, c, john.GetId())
 
-		// As somebody of another tenant, which the gate refuses.
+		// As somebody of another tenant, which the gate refuses -- as NotFound,
+		// since that hooli exists is not something john is told.
 		as := c.AsHolder(ctx, john)
 		_, err := c.Holder().Add(as, go_app.HolderAddRequest_builder{
 			Tenant: hooli.Ref(),
 			Alias:  "erlich",
 		}.Build())
-		x.ErrCode(codes.PermissionDenied, err)
+		x.ErrCode(codes.NotFound, err)
 
 		// Nothing was written, so nothing is on the trail: it is kept by what
 		// does the writing, not by what receives the request.

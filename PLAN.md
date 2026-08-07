@@ -278,7 +278,15 @@ stays marked as the part to rewrite.
 
 Not now, and not blocked by anything here.
 
-- Zanzibar-style permissions, above the wall rather than instead of it.
+- **Roles**, above the wall rather than instead of it. `gate.Policy` is the
+  seam and is unset: this app is a resource server, not an authorization
+  server. A real engine is a dependency an app takes, not one a template
+  imposes, so an integration belongs in a branch of its own.
+- Zanzibar-style relations, which is a different thing again and is only worth
+  it for permissions *derived* over a deep graph — nested teams, folder
+  inheritance. The dividing line is whether the grant can be a predicate in the
+  query: a row in this database can, a graph in another service cannot, and a
+  list depending on the second one breaks.
 - An outbox and a `Watch`, when there is something to consume them. Phase 0's
   second recorder is the room they need.
 - grpc-web, and the HTTP listener that brings `pprof` with it.
@@ -299,6 +307,7 @@ Not now, and not blocked by anything here.
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |
 | 4 validation and the doctrine | **done** | checks in Go beside the rule they belong to; `Patch`/`Apply` closed at the transport, off by default |
 | 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |
+| 6 attenuation | **done** | `frame.Grant`, met with the wall; `gate.Policy` defined and unset |
 
 Checked against a real PostgreSQL and not only the SQLite the tests run on:
 migrations applied to an empty database, the root Tenant put there before

@@ -125,11 +125,23 @@ func TestHolder(t *testing.T) {
 		p := setup(ctx, x, c)
 		ctx = c.AsHolder(ctx, p.john)
 
+		// NotFound rather than a refusal, which is the wall's rule everywhere
+		// else: that another Tenant exists is itself something not to say. It
+		// used to answer PermissionDenied here alone, which said "there is a
+		// hooli and it is not yours" to anyone who guessed the name.
 		_, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
 			Tenant: p.hooli.Ref(),
 			Alias:  "gilfoyle",
 		}.Build())
-		x.ErrCode(codes.PermissionDenied, err)
+		x.ErrCode(codes.NotFound, err)
+
+		// And a Tenant that is not there at all is the same answer, so the two
+		// cannot be told apart.
+		_, err = c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
+			Tenant: go_app.TenantByAlias("nobody"),
+			Alias:  "gilfoyle",
+		}.Build())
+		x.ErrCode(codes.NotFound, err)
 
 		_, err = c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
 			Tenant: p.acme.Ref(),

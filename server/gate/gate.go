@@ -64,12 +64,20 @@ func (builder) Build(next go_app.Server) (go_app.Server, error) {
 	return NewServer(next), nil
 }
 
+// errNotFound is what is answered about something the caller may not see -- that
+// it exists is itself something not to say -- and about something that is not
+// there, which is the point of the two being the same answer.
+//
+// Most of the time nothing here says it: what a caller may not see is a row the
+// query did not match, and the server that ran the query says so. This is for
+// the one place that asks about a row before writing a different one; see
+// [HolderServiceServer.Add].
+func errNotFound(what string) error {
+	return status.Errorf(codes.NotFound, "%s not found", what)
+}
+
 // errForbidden is for what the caller can see but may not do. Saying "no" here
 // gives nothing away that the caller does not already know.
-//
-// There is no errNotFound beside it any more. What a caller may not see is not
-// answered by this package at all: it is a row the query did not match, and
-// what says so is the server that ran the query. See [Wall].
 func errForbidden(what string) error {
 	return status.Errorf(codes.PermissionDenied, "not yours to %s", what)
 }

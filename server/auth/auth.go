@@ -25,13 +25,24 @@
 //
 // # What a credential says, and what it does not
 //
-// Every handler here answers the same question -- who is this -- and none of
-// them answers a second one: what may they do. A credential either names a
-// Holder or it does not; naming one grants everything that Holder can do. A
-// token that meant "john, but only for reading" would need somewhere to put
-// the "only", and there is nowhere: the frame of a request carries the
-// actor and nothing beside it, and every rule in `server/gate` reads the actor alone. If
-// that ever has to change, it changes there first and here second.
+// Every handler here answers the same question -- who is this. What a caller
+// may then do is `server/gate`'s, and this package has nothing to say about it.
+//
+// What a credential *can* say is that it should be able to do less than the
+// Holder it names. A token meaning "john, but only for reading" needs somewhere
+// to put the "only", and that is [frame.Grant]: a set of Tenants and a set of
+// methods, carried on the frame beside the actor and intersected with whatever
+// the gate decides. It is an attenuation and never a widening -- a token that
+// says "every tenant" held by somebody who may see one still sees one.
+//
+// Only [Bearer] can carry one, because only a token has anywhere to put it. A
+// header and a certificate name somebody and stop, so [Plain] and [MTLS]
+// answer [frame.Whole] and say so.
+//
+// What issues such a token, and who decided what it should be narrowed to, is
+// not here and should not be. This app reads credentials and enforces them; it
+// does not mint them. The store below is a sample of the shape, and a real one
+// is a table or an issuer.
 package auth
 
 import (
@@ -40,6 +51,7 @@ import (
 	"io"
 
 	go_app "github.com/lesomnus/go-app/go_app"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // ErrNoCredential is what a handler reports when the request carries nothing
@@ -74,6 +86,11 @@ type Identity struct {
 	Method string
 
 	Ref *go_app.HolderRef
+
+	// Grant is what this credential allows, which is at most what the Holder
+	// it names allows. A handler that reads a credential with nowhere to carry
+	// an attenuation answers [frame.Whole]; see [frame.Grant].
+	Grant frame.Grant
 }
 
 // Handler reads a claim out of the context a call is served with.

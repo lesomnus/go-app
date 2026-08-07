@@ -437,15 +437,82 @@ A new way of asking is a `Handler` and nothing else. The same boundary applies
 as for [whose trace it is](#whose-trace-is-it): behind a gateway that knows its
 callers, believing them is the point.
 
-### What a credential does not say
+### What a credential may say for itself
 
-Every handler answers who, and none of them answers what they may do. A
-credential either names a Holder or it does not, and naming one grants
-everything that Holder can do. A token meaning "john, but only for reading"
-would need somewhere to put the "only", and there is nowhere: the frame carries
-the actor and nothing beside it, and every rule in `server/gate` reads the actor
-alone. If that has to change, it changes there first and in `server/auth`
-second.
+Every handler answers who. What that caller may then do is `server/gate`'s, and
+a credential has nothing to say about it — **except that it should be able to do
+less**. A token meaning "john, but only for reading" needs somewhere to put the
+"only", and that is `frame.Grant`:
+
+```yaml
+acme/ci:
+  token: "${env:CI_TOKEN}"
+  tenants: ["018f2c...."]                 # or omitted: wherever the Holder may act
+  actions: [/go_app.HolderService/Get]    # or omitted: whatever the Holder may call
+```
+
+Two axes, each narrowed or not, which is the shape of a GitHub fine-grained
+token: a set of resources and a set of things that may be done to them.
+Deliberately not a map of one to the other — "write here, read there" — because
+a permission set that varies per resource is a policy, and a policy is not
+something a credential should carry around. GitHub does not do that either.
+
+- **It only ever takes away.** The wall runs as it always did and this is met
+  with the answer. A token naming every Tenant, held by somebody who may see
+  one, still sees one.
+- **The zero value allows nothing.** A store that answers with a `Grant` it
+  forgot to fill in hands out a credential that can do nothing, which somebody
+  notices at once; the other way round it hands out one that can do everything,
+  which nobody notices at all.
+- **Only `bearer` can carry one**, because only a token has anywhere to put it.
+  `plain` and `mtls` name somebody and stop, so they answer `frame.Whole()` and
+  say so.
+- **The action is checked once**, in the interceptor, before the handler. It is
+  not a rule about the caller — it is the credential saying it was not made for
+  this, which is a question about the request rather than about the row it was
+  going to touch.
+
+What issues such a token, and who decided what it should be narrowed to, is not
+here and should not be. **This app is a resource server, not an authorization
+server**: it reads credentials and enforces them; it does not mint them. The
+store in the configuration file is a sample of the shape, and a real one is a
+table or an issuer.
+
+### What a deployment may say about a caller
+
+Roles, and who is bound to them, are the same kind of thing one step up: dynamic,
+deployment-specific, and edited by something that is not this app.
+`gate.Policy` is the seam, and it is deliberately not implemented here:
+
+```go
+type Policy interface {
+	May(ctx context.Context, d Decision) error                                   // a point
+	Where(ctx context.Context, actor *go_app.Holder, action string) (Tenants, error)  // a set
+}
+```
+
+**Two questions because there are two.** `May` answers whether a call may happen
+at all, and is asked once, in front, so it must not need the row — a request may
+name one by an alias, and resolving that is a query in front of the query. Ask it
+about the *kind* of thing, which is what a method name already says. `Where`
+answers which Tenants a caller may act in, and it is a set because a list is not
+a boolean: asked for a boolean per row instead, a list has to fetch rows it may
+not answer with and drop them, which cannot be paged and which any Tenant can use
+to push another's rows out of an answer.
+
+**Unset by default, and that is not a placeholder.** A deployment with no
+`Policy` behaves exactly as this app always has. Nothing here takes a dependency
+on a running service; the interface is the seam, and an integration with a real
+engine belongs in a branch of its own — this repository already keeps
+[a branch per kind of app](.github/workflows/ci.yaml).
+
+**Ask it once per request.** The hooks `Wall()` installs run per *query*, and a
+request makes several. Whatever implements this is consulted in front and the
+answer is carried, the same way `server/auth` carries who the caller is rather
+than working it out again at each layer. The answer is a function of the actor
+and the method with nothing of the request in it, so it can be held as a snapshot
+and evaluated in process — which is what Kubernetes does with RBAC, and what
+makes an authorization service that is briefly unreachable not an outage.
 
 **May they do this?** `server/gate` decides, and it holds one rule: a Tenant is
 a wall.

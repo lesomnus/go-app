@@ -7,6 +7,8 @@ import (
 
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // MethodMTLS is what [MTLS] calls itself.
@@ -58,7 +60,10 @@ func MTLS() Handler {
 			return Identity{}, fmt.Errorf("%s: %w", MethodMTLS, err)
 		}
 
-		return Identity{Method: MethodMTLS, Ref: ref}, nil
+		// A certificate has nowhere to carry an attenuation, so it
+		// narrows nothing and says so rather than leaving the zero
+		// Grant, which allows nothing at all.
+		return Identity{Method: MethodMTLS, Ref: ref, Grant: frame.Whole()}, nil
 	})
 }
 

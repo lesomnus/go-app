@@ -18,6 +18,7 @@ import (
 
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/auth"
+	"github.com/lesomnus/go-app/server/frame"
 )
 
 // tlsState is a connection state with the given verified chains, and the given
@@ -137,7 +138,7 @@ func TestBearer(t *testing.T) {
 	store := func(t *testing.T) *auth.MemTokenStore {
 		t.Helper()
 		s := auth.NewMemTokenStore()
-		s.Add("s3cret", ref, time.Time{})
+		s.Add("s3cret", ref, frame.Whole(), time.Time{})
 		return s
 	}
 
@@ -190,7 +191,7 @@ func TestBearer(t *testing.T) {
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s := auth.NewMemTokenStore()
 		s.Now = func() time.Time { return at }
-		s.Add("s3cret", ref, at.Add(time.Hour))
+		s.Add("s3cret", ref, frame.Whole(), at.Add(time.Hour))
 
 		_, err := auth.Bearer(s).Handle(incoming("Bearer s3cret"))
 		x.NoError(err)
@@ -208,7 +209,7 @@ func TestBearer(t *testing.T) {
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s := auth.NewMemTokenStore()
 		s.Now = func() time.Time { return at.Add(time.Hour) }
-		s.Add("was-real", ref, at)
+		s.Add("was-real", ref, frame.Whole(), at)
 
 		_, expired := auth.Bearer(s).Handle(incoming("Bearer was-real"))
 		_, unknown := auth.Bearer(s).Handle(incoming("Bearer never-was"))
@@ -222,15 +223,15 @@ func TestBearer(t *testing.T) {
 	t.Run("only unavailable is passed on", func(t *testing.T) {
 		x := require.New(t)
 
-		chatty := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, error) {
-			return nil, fmt.Errorf("row 41 of tokens: revoked by admin on tuesday")
+		chatty := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
+			return nil, frame.Grant{}, fmt.Errorf("row 41 of tokens: revoked by admin on tuesday")
 		})
 		_, err := auth.Bearer(chatty).Handle(incoming("Bearer s3cret"))
 		x.ErrorIs(err, auth.ErrUnknownToken)
 		x.NotContains(err.Error(), "tuesday")
 
-		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, error) {
-			return nil, fmt.Errorf("dial tcp: %w", auth.ErrUnavailable)
+		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
+			return nil, frame.Grant{}, fmt.Errorf("dial tcp: %w", auth.ErrUnavailable)
 		})
 		_, err = auth.Bearer(down).Handle(incoming("Bearer s3cret"))
 		x.ErrorIs(err, auth.ErrUnavailable)
@@ -251,8 +252,8 @@ func TestBearer(t *testing.T) {
 	t.Run("a store that cannot answer says so", func(t *testing.T) {
 		x := require.New(t)
 
-		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, error) {
-			return nil, auth.ErrUnavailable
+		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
+			return nil, frame.Grant{}, auth.ErrUnavailable
 		})
 
 		_, err := auth.Bearer(down).Handle(incoming("Bearer s3cret"))
@@ -280,7 +281,7 @@ func TestSeq(t *testing.T) {
 	}
 
 	good := auth.NewMemTokenStore()
-	good.Add("s3cret", ref, time.Time{})
+	good.Add("s3cret", ref, frame.Whole(), time.Time{})
 
 	t.Run("the token answers when there is one", func(t *testing.T) {
 		x := require.New(t)
@@ -313,8 +314,8 @@ func TestSeq(t *testing.T) {
 	t.Run("a store that is down does not fall through either", func(t *testing.T) {
 		x := require.New(t)
 
-		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, error) {
-			return nil, auth.ErrUnavailable
+		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
+			return nil, frame.Grant{}, auth.ErrUnavailable
 		})
 
 		_, err := fallback(down).Handle(with("Bearer s3cret"))

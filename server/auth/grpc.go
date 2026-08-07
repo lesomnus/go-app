@@ -58,7 +58,18 @@ func Interceptor(h Handler, r Resolver, public Public) []grpc.ServerOption {
 					slog.String("actor.tenant", actor.GetTenant().GetAlias()),
 				)
 
-				return frame.Into(ctx, frame.New(actor)), nil
+				// What the credential allows is checked here, once, and not
+				// by whatever is about to run. It is not a rule about the
+				// caller -- `server/gate` holds those, and this narrows
+				// whatever it decides -- it is the credential saying it was
+				// not made for this, which is a question about the request
+				// and not about the row it is going to touch.
+				if !id.Grant.Allows(method) {
+					return nil, status.Errorf(codes.PermissionDenied,
+						"%s: this credential is not for that", method)
+				}
+
+				return frame.Into(ctx, frame.New(actor, id.Grant)), nil
 			}
 
 			// Fall through: somebody said something and it did not name anyone

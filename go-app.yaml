@@ -68,7 +68,22 @@ auth:
   # bearer:
   #   ttl: 24h
   #   holders:
-  #     acme/admin: "a-secret-nobody-else-knows"
+  #     acme/admin:
+  #       token: "a-secret-nobody-else-knows"
+  #
+  #     # A token may allow less than the Holder it names, and never more. Say
+  #     # nothing and it allows whatever they do; say either of these and it is
+  #     # narrowed to it. This is the shape of a GitHub fine-grained token: a
+  #     # set of resources and a set of things that may be done to them.
+  #     acme/ci:
+  #       token: "a-different-secret"
+  #       # By identifier, because a configuration file is read before anything
+  #       # is connected and there is nothing to resolve an alias against. A
+  #       # real store is a table, where the identifier is there anyway.
+  #       tenants: ["018f2c...-....-....-....-............"]
+  #       actions:
+  #         - /go_app.HolderService/Get
+  #         - /go_app.HolderService/List
 
 # Database used by the gRPC services (used by the `serve` subcommand).
 db:

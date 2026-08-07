@@ -28,7 +28,7 @@ func TestAuthMethods(t *testing.T) {
 		c := config.AuthConfig{
 			Methods: []string{"bearer", "plain"},
 			Bearer: config.BearerConfig{
-				Holders: map[string]string{"acme/admin": "s3cret"},
+				Holders: map[string]config.TokenConfig{"acme/admin": {Token: "s3cret"}},
 			},
 		}
 
@@ -82,12 +82,12 @@ func TestBearerConfig(t *testing.T) {
 		x := require.New(t)
 
 		_, err := config.BearerConfig{
-			Holders: map[string]string{"Acme Corporation": "s3cret"},
+			Holders: map[string]config.TokenConfig{"Acme Corporation": {Token: "s3cret"}},
 		}.Store(time.Now())
 		x.Error(err)
 
 		_, err = config.BearerConfig{
-			Holders: map[string]string{"acme/admin": ""},
+			Holders: map[string]config.TokenConfig{"acme/admin": {Token: ""}},
 		}.Store(time.Now())
 		x.ErrorContains(err, "no token")
 	})
@@ -97,7 +97,7 @@ func TestBearerConfig(t *testing.T) {
 
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s, err := config.BearerConfig{
-			Holders: map[string]string{"acme/admin": "s3cret"},
+			Holders: map[string]config.TokenConfig{"acme/admin": {Token: "s3cret"}},
 			TTL:     time.Hour,
 		}.Store(at)
 		x.NoError(err)
@@ -106,12 +106,12 @@ func TestBearerConfig(t *testing.T) {
 		x.True(ok)
 
 		mem.Now = func() time.Time { return at.Add(30 * time.Minute) }
-		v, err := mem.Lookup(t.Context(), "s3cret")
+		v, _, err := mem.Lookup(t.Context(), "s3cret")
 		x.NoError(err)
 		x.Equal(ref.GetSlug().GetAlias(), v.GetSlug().GetAlias())
 
 		mem.Now = func() time.Time { return at.Add(2 * time.Hour) }
-		_, err = mem.Lookup(t.Context(), "s3cret")
+		_, _, err = mem.Lookup(t.Context(), "s3cret")
 		x.ErrorIs(err, auth.ErrUnknownToken)
 	})
 
@@ -120,13 +120,13 @@ func TestBearerConfig(t *testing.T) {
 
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s, err := config.BearerConfig{
-			Holders: map[string]string{"acme/admin": "s3cret"},
+			Holders: map[string]config.TokenConfig{"acme/admin": {Token: "s3cret"}},
 		}.Store(at)
 		x.NoError(err)
 
 		mem := s.(*auth.MemTokenStore)
 		mem.Now = func() time.Time { return at.AddDate(10, 0, 0) }
-		_, err = mem.Lookup(t.Context(), "s3cret")
+		_, _, err = mem.Lookup(t.Context(), "s3cret")
 		x.NoError(err)
 	})
 }
