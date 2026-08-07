@@ -14,6 +14,7 @@ import (
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/gate"
+	"github.com/lesomnus/go-app/server/watch"
 	"github.com/lesomnus/otx/log"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
@@ -83,18 +84,37 @@ func NewCmdServe() *xli.Command {
 			// predicate belongs in the WHERE (`server/gate`).
 			rec := audit.NewRecorder()
 
+			// And the other end of the same hook: what a call changed, told to
+			// whoever is listening once the call has answered.
+			//
+			// Nothing in this binary listens. An app made from this template
+			// subscribes here --
+			//
+			//	c, stop := events.Subscribe(64)
+			//	go func() {
+			//		defer stop()
+			//		for v := range c { ... }
+			//	}()
+			//
+			// -- or deletes both of these. See `server/watch`.
+			events := watch.Signal()
+			wat := watch.New(events)
+
 			// `sink` has no wall, and the two things below are why. Working out
 			// who is calling happens before there is anybody to be walled by,
 			// and the root Tenant is put there before anybody exists at all.
 			// Going around the wall is a wiring decision that should be
 			// readable in one place rather than a rule that quietly opens up
 			// whenever nobody is asking.
-			sink, err := bare.NewServer(db.Client, bare.WithRecorder(rec))
+			sink, err := bare.NewServer(db.Client, bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()))
 			if err != nil {
 				return z.Err(err, "build the server that talks to the database")
 			}
 
-			walled, err := bare.NewServer(db.Client, bare.WithRecorder(rec), bare.WithScope(gate.Wall()))
+			walled, err := bare.NewServer(db.Client,
+				bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()),
+				bare.WithScope(gate.Wall()),
+			)
 			if err != nil {
 				return z.Err(err, "build the server that talks to the database")
 			}
@@ -129,6 +149,9 @@ func NewCmdServe() *xli.Command {
 			// Nothing is injected here, so the wall is what this app has always
 			// shown; see `gate.Policy`.
 			opts = append(opts, gate.Interceptor(nil)...)
+			// Outside the handler and inside everything that could refuse the
+			// call, so that what is published is what was served.
+			opts = append(opts, wat.Interceptor()...)
 			opts = append(opts, grpcx.Closed(c.Server.Closed())...)
 			opts = append(opts, grpc.Creds(creds))
 

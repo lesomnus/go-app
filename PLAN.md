@@ -315,8 +315,12 @@ Not now, and not blocked by anything here.
   inheritance. The dividing line is whether the grant can be a predicate in the
   query: a row in this database can, a graph in another service cannot, and a
   list depending on the second one breaks.
-- An outbox and a `Watch`, when there is something to consume them. Phase 0's
-  second recorder is the room they need.
+- An outbox, and a `Watch` RPC to serve what `server/watch` publishes. The
+  publishing half is done: Phase 0's second recorder turned out to be exactly
+  the room it needed, and what was left was deciding *when* — which is not
+  inside the transaction, where the trail is written, but after the handler has
+  answered. What is not done is durability (an event lost in a crash is lost)
+  and a way for a client to ask for the stream.
 - grpc-web, and the HTTP listener that brings `pprof` with it.
 - **A quota**, as opposed to the rate limit that is done (Phase 8): a budget
   over a window that somebody is billed against. It is not a smaller version of

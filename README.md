@@ -133,6 +133,9 @@ stacked on top of each other:
   itself only refuses the RPCs that would write the trail by hand; the writing
   is done from inside the generated servers. See
   [What was changed, and by whom](#what-was-changed-and-by-whom).
+- `server/watch` is the other end of the same hook: it publishes what a call
+  changed, once the call has answered. It is not a layer at all. See
+  [Telling somebody what changed](#telling-somebody-what-changed).
 - `server/gate` says what the caller of a request may do with it. It is the
   outermost one, so nothing behind it has to ask again — though not everything
   it says is *enforced* there: the Tenant wall is stated in `gate` and enforced
@@ -475,6 +478,42 @@ answers to, and nothing says what it used to be. Which is why a Holder is
 [erased softly](#erasing-a-holder-and-erasing-a-tenant): the trail names one on
 every row it writes, and a Holder who left should not turn the answer to "who
 did this" into an identifier and a shrug.
+
+### Telling somebody what changed
+
+`server/watch` hangs off the same `bare.Recorder` hook the trail does, and wants
+the opposite thing from that moment. A trail row has to hold or fall **with** the
+write, so it is written inside the transaction. An event has to be published only
+if the write **survived**, so nothing is published there at all: the recorder
+remembers, and an interceptor publishes once the handler has answered without an
+error — by which time every transaction the call opened is committed or gone.
+
+```go
+events := watch.Signal()
+wat := watch.New(events)
+
+sink, err := bare.NewServer(db, bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()))
+opts = append(opts, wat.Interceptor()...)
+
+c, stop := events.Subscribe(64)   // whoever is listening
+```
+
+One event per call that changed something, carrying who, the RPC they asked for,
+the request, the response, and every write the call made — which is more than the
+response says, since adding a Tenant writes the admin Holder that comes with it.
+A read publishes nothing.
+
+It is a [hard signal](https://github.com/lesomnus/signals): a subscriber that is
+not keeping up has its channel **closed**. That is the only one of the three
+choices that is safe here — waiting on the slowest watcher turns a slow consumer
+into a slow server, and skipping an event in silence leaves a watcher believing
+it has seen everything. Being cut off is something a client can notice and act
+on.
+
+**It is not an outbox**, and the difference matters before anything is built on
+it: an event is published in this process, to whoever is listening in this
+process, and a crash between the commit and the dispatch loses it. Something that
+must not be lost is written in the transaction, as a row somebody else picks up.
 
 **The trail is the actor's, not the object's.** A row is stamped with the Tenant
 the caller was held by, and nothing moves it afterwards. Two things follow, and

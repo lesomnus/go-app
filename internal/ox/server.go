@@ -23,6 +23,8 @@ import (
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/gate"
+	"github.com/lesomnus/go-app/server/watch"
+	"github.com/lesomnus/signals"
 )
 
 // Server is the app under test, backed by a database that lives in memory and
@@ -71,6 +73,14 @@ type Server struct {
 	// writes a rate down. Set it before making the client that should meet it.
 	Limit grpcx.Limiter
 
+	// Events is what a call that changed something is published to, so that a
+	// test can subscribe and see what a watcher would. It is installed the way
+	// `cmd/serve.go` installs it, and nothing listens unless a test does.
+	Events signals.Signal[watch.Event]
+
+	// watch is the recorder-and-interceptor pair [Server.Events] is fed by.
+	watch *watch.Watch
+
 	go_app.Server
 }
 
@@ -96,12 +106,20 @@ func NewServer(tb testing.TB) *Server {
 	// behind them.
 	rec := audit.NewRecorder()
 
+	// And what a call that changed something is published to, the way the app
+	// installs it; see cmd/serve.go.
+	events := watch.Signal()
+	wat := watch.New(events)
+
 	// Without the wall, which is what works out who is calling and what puts
 	// the root Tenant there before anybody exists; see cmd/serve.go.
-	sink, err := bare.NewServer(c, bare.WithRecorder(rec))
+	sink, err := bare.NewServer(c, bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()))
 	x.NoError(err)
 
-	walled, err := bare.NewServer(c, bare.WithRecorder(rec), bare.WithScope(gate.Wall()))
+	walled, err := bare.NewServer(c,
+		bare.WithRecorder(rec), bare.WithRecorder(wat.Recorder()),
+		bare.WithScope(gate.Wall()),
+	)
 	x.NoError(err)
 
 	v, err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
@@ -125,6 +143,8 @@ func NewServer(tb testing.TB) *Server {
 		log: logger(tb),
 
 		Tokens: auth.NewMemTokenStore(),
+		Events: events,
+		watch:  wat,
 
 		Db:      c,
 		Root:    root,
@@ -174,9 +194,10 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 		auth.PublicDefault,
 	)...)
 	// And behind it, in the order the app installs them: how often that caller
-	// may call, and then what they may see.
+	// may call, what they may see, and what is said about what they changed.
 	opts = append(opts, grpcx.Limit(s.Limit, gate.ByTenant())...)
 	opts = append(opts, gate.Interceptor(s.Policy)...)
+	opts = append(opts, s.watch.Interceptor()...)
 	opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 
 	g := grpc.NewServer(opts...)
