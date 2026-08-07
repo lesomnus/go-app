@@ -29,10 +29,10 @@ func TestRoleAllows(t *testing.T) {
 
 	// A whole service, which is the shape a role usually wants: naming every
 	// RPC of one is a list that goes stale the day an RPC is added.
-	svc := roles.Role{Actions: []string{"/go_app.HolderService/*"}}
-	x.True(svc.Allows(get))
-	x.True(svc.Allows(patch))
-	x.False(svc.Allows(go_app.TenantService_Get_FullMethodName))
+	whole := roles.Role{Actions: []string{"/go_app.HolderService/*"}}
+	x.True(whole.Allows(get))
+	x.True(whole.Allows(patch))
+	x.False(whole.Allows(go_app.TenantService_Get_FullMethodName))
 
 	// And it matches the whole service name, so one that merely starts the same
 	// way is a different service.

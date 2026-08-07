@@ -15,15 +15,25 @@ CURRENT_APP_UPPER="GO_APP"
 CURRENT_APP_SNAKE="go_app" # proto package name and its directory (proto/go_app, proto.svc/go_app)
 
 usage() {
-	echo "Usage: $0 <module-path> [app-name]"
+	echo "Usage: $0 [--no-generate] <module-path> [app-name]"
 	echo ""
-	echo "  module-path  New Go module path (e.g. github.com/my-org/my-app)"
-	echo "  app-name     Binary/service name (default: last segment of module-path)"
+	echo "  module-path   New Go module path (e.g. github.com/my-org/my-app)"
+	echo "  app-name      Binary/service name (default: last segment of module-path)"
+	echo ""
+	echo "  --no-generate  Rename only. THE TREE WILL NOT RUN until the code"
+	echo "                 generation below has been run by hand -- see the note"
+	echo "                 where this script does it."
 	echo ""
 	echo "Example:"
 	echo "  $0 github.com/acme/my-service"
 	echo "  $0 github.com/acme/my-service svc"
 }
+
+GENERATE=1
+if [ "${1:-}" = "--no-generate" ]; then
+	GENERATE=0
+	shift
+fi
 
 if [ $# -lt 1 ]; then
 	usage >&2
@@ -60,6 +70,7 @@ _find_files() {
 		-o -name "*.yaml"   \
 		-o -name "*.hcl"    \
 		-o -name "*.json"   \
+		-o -name "*.md"     \
 		-o -name "Dockerfile"     \
 		-o -name "Dockerfile.*"   \
 		-o -name ".dockerignore"  \
@@ -102,6 +113,51 @@ if [ "$CURRENT_APP_SNAKE" != "$APP_NAME_SNAKE" ]; then
 	done < <(find "$__root" -depth -type d -name "$CURRENT_APP_SNAKE" -print0)
 fi
 
+# 8. Generate everything that is generated, again.
+#
+# This is not a convenience. The substitutions above rewrote the *.pb.go files
+# too, and a compiled protobuf descriptor is a length-prefixed byte string with
+# the proto package name inside it -- so replacing `go_app` with a name of a
+# different length leaves a descriptor whose prefixes say the old lengths. The
+# result compiles and panics on the first init, with a slice bounds error a long
+# way from anything anybody wrote.
+#
+# So the generated files are made again from the sources, which are text and
+# were rewritten correctly. Nothing here is optional; `--no-generate` exists for
+# somebody who has to run these later or elsewhere, and leaves a tree that does
+# not run until they do.
+if [ "$GENERATE" -eq 1 ]; then
+	echo ""
+	echo "Generating..."
+
+	if ! (
+		cd "$__root" &&
+			buf generate --template buf.gen.svc.yaml &&
+			"$__dir/gen-service.sh" &&
+			"$__dir/gen-go.sh" &&
+			"$__dir/gen-ent.sh"
+	); then
+		echo "" >&2
+		echo "The renaming is done and the code generation is not." >&2
+		echo "The tree will not run until these have: " >&2
+		echo "  buf generate --template buf.gen.svc.yaml" >&2
+		echo "  ./scripts/gen-service.sh" >&2
+		echo "  ./scripts/gen-go.sh" >&2
+		echo "  ./scripts/gen-ent.sh" >&2
+		exit 1
+	fi
+
+	# And the check that the whole of the above worked, which is worth the few
+	# seconds: the failure this catches is one that only shows up at run time.
+	echo ""
+	echo "Building..."
+	(cd "$__root" && go build ./...)
+fi
+
 echo ""
 echo "Done."
-echo "Next: cd $__root && go mod tidy"
+if [ "$GENERATE" -eq 1 ]; then
+	echo "Next: cd $__root && go test ./..."
+else
+	echo "Next: the four generation steps above, then go build ./..."
+fi

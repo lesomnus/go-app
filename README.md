@@ -5,7 +5,10 @@ My flavor of "Hello, World!" for Go app.
 ## Quick Start
 
 ```sh
-# Replace all occurrences of "github.com/lesomnus/go-app" with your own module path.
+# Rename the template to your own: the module path, the proto package and its
+# directories, the binary, the config file and the `GO_APP_` environment prefix.
+# It then generates everything that is generated, again -- see below for why
+# that is not optional.
 $ ./scripts/init.sh github.com/your-name/your-app
 
 # Build and test the app.
@@ -18,6 +21,18 @@ $ docker run --rm ghcr.io/lesomnus/go-app:local greet
 > |........| 19:08:03.037 ○ 000000 000000 use default config
 > Hello, hypnos!
 ```
+
+`init.sh` regenerates rather than leaving the generated files it just rewrote,
+and that is load-bearing: a compiled protobuf descriptor is a length-prefixed
+byte string with the proto package name inside it, so replacing `go_app` with a
+name of a different length leaves one whose prefixes say the old lengths. It
+compiles, and panics on the first init with a slice bounds error a long way from
+anything anybody wrote. `--no-generate` skips it for somebody who has to run the
+generation elsewhere, and says so.
+
+One thing it cannot do for you: the app name becomes the alias of the message
+package (`go_app` here), so a local variable of that name shadows it. Pick a
+name and `go build ./...` will say if you picked one this repository uses.
 
 ## Configuration
 
