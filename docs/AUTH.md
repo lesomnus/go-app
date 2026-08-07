@@ -294,6 +294,45 @@ Nothing here takes a dependency on a running service; the interface is the seam,
 and an integration with a real engine belongs in a branch of its own — this
 repository already keeps a branch per kind of app.
 
+### `server/gate/roles` — what one looks like
+
+A sample implementation, and nothing wires it in. It answers out of a table of
+roles and bindings, held in memory and swapped whole:
+
+```go
+p, err := roles.New(roles.Table{
+	Roles: map[string]roles.Role{
+		"reader": {Actions: []string{"/go_app.HolderService/Get"}},
+		"admin":  {Actions: []string{"/go_app.HolderService/*"}},
+	},
+	Bindings: []roles.Binding{
+		{Holder: john, Role: "reader"},                         // in his own Tenant
+		{Holder: ci, Role: "reader", Tenants: []uuid.UUID{acme}}, // and in acme
+	},
+})
+opts = append(opts, gate.Interceptor(p)...)
+p.Store(next)   // whenever the engine that produces the table says so
+```
+
+Three things it is there to show:
+
+- **A binding that names no Tenant is the wall**, said in the table's words. So
+  a table of those behaves exactly like no policy at all, and the step from one
+  to the other is small.
+- **`Where` replaces the wall, it does not add to it.** A binding that names
+  `acme` is a caller who has left their own Tenant behind — a table that means
+  "and their own" has to say so. It is the trap, and it has a test.
+- **The table is a snapshot.** `Store` swaps it and no request ever waits on
+  anything, which is the property that makes the seam usable: a request answered
+  from the last table that arrived is a request answered while the engine that
+  produces them is down.
+
+`Binding.Everywhere` answers `frame.Everything`, and is the only thing in this
+repository that does. It is the superuser this app deliberately does not
+have — put back, if a deployment writes it, in a table it can edit and revoke
+rather than as a comparison against a row anybody can find. What the deployment
+does for *itself* still wants the ungated stack.
+
 **It is asked once per request**, which is why it is an interceptor rather than
 something the wall consults. The hooks `Wall()` installs run per *query*, and a
 request makes several — a `Get` that also asks for the Tenant runs two. The

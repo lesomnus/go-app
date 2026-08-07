@@ -386,7 +386,7 @@ The short of it:
 | --- | --- | --- |
 | **Who is this?** | `server/auth` | A `Handler` reads a claim, a `Resolver` looks it up. What comes back is a Holder read from the database, not one the caller described. `plain`, `mtls` and `bearer` differ in one thing: where the name comes from. |
 | **...and what did the credential allow?** | `frame.Grant` | A token may allow *less* than the Holder it names — a set of Tenants and a set of methods, the shape of a GitHub fine-grained token. Never more. |
-| **What may they see?** | `gate.Policy`, or the wall | Worked out once, in an interceptor, and carried on the frame. A deployment injects a policy or it does not; unset is the Tenant wall this app has always had. |
+| **What may they see?** | `gate.Policy`, or the wall | Worked out once, in an interceptor, and carried on the frame. A deployment injects a policy or it does not; unset is the Tenant wall this app has always had. `server/gate/roles` is a reference implementation, and nothing wires it in. |
 | **Which rows, exactly?** | `gate.Wall()` | A predicate in every query the generated servers build. Narrowing is not refusing: a row out of the wall is a row the query does not match, so it is `NotFound`. |
 
 All three answers ride on `server/frame`, worked out once each and read by

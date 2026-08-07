@@ -307,6 +307,9 @@ Not now, and not blocked by anything here.
   seam and is unset: this app is a resource server, not an authorization
   server. A real engine is a dependency an app takes, not one a template
   imposes, so an integration belongs in a branch of its own.
+  `server/gate/roles` is a reference implementation — a table of roles and
+  bindings, held as a snapshot and swapped whole — so that the seam has
+  something to read and something to test against. Nothing wires it in.
 - Zanzibar-style relations, which is a different thing again and is only worth
   it for permissions *derived* over a deep graph — nested teams, folder
   inheritance. The dividing line is whether the grant can be a predicate in the
