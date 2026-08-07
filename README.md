@@ -115,6 +115,37 @@ rewrites the imports of the module root accordingly; override `PKG_DIR` and
 The ent package must remain below the message package, since that is how the
 generated servers spell its import path (`ent.namer` in `buf.gen.yaml`).
 
+### What a layer does when nobody asked
+
+A request is not the only reason a server does something: rows have to be swept,
+caches warmed, leases renewed. `server/spin` is where a layer says so.
+
+```go
+func (s Server) Spin(ctx context.Context) error {
+	return spin.Every(time.Hour, func(ctx context.Context) error {
+		// through this layer's own servers, so its rules apply
+		return sweep(ctx, s.Next())
+	})(ctx)
+}
+```
+
+`spin.All(ctx, s)` walks the stack and starts whatever answers to
+`spin.Spinner`, so **a layer with no background work writes not one line**. That
+is the ordinary `Find` answer rather than the `enttx.Binder` exception: starting
+a layer that has nothing to start is nothing, and skipping one loses nothing —
+where a rebind that skipped a layer would leave it out of the stack.
+
+A loop that returns an error is logged and started again after `spin.Retry`; one
+that returns nil has finished. Neither takes the process down, which is the
+conservative half of a real trade — a sweep that failed once because the
+database blinked should not stop the server, and one that has been failing for
+an hour is a thing nobody notices. A deployment that would rather fall over says
+so by having its loop do it.
+
+**Nothing in this app spins.** The obvious candidate — sweeping Holders that
+were erased long enough ago — is a retention policy, and picking a number is the
+deployment's, not the template's.
+
 ## Servers
 
 A server is a `go_app.Server`, which is no more than a set of the service

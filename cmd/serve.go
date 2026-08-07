@@ -14,6 +14,7 @@ import (
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/gate"
+	"github.com/lesomnus/go-app/server/spin"
 	"github.com/lesomnus/go-app/server/watch"
 	"github.com/lesomnus/otx/log"
 	"github.com/lesomnus/xli"
@@ -126,6 +127,16 @@ func NewCmdServe() *xli.Command {
 			if err != nil {
 				return z.Err(err, "build server")
 			}
+
+			// What the layers have to do besides answering requests, started
+			// before anything is served and stopped before the process goes.
+			// Nothing in this app spins; see `server/spin`.
+			spun := make(chan struct{})
+			defer func() { cancel(); <-spun }()
+			go func() {
+				defer close(spun)
+				spin.All(ctx, s)
+			}()
 
 			// Before anything is served, and around the gate rather than
 			// through it: there is nobody to be yet.

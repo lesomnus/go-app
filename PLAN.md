@@ -299,6 +299,22 @@ Three things that had to be decided rather than looked up:
   the keys here are the Tenants. A key a caller can invent needs something that
   forgets by size.
 
+### Phase 9 — the seams
+
+Three things a boilerplate is asked for, each of them a seam this app declines
+to fill in:
+
+- **`server/gate/roles`** — a reference `gate.Policy`, and nothing wires it in.
+- **`server/watch`** — what a call changed, published once it has, and served
+  as `Watch` on each entity. State and never a delta, so a client converges.
+- **`server/spin`** — what a layer does when nobody asked. A `Find`-style
+  question of the stack rather than a method on it, since starting a layer that
+  has nothing to start is nothing.
+
+What they have in common is what makes them seams rather than features: each
+is off, empty or unused by default, and a deployment that says nothing is
+served exactly the app it was served before.
+
 ### Later
 
 Not now, and not blocked by anything here.
