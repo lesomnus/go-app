@@ -66,6 +66,11 @@ type Server struct {
 	// gets. Set it before making the client that should see it.
 	Policy gate.Policy
 
+	// Limit is how often one caller may call, and is nothing unless a test says
+	// otherwise -- which is also what `go-app.yaml` says unless a deployment
+	// writes a rate down. Set it before making the client that should meet it.
+	Limit grpcx.Limiter
+
 	go_app.Server
 }
 
@@ -168,7 +173,9 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 		auth.ServerResolver(s.Sink),
 		auth.PublicDefault,
 	)...)
-	// And behind it, what works out what the caller may see.
+	// And behind it, in the order the app installs them: how often that caller
+	// may call, and then what they may see.
+	opts = append(opts, grpcx.Limit(s.Limit, gate.ByTenant())...)
 	opts = append(opts, gate.Interceptor(s.Policy)...)
 	opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 

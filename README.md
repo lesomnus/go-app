@@ -609,6 +609,49 @@ answer is worth waiting for — and what is capped is only the absence of that.
 `server.timeout` says how long; zero, written down, caps nothing. Streams are
 not capped at all, since a stream is long-lived by design.
 
+### How much one caller may ask for
+
+`server.limit.rate` is calls a second, and `server.limit.burst` is how many may
+arrive at once before the rate is what is left. It is **off** unless a rate is
+written down, which is a decision rather than an oversight: a deadline can be
+defaulted because a wrong one costs a call, and a rate cannot — a number a
+template picked is a number nobody measured, and what it refuses is real traffic
+on the day the app is busiest.
+
+**Counted against the Tenant** (`gate.ByTenant`), not the Holder and not the
+credential. A Tenant makes as many of those as it likes, so counting either
+would be a limit anybody could raise by asking for another one. The limit is
+installed behind the authentication, since the key is about who is calling, and
+in front of `gate.Interceptor`, since consulting a policy is work a caller past
+their line should not be able to ask for.
+
+A call over the line is `ResourceExhausted` and carries `RetryInfo` saying how
+long to wait, because a refusal a client cannot time is a client that asks again
+at once — which is the traffic the limit was for. It is not `PermissionDenied`:
+nothing about what the caller may do has changed, and the same call a moment
+later is served.
+
+Three things it is worth knowing before choosing a number:
+
+- **It counts in this process.** Three replicas are three buckets, so a rate of
+  20 is 60 to whoever a load balancer spreads around, and which replica a call
+  lands on is nobody's decision. That is fine for what a limit like this is
+  usually for — keeping one caller from taking a whole process — and wrong for a
+  quota somebody is billed against, which has to be counted somewhere every
+  process can see. `grpcx.Limiter` is the seam for that, the way `gate.Policy`
+  is the seam for authorization.
+- **It is behind the authentication, so it does not protect it.** A flood of
+  calls that never authenticate is refused by `server/auth`, after it has looked
+  the credential up. Keying on an address instead would be either the load
+  balancer's address, which is one bucket for everybody, or a NAT's, which is one
+  bucket for a company — so that job belongs to the layer in front. What is here
+  for connection-level abuse is `server.max_concurrent_streams` and the
+  keepalive `min_time`, which hangs up on a client that pings too often.
+- **A call is the unit.** A `List` of a thousand rows costs what a `Get` costs.
+  Weighing them would mean a price a caller cannot see, on a cost that is only
+  known after the call ran; what is here instead is a finer key — put the method
+  in it and a `List` comes out of a bucket of its own.
+
 ### Which health question is being asked
 
 Health is answered under two names, because a liveness probe and a readiness

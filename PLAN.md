@@ -275,6 +275,30 @@ than the page is read, so a full last page answers with no cursor rather than
 sending the caller back for an empty one. The filtering stays hand-written and
 stays marked as the part to rewrite.
 
+### Phase 8 — how much one caller may ask for
+
+A token bucket per caller, in front of the layers that decide what a caller may
+see. `grpcx.Limit` counts, `gate.ByTenant` says what is counted, and
+`server.limit.rate` says how much — off unless it is written down.
+
+Three things that had to be decided rather than looked up:
+
+- **What the key is.** The Tenant, and not the Holder or the credential: a
+  Tenant makes as many of either as it likes, so counting one of those is a
+  limit anybody can raise by asking for another one. The other direction — one
+  runaway client inside a Tenant starving the rest of it — is a second key, not
+  a different one.
+- **What the refusal says.** `ResourceExhausted` with `RetryInfo`, since a
+  refusal a client cannot time is a client that asks again immediately, which is
+  the traffic the limit was for. Not `PermissionDenied`: nothing about what the
+  caller may do changed.
+- **What keeps the map bounded.** A full bucket answers exactly the way a bucket
+  that was never made does, so a key that has gone quiet can be forgotten
+  without changing an answer. That is what makes it a map of the keys that are
+  *behind* rather than of every key ever seen — and it is only enough because
+  the keys here are the Tenants. A key a caller can invent needs something that
+  forgets by size.
+
 ### Later
 
 Not now, and not blocked by anything here.
@@ -291,8 +315,11 @@ Not now, and not blocked by anything here.
 - An outbox and a `Watch`, when there is something to consume them. Phase 0's
   second recorder is the room they need.
 - grpc-web, and the HTTP listener that brings `pprof` with it.
-- Rate limiting and per-Tenant quotas, which want Phase 2.1's scope to exist
-  first.
+- **A quota**, as opposed to the rate limit that is done (Phase 8): a budget
+  over a window that somebody is billed against. It is not a smaller version of
+  the same thing — it has to be counted somewhere every process can see, which
+  is a store this template would be imposing. `grpcx.Limiter` is the seam, the
+  same way `gate.Policy` is.
 
 ## Progress
 
@@ -310,6 +337,7 @@ Not now, and not blocked by anything here.
 | 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |
 | 6 attenuation | **done** | `frame.Grant`, met with the wall; `gate.Policy` defined and unset |
 | 7 no superuser | **done** | the root comparison is gone; going around the wall is a server instance, not an identity |
+| 8 rate limit | **done** | `grpcx.Limit` and `grpcx.MemLimiter`, keyed by `gate.ByTenant`; off unless `server.limit.rate` says otherwise |
 
 Checked against a real PostgreSQL and not only the SQLite the tests run on:
 migrations applied to an empty database, the root Tenant put there before
@@ -347,6 +375,12 @@ Worth keeping, since the errors were in the reasoning rather than in the code.
   `EnsureRoot` need one. Removing it made the boundary something a reader can
   see: a capability somebody was handed rather than one they satisfy, and a test
   that wants it has to reach for `c.Ungated()` and say so.
+- **A rate limit wants the scope to exist first.** It does not want it at all.
+  The scope is a *set* — what this caller may see — and a limit needs one thing
+  to count against. Counting against the scope would give a credential that
+  narrows itself a bucket of its own, which is a limit anybody could raise by
+  issuing a narrower token. What it wanted was the Tenant on the frame, which
+  Phase 2.1 did not add and `server/auth` had put there all along.
 - **Validation belongs on the request, declared.** On the request, yes — but
   written in Go, next to the rule it is part of. Declared, the number survives
   and the reason for it does not, and there is only the one verb where refusing

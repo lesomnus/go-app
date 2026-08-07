@@ -24,6 +24,25 @@ server:
   # write is not an API".
   # general_writes: false
   #
+  # How often one caller may call, counted against the Tenant they are held by
+  # -- not the Holder and not the credential, since a Tenant makes as many of
+  # those as it likes. Off unless a rate is written down, and off is what this
+  # file says: a number picked by a template is a number nobody measured, and
+  # what it would refuse is real traffic on the day the app is busiest.
+  #
+  # It is counted in this process. Three replicas are three buckets, so a rate
+  # of 20 is 60 to whoever a load balancer spreads around. That is fine for
+  # keeping one caller from taking a whole process and wrong for a quota
+  # somebody is billed against; see the README, "How much one caller may ask
+  # for".
+  # limit:
+  #   # Calls a second, kept up.
+  #   rate: 20
+  #   # How many may arrive at once. Unset is one second's worth. This is the
+  #   # number that decides whether an honest client is refused: one that sends
+  #   # its work in batches is bursty by construction.
+  #   burst: 40
+
   # keepalive:
   #   # Behind a load balancer that only balances new connections, this is what
   #   # makes it balance anything at all.

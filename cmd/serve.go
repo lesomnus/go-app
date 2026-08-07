@@ -118,6 +118,12 @@ func NewCmdServe() *xli.Command {
 			opts := grpcx.ServerOptions(ctx, c.Server.CallTimeout())
 			opts = append(opts, c.Server.GrpcOptions()...)
 			opts = append(opts, auth_opts...)
+			// Behind the authentication too, since what a call is counted
+			// against is who is making it, and in front of everything below,
+			// since a caller over their line should not be able to ask for the
+			// work of deciding what they may see. Nothing unless
+			// `server.limit.rate` says so.
+			opts = append(opts, grpcx.Limit(c.Server.Limiter(), gate.ByTenant())...)
 			// Behind the authentication, since it reads who the caller is, and
 			// this is where a deployment injects what it consults about them.
 			// Nothing is injected here, so the wall is what this app has always
@@ -155,13 +161,23 @@ func NewCmdServe() *xli.Command {
 					slog.String("auth", "plain"),
 				)
 			}
-			l.Info("serving grpc",
+			served := []any{
 				slog.String("addr", lis.Addr().String()),
 				slog.Bool("tls", c.Server.TLS.Active()),
 				// In the order they are tried, since which one answers first
 				// is the whole of what a fallback means.
 				slog.Any("auth", c.Auth.Methods),
-			)
+			}
+			if lim := c.Server.Limit; lim.Limits() {
+				// Said here rather than left to whoever reads the file, since
+				// a refused call is otherwise a mystery to whoever is holding
+				// the log of it.
+				served = append(served,
+					slog.Float64("limit.rate", lim.Rate),
+					slog.Int("limit.burst", lim.BurstOr()),
+				)
+			}
+			l.Info("serving grpc", served...)
 
 			serve_err := make(chan error, 1)
 			go func() { serve_err <- srv.Serve(lis) }()

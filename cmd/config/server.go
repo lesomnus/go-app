@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math"
 	"time"
 
 	"google.golang.org/grpc"
@@ -50,7 +51,61 @@ type ServerConfig struct {
 	// are for. See the README, "The general write is not an API".
 	GeneralWrites *bool `yaml:"general_writes"`
 
+	Limit LimitConfig `yaml:"limit"`
+
 	Keepalive KeepaliveConfig `yaml:"keepalive"`
+}
+
+// LimitConfig is how often one caller may call. What "one caller" is, is said
+// where callers are worked out and not here; see `gate.ByTenant`.
+//
+// It is **off** unless a rate is written down, and that is a decision rather
+// than an oversight. A deadline can be defaulted because the default only
+// touches a call that named none, and a wrong one costs a call. A rate cannot:
+// a number picked by a template is a number nobody measured, and the traffic it
+// would refuse is real traffic, on the day the app is busiest. So this file
+// suggests one and the deployment chooses it.
+type LimitConfig struct {
+	// Rate is how many calls a second one caller may make, kept up. Not
+	// positive -- which is what an absent block says -- is no limit at all.
+	Rate float64 `yaml:"rate"`
+
+	// Burst is how many may arrive at once before the rate is what is left.
+	// Unset is one second's worth, rounded up, and never less than one: a
+	// burst below one is a limiter that refuses everything.
+	//
+	// It is the number that decides whether an honest client is refused. A
+	// client that sends its work in batches is bursty by construction, and a
+	// burst of one turns that into an error rather than into a wait.
+	Burst int `yaml:"burst"`
+}
+
+// Limits reports whether a limit was configured at all.
+func (c LimitConfig) Limits() bool {
+	return c.Rate > 0
+}
+
+// BurstOr is the burst that was configured, or one second's worth of the rate.
+func (c LimitConfig) BurstOr() int {
+	if c.Burst > 0 {
+		return c.Burst
+	}
+
+	return max(1, int(math.Ceil(c.Rate)))
+}
+
+// Limiter counts the calls of one caller, or is nothing if the configuration
+// named no rate.
+//
+// The nil is written out rather than returned as a typed one, since a typed nil
+// in an interface is not nil and [grpcx.Limit] reads it as a limiter that
+// refuses to answer.
+func (c ServerConfig) Limiter() grpcx.Limiter {
+	if !c.Limit.Limits() {
+		return nil
+	}
+
+	return grpcx.NewLimiter(c.Limit.Rate, c.Limit.BurstOr())
 }
 
 // KeepaliveConfig is when a connection is hung up on and when it is asked
