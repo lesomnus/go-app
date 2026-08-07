@@ -17,7 +17,9 @@ import (
 func page(ctx context.Context, x *ox.X, c *ox.Client, size int32, after string) *go_app.HolderListResponse {
 	x.TB().Helper()
 
-	v, err := c.Holder().List(ctx, go_app.HolderListRequest_builder{
+	// Ungated, because these are about what a page is rather than about who
+	// may see it; the wall has tests of its own.
+	v, err := c.Ungated().Holder().List(ctx, go_app.HolderListRequest_builder{
 		Size:  z.Ptr(size),
 		After: z.Ptr(after),
 	}.Build())
@@ -115,7 +117,7 @@ func TestList(t *testing.T) {
 
 	t.Run("a row added ahead of the page does not shift it", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		want := seed(ctx, x, c, 10)
-		acme, err := c.Tenant().Get(ctx, go_app.TenantGetByAlias("acme"))
+		acme, err := c.Ungated().Tenant().Get(ctx, go_app.TenantGetByAlias("acme"))
 		x.NoError(err)
 
 		first := page(ctx, x, c, 4, "")
@@ -146,7 +148,7 @@ func TestList(t *testing.T) {
 	t.Run("what is not a cursor is refused", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		seed(ctx, x, c, 2)
 
-		_, err := c.Holder().List(ctx, go_app.HolderListRequest_builder{
+		_, err := c.Ungated().Holder().List(ctx, go_app.HolderListRequest_builder{
 			After: z.Ptr("not a cursor"),
 		}.Build())
 		x.ErrCode(codes.InvalidArgument, err)
@@ -164,11 +166,11 @@ func TestList(t *testing.T) {
 		// size gets: each filter is a predicate in the same query, so this is
 		// the request saying how much of the database to read -- and dropping
 		// half of them would answer a question nobody asked.
-		_, err := c.Holder().List(ctx, go_app.HolderListRequest_builder{Filters: fs}.Build())
+		_, err := c.Ungated().Holder().List(ctx, go_app.HolderListRequest_builder{Filters: fs}.Build())
 		x.ErrCode(codes.InvalidArgument, err)
 
 		// One under the line is served.
-		_, err = c.Holder().List(ctx, go_app.HolderListRequest_builder{Filters: fs[:core.FilterLimit]}.Build())
+		_, err = c.Ungated().Holder().List(ctx, go_app.HolderListRequest_builder{Filters: fs[:core.FilterLimit]}.Build())
 		x.NoError(err)
 	}))
 
@@ -177,7 +179,7 @@ func TestList(t *testing.T) {
 
 		// Said by the reference reader rather than by a rule of its own, which
 		// is why there is no rule of its own.
-		_, err := c.Holder().List(ctx, go_app.HolderListRequest_builder{
+		_, err := c.Ungated().Holder().List(ctx, go_app.HolderListRequest_builder{
 			Filters: []*go_app.HolderFilter{{}},
 		}.Build())
 		x.ErrCode(codes.InvalidArgument, err)

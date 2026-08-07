@@ -9,12 +9,11 @@ import (
 // Tenants is a set of Tenants, or all of them.
 //
 // A set, and not the one Tenant the caller belongs to beside a flag saying
-// whether the wall applies to them. "Everything" and "my own" are the two
-// answers a Holder alone gives, and spelling the second as "not the first" is
-// what would make a third expensive. There are already more than two: a
-// credential carries an attenuation ([Grant]), and what a caller may see
-// is the meet of the two. A deployment that later lets a resource be shared
-// with another Tenant adds a fourth, and it is a longer list and nothing else.
+// whether the wall applies to them. There are more answers than two: a
+// credential carries an attenuation ([Grant]) and what a caller may see is the
+// meet of the two, a policy may answer with several, and a deployment that
+// later lets a resource be shared with another Tenant adds another. Each of
+// those is a longer list and nothing else.
 //
 // Identifiers rather than Tenants, because that is what a query narrows by and
 // what two scopes are intersected on. Nothing needs the rest of the row.
@@ -23,7 +22,14 @@ type Tenants struct {
 	ids []uuid.UUID
 }
 
-// Everything is the scope of a caller no wall is about.
+// Everything is every Tenant there is.
+//
+// Nothing in this app answers with it. The wall gives a caller their own Tenant
+// and no more, and there is no identifier it compares against to decide
+// otherwise -- what the deployment does for itself, it does through a server
+// the wall was never installed on. It is here because a [gate.Policy] may
+// answer with it, which is a deployment saying so rather than this app
+// assuming it.
 var Everything = Tenants{all: true}
 
 // Nothing is the scope of a caller who may see none, which is what the meet of

@@ -110,7 +110,9 @@ func TestPolicyIsConsulted(t *testing.T) {
 	t.Run("what it answers is what every read is narrowed by", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		pr := setup(ctx, x, c)
 
-		// The root admin, who without a policy sees every Tenant.
+		// Without a policy this caller sees their own Tenant and no more. The
+		// policy is what says otherwise -- a deployment saying it, rather than
+		// this app assuming it of whoever holds a particular row.
 		pc := behind(x, c, &policy{
 			where: func(gate.Call) (frame.Tenants, error) {
 				return frame.Only(id(x, pr.hooli)), nil

@@ -14,21 +14,20 @@ import (
 )
 
 const (
-	// RootAlias is the Tenant every deployment has, whoever holds it. It is
-	// the one nobody creates and nobody is allowed to erase, and it is where
-	// whoever administers the deployment itself lives.
+	// RootAlias is the first Tenant, which every deployment has because a
+	// deployment with none has nobody who can authenticate at all.
+	//
+	// It is not privileged. Nothing anywhere compares a caller against it and
+	// answers "everything": a privilege granted by being a particular row is
+	// one that cannot be revoked or narrowed, and does not appear anywhere it
+	// is used. What the deployment has to do for itself, it does through a
+	// server the wall was never installed on; see `gate`.
 	RootAlias = "root"
 
 	// AdminAlias is the Holder that comes with a Tenant. Adding a Tenant with
 	// nobody in it leaves nobody able to do anything with it.
 	AdminAlias = "admin"
 )
-
-// RootId is the identifier of the root Tenant. It is a constant so that
-// anything that has to name the root - a configuration, a fixture, a query run
-// by hand - can name it without asking the database first. It spells "root" in
-// the bytes it is written with.
-var RootId = uuid.MustParse("726f6f74-0000-0000-0000-000000000000")
 
 // NobodyId is the identifier that names nobody, and so is the identifier
 // nothing may hold.
@@ -54,22 +53,28 @@ func CheckId(v []byte) error {
 	return nil
 }
 
-// Root is what the root Tenant looks like.
+// Root is what the first Tenant looks like. Its identifier is the database's to
+// choose, like every other one -- there used to be a constant here, and it was
+// a constant so that a caller could be compared against it.
 func Root() *go_app.TenantAddRequest {
 	return go_app.TenantAddRequest_builder{
-		Id:    RootId[:],
 		Alias: RootAlias,
 		Name:  "Root",
-		Desc:  "The tenant that administers this deployment.",
+		Desc:  "The first tenant of this deployment.",
 	}.Build()
 }
 
-// EnsureRoot adds the root Tenant, and the Holder that administers it, unless
+// EnsureRoot adds the first Tenant, and the Holder that administers it, unless
 // they are already there. It is idempotent, so it can be run at every start,
-// and it goes through this server rather than around it so that the root
+// and it goes through this server rather than around it so that the first
 // Tenant is made the same way as any other.
+//
+// Idempotent by the alias, which is unique, rather than by an identifier this
+// package chose. It must be handed a server the wall is not on: putting up a
+// Tenant is not something asked for from inside one, and at this point there is
+// nobody to be inside one anyway.
 func EnsureRoot(ctx context.Context, s go_app.Server) (*go_app.Tenant, error) {
-	v, err := s.Tenant().Get(ctx, go_app.TenantGetById(RootId[:]))
+	v, err := s.Tenant().Get(ctx, go_app.TenantGetByAlias(RootAlias))
 	switch {
 	case err == nil:
 		return v, nil
@@ -81,7 +86,7 @@ func EnsureRoot(ctx context.Context, s go_app.Server) (*go_app.Tenant, error) {
 	if err != nil {
 		// Another one got there first, which is not a race anybody loses.
 		if status.Code(err) == codes.AlreadyExists {
-			return s.Tenant().Get(ctx, go_app.TenantGetById(RootId[:]))
+			return s.Tenant().Get(ctx, go_app.TenantGetByAlias(RootAlias))
 		}
 
 		return nil, z.Err(err, "add the root tenant")

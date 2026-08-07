@@ -21,7 +21,10 @@ import (
 func of(ctx context.Context, x *ox.X, c *ox.Client, id []byte) []*go_app.Audit {
 	x.TB().Helper()
 
-	v, err := c.Audit().List(ctx, go_app.AuditListRequest_builder{
+	// Past the wall, because most of these are about what the trail holds
+	// rather than about who may read it -- `TestTrailIsWalled` is the one that
+	// is about that, and it travels the ordinary client.
+	v, err := c.Ungated().Audit().List(ctx, go_app.AuditListRequest_builder{
 		Filters: []*go_app.AuditFilter{
 			go_app.AuditFilter_builder{ObjectId: id}.Build(),
 		},
@@ -65,7 +68,7 @@ func TestTrail(t *testing.T) {
 		x.Len(tenant, 1)
 		x.Equal(go_app.TenantService_Add_FullMethodName, tenant[0].GetAction())
 
-		admin, err := c.Holder().Get(ctx, go_app.HolderGetBySlug("admin", v.Ref()))
+		admin, err := c.Ungated().Holder().Get(ctx, go_app.HolderGetBySlug("admin", v.Ref()))
 		x.NoError(err)
 
 		// Nobody called HolderService/Add. `core` did, on the way down, and the
@@ -80,6 +83,7 @@ func TestTrail(t *testing.T) {
 	t.Run("patching keeps the document the request became", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 
 		name := "Johnny"
 		_, err := c.Holder().Patch(ctx, go_app.HolderPatchRequest_builder{
@@ -111,6 +115,7 @@ func TestTrail(t *testing.T) {
 	t.Run("what is kept is what was stored, not what was asked for", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 
 		alias := " JOHNNY "
 		u, err := c.Holder().Patch(ctx, go_app.HolderPatchRequest_builder{
@@ -133,6 +138,7 @@ func TestTrail(t *testing.T) {
 	t.Run("applying keeps the document the caller wrote", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 
 		sent, err := patch.New("go_app.Holder",
 			patch.Target(patch.Name("name")).Assign(patch.Str("Johnny")),
@@ -156,6 +162,7 @@ func TestTrail(t *testing.T) {
 	t.Run("erasing says which one it was", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 
 		// Named by its slug, which is not what the trail is read back with.
 		_, err := c.Holder().Erase(ctx, go_app.HolderBySlug("john", tenant.Ref()))

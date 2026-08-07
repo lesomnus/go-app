@@ -14,6 +14,7 @@ import (
 func TestHolderAdd(t *testing.T) {
 	t.Run("added under the given tenant", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 
 		v, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
 			Tenant: tenant.Ref(),
@@ -37,6 +38,7 @@ func TestHolderAdd(t *testing.T) {
 	}))
 	t.Run("alias is taken in the tenant", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 		c.CreateHolder(ctx, x, tenant.Ref(), "john")
 
 		_, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
@@ -72,7 +74,9 @@ func TestHolderList(t *testing.T) {
 		c.CreateHolder(ctx, x, acme.Ref(), "jane")
 		c.CreateHolder(ctx, x, hooli.Ref(), "erlich")
 
-		v, err := c.Holder().List(ctx, &go_app.HolderListRequest{})
+		// Through the ungated stack, since this is about what the list itself
+		// answers with rather than about what a caller may see of it.
+		v, err := c.Ungated().Holder().List(ctx, &go_app.HolderListRequest{})
 		x.NoError(err)
 		// One admin for each of the three tenants: root, acme and hooli.
 		x.ElementsMatch([]string{
@@ -87,6 +91,7 @@ func TestHolderList(t *testing.T) {
 	}))
 	t.Run("the holders the filters point at", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		acme := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, acme)
 		john := c.CreateHolder(ctx, x, acme.Ref(), "john")
 		c.CreateHolder(ctx, x, acme.Ref(), "jane")
 		erlich := c.CreateHolder(ctx, x, acme.Ref(), "erlich")
@@ -113,6 +118,7 @@ func TestHolderList(t *testing.T) {
 func TestHolderGet(t *testing.T) {
 	t.Run("by slug", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
 
 		u, err := c.Holder().Get(ctx, go_app.HolderGetBySlug("john", tenant.Ref()))
@@ -121,6 +127,7 @@ func TestHolderGet(t *testing.T) {
 	}))
 	t.Run("with the tenant it belongs to", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 		c.CreateHolder(ctx, x, tenant.Ref(), "john")
 
 		// Edges are not read unless they are selected.
@@ -135,6 +142,7 @@ func TestHolderGet(t *testing.T) {
 	}))
 	t.Run("not found", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 
 		_, err := c.Holder().Get(ctx, go_app.HolderGetBySlug("john", tenant.Ref()))
 		x.ErrCode(codes.NotFound, err)

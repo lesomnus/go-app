@@ -31,6 +31,7 @@ func row(ctx context.Context, x *ox.X, c *ox.Client, v *go_app.Holder) *ent.Hold
 func TestEraseHolder(t *testing.T) {
 	t.Run("the row stays and says it is gone", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		v := c.CreateHolder(ctx, x, tn.Ref(), "john")
 
 		_, err := c.Holder().Erase(ctx, v.Ref())
@@ -44,6 +45,7 @@ func TestEraseHolder(t *testing.T) {
 
 	t.Run("it is gone from a list too", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		v := c.CreateHolder(ctx, x, tn.Ref(), "john")
 
 		// The list is written by hand, so it is the read that would have been
@@ -68,6 +70,7 @@ func TestEraseHolder(t *testing.T) {
 	// nothing and the trail goes on saying who while nobody can find out who.
 	t.Run("the trail can still say who it was", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		v := c.CreateHolder(ctx, x, tn.Ref(), "john")
 
 		name := "Johnny"
@@ -95,6 +98,7 @@ func TestEraseHolder(t *testing.T) {
 
 	t.Run("an erased holder cannot say who is calling", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		v := c.CreateHolder(ctx, x, tn.Ref(), "john")
 
 		as := c.AsHolder(ctx, v)
@@ -113,6 +117,7 @@ func TestEraseHolder(t *testing.T) {
 
 	t.Run("the alias comes free again", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		v := c.CreateHolder(ctx, x, tn.Ref(), "john")
 
 		_, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
@@ -135,6 +140,7 @@ func TestEraseHolder(t *testing.T) {
 
 	t.Run("erasing it again erases nothing", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		v := c.CreateHolder(ctx, x, tn.Ref(), "john")
 
 		_, err := c.Holder().Erase(ctx, v.Ref())
@@ -154,7 +160,9 @@ func TestEraseTenant(t *testing.T) {
 	t.Run("a tenant is erased for real", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
 
-		_, err := c.Tenant().Erase(ctx, tn.Ref())
+		// Through the ungated stack: taking a Tenant down is not something
+		// asked for from inside one, and there is no caller that may.
+		_, err := c.Ungated().Tenant().Erase(ctx, tn.Ref())
 		x.NoError(err)
 
 		k, err := uuid.FromBytes(tn.GetId())
@@ -173,6 +181,7 @@ func TestEraseTenant(t *testing.T) {
 	// could never be erased, however many of them had been "erased" first.
 	t.Run("it takes its holders with it, erased ones included", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tn := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tn)
 		live := c.CreateHolder(ctx, x, tn.Ref(), "john")
 		gone := c.CreateHolder(ctx, x, tn.Ref(), "erlich")
 
@@ -183,7 +192,7 @@ func TestEraseTenant(t *testing.T) {
 		// erasing softly -- and it is what would hold the foreign key.
 		x.NotNil(row(ctx, x, c, gone).DateErased)
 
-		_, err = c.Tenant().Erase(ctx, tn.Ref())
+		_, err = c.Ungated().Tenant().Erase(ctx, tn.Ref())
 		x.NoError(err)
 
 		k, err := uuid.FromBytes(tn.GetId())
@@ -195,12 +204,16 @@ func TestEraseTenant(t *testing.T) {
 
 		// And the live one is not reachable either, which it would be if the
 		// cascade had only taken the ones that were already stamped.
-		_, err = c.Holder().Get(ctx, go_app.HolderGetById(live.GetId()))
+		//
+		// As somebody else: the admin this call was travelling as went with the
+		// Tenant, so the credential names nobody now. Which is itself the thing
+		// working -- there is no caller who outlives their Tenant.
+		_, err = c.Ungated().Holder().Get(c.AsRoot(ctx), go_app.HolderGetById(live.GetId()))
 		x.ErrCode(codes.NotFound, err)
 	}))
 
 	t.Run("erasing one that is not there succeeds", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		_, err := c.Tenant().Erase(ctx, go_app.TenantByAlias("nobody"))
+		_, err := c.Ungated().Tenant().Erase(ctx, go_app.TenantByAlias("nobody"))
 		x.NoError(err)
 	}))
 }

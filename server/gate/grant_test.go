@@ -80,37 +80,32 @@ func TestGrantNarrowsActions(t *testing.T) {
 }
 
 func TestGrantNarrowsTenants(t *testing.T) {
-	t.Run("only what it names is visible", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	t.Run("naming what its holder may see changes nothing", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
 
-		// The root admin may see every Tenant; this credential may see hooli.
-		only := as(ctx, x, c, c.Server.Admin, frame.Whole().In(id(x, p.hooli)))
+		// John may see acme, and so may this credential.
+		only := as(ctx, x, c, p.john, frame.Whole().In(id(x, p.acme)))
 
-		v, err := c.Tenant().Get(only, go_app.TenantGetByAlias("hooli"))
+		v, err := c.Tenant().Get(only, go_app.TenantGetByAlias("acme"))
 		x.NoError(err)
-		x.Equal(p.hooli.GetId(), v.GetId())
-
-		_, err = c.Tenant().Get(only, go_app.TenantGetByAlias("acme"))
-		x.ErrCode(codes.NotFound, err)
+		x.Equal(p.acme.GetId(), v.GetId())
 	}))
 
 	t.Run("a list is narrowed by it too", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
 
-		whole, err := c.Holder().List(ctx, &go_app.HolderListRequest{})
+		// What john sees with a credential that narrows nothing.
+		whole, err := c.Holder().List(c.AsHolder(ctx, p.john), &go_app.HolderListRequest{})
 		x.NoError(err)
-		x.Greater(len(whole.GetItems()), 2)
+		x.Len(whole.GetItems(), 2, "acme's admin, and john")
 
-		only := as(ctx, x, c, c.Server.Admin, frame.Whole().In(id(x, p.hooli)))
+		// And with one that names a Tenant he is not in, which leaves nothing
+		// in both.
+		only := as(ctx, x, c, p.john, frame.Whole().In(id(x, p.hooli)))
 
 		vs, err := c.Holder().List(only, &go_app.HolderListRequest{})
 		x.NoError(err)
-
-		as := []string{}
-		for _, u := range vs.GetItems() {
-			as = append(as, u.GetAlias())
-		}
-		x.ElementsMatch([]string{"admin", "erlich"}, as, "hooli's, and nobody else's")
+		x.Empty(vs.GetItems())
 	}))
 
 	// The whole of what an attenuation is: it takes away and never adds.
@@ -135,7 +130,7 @@ func TestGrantNarrowsTenants(t *testing.T) {
 
 		// An empty set is empty. Read the other way -- as "no narrowing" -- it
 		// would be a credential that saw everything by saying nothing.
-		none := as(ctx, x, c, c.Server.Admin, frame.Whole().In())
+		none := as(ctx, x, c, p.john, frame.Whole().In())
 
 		_, err := c.Tenant().Get(none, go_app.TenantGetByAlias("acme"))
 		x.ErrCode(codes.NotFound, err)
@@ -143,8 +138,6 @@ func TestGrantNarrowsTenants(t *testing.T) {
 		vs, err := c.Holder().List(none, &go_app.HolderListRequest{})
 		x.NoError(err)
 		x.Empty(vs.GetItems())
-
-		_ = p
 	}))
 }
 

@@ -150,10 +150,10 @@ it reads credentials and enforces them; it does not mint them.
 
 - Nothing of another Tenant is visible. Not `PermissionDenied` but `NotFound`,
   since that it exists is itself something not to say.
-- A Tenant is put up and taken down by whoever administers the deployment, which
-  is not something that happens from inside one.
-- Whoever holds the `root` Tenant is not walled in. That Tenant has an
-  identifier that is a constant, so anything can name it without asking.
+- A Tenant is put up and taken down by the deployment, which is not something
+  that happens from inside one — so both are `Unimplemented` here, to everybody.
+- **There is no caller the wall is not about.** Nothing compares an identifier
+  against a well-known one and answers "everything".
 
 The first of those is **stated** in `server/gate` and **enforced** somewhere
 else — on the innermost server, as a predicate in every query it builds:
@@ -185,10 +185,39 @@ Three things fall out of it rather than being written:
   hand, so it borrows the same predicate (`bare.<Entity>Narrow`); that is the
   one read the generated servers do not make.
 
-Two things go around the wall, and they are handed a server it was never
-installed on rather than being special-cased inside it: working out **who is
-calling** happens before there is anybody to be walled by, and `EnsureRoot` puts
-the root Tenant there before anybody exists at all.
+### Going around it is a server, not an identity
+
+There used to be a superuser: whoever held a Tenant whose identifier this app
+kept as a constant, told apart by a comparison in the middle of the wall. There
+is not one now. A privilege granted by **being a particular row** cannot be
+revoked, cannot be narrowed, does not appear anywhere it is used, and belongs to
+whoever finds the row.
+
+What the deployment has to do for itself, it does through a server the wall was
+never installed on:
+
+```go
+sink,   err := bare.NewServer(db, ...)                              // no wall
+walled, err := bare.NewServer(db, ..., bare.WithScope(gate.Wall()))
+
+ungated := go_app.Build(sink,   core.Build(), audit.Build())                 // no gate either
+served  := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
+```
+
+`cmd/serve.go` serves the second and uses the first for the two things that
+cannot go through a wall: working out **who is calling**, which happens before
+there is anybody to be walled by, and `EnsureRoot`, which puts the first Tenant
+there before anybody exists at all. A deployment that wants an operator's path
+serves the ungated stack somewhere only an operator can reach — a second port, a
+unix socket, a separate binary.
+
+The difference is the whole point: that capability is **a server instance
+somebody was handed**, which can be withheld and taken away, rather than **a row
+somebody is**, which cannot. `internal/ox` exposes it as `c.Ungated()`, and that
+a test has to reach for it is the same fact from the other side.
+
+The first Tenant is called `root` and is not privileged. It exists because a
+deployment with no Tenant has nobody who can authenticate at all.
 
 One consequence is worth knowing: erasing something out of the wall **succeeds
 and erases nothing**, because erasing what is not there succeeds and out of the
@@ -203,7 +232,7 @@ yet, where there is nothing to narrow:
 
 | | |
 | --- | --- |
-| `Tenant.Add`, `Tenant.Erase` | only whoever administers the deployment |
+| `Tenant.Add`, `Tenant.Erase` | `Unimplemented`, to everybody — the deployment does these |
 | `Holder.Add` | the Tenant must be one the caller can read |
 
 `Holder.Add` reads the Tenant **through the wall** rather than comparing a
@@ -253,7 +282,7 @@ opts = append(opts, gate.Interceptor(nil)...)   // or whatever a deployment cons
 ```
 
 **Unset is not a placeholder.** A deployment that injects nothing behaves exactly
-as this app always has: root is not walled in, everybody else sees their own.
+as this app always has: everybody sees their own Tenant, and nobody sees more.
 Nothing here takes a dependency on a running service; the interface is the seam,
 and an integration with a real engine belongs in a branch of its own — this
 repository already keeps a branch per kind of app.

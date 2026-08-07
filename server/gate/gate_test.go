@@ -69,16 +69,14 @@ func TestHolder(t *testing.T) {
 		// It used to add the Tenant to any selection that did not have it,
 		// read it, and clear it again -- which meant the same request answered
 		// two different rows depending on who asked.
-		for _, ctx := range []context.Context{as, ctx} {
-			v, err := c.Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()))
-			x.NoError(err)
-			x.True(v.HasTenant())
-			x.Equal(p.acme.GetId(), v.GetTenant().GetId())
-		}
+		v, err := c.Holder().Get(as, go_app.HolderGetById(p.john.GetId()))
+		x.NoError(err)
+		x.True(v.HasTenant())
+		x.Equal(p.acme.GetId(), v.GetTenant().GetId())
 
 		// And a selection that names one thing is a selection that names only
 		// it.
-		v, err := c.Holder().Get(as, go_app.HolderGetById(p.john.GetId()).
+		v, err = c.Holder().Get(as, go_app.HolderGetById(p.john.GetId()).
 			WithSelect(func(s *go_app.HolderSelect) { s.SetAlias(true) }))
 		x.NoError(err)
 		x.Equal("john", v.GetAlias())
@@ -204,18 +202,23 @@ func TestTenant(t *testing.T) {
 		_, err = c.Tenant().Get(ctx, go_app.TenantGetByAlias("hooli"))
 		x.ErrCode(codes.NotFound, err)
 
-		_, err = c.Tenant().Get(ctx, go_app.TenantGetById(core.RootId[:]))
+		_, err = c.Tenant().Get(ctx, c.Server.Root.Pick())
 		x.ErrCode(codes.NotFound, err)
 	}))
-	t.Run("putting up another one is not mine to do", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	t.Run("putting one up is nobody's to do from in here", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
-		ctx = c.AsHolder(ctx, p.john)
 
-		_, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "pied-piper"}.Build())
-		x.ErrCode(codes.PermissionDenied, err)
+		// Unimplemented and not a refusal, and the same answer to everybody --
+		// the admin of a Tenant and the admin of the first one alike. It is not
+		// about who is asking; a Tenant is put up by the deployment, through a
+		// server this layer is not in front of.
+		for _, ctx := range []context.Context{c.AsHolder(ctx, p.john), c.AsRoot(ctx)} {
+			_, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "pied-piper"}.Build())
+			x.ErrCode(codes.Unimplemented, err)
 
-		_, err = c.Tenant().Erase(ctx, p.hooli.Ref())
-		x.ErrCode(codes.PermissionDenied, err)
+			_, err = c.Tenant().Erase(ctx, p.hooli.Ref())
+			x.ErrCode(codes.Unimplemented, err)
+		}
 	}))
 	t.Run("another one is not mine to patch, by either road", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
@@ -245,18 +248,26 @@ func TestTenant(t *testing.T) {
 		}.Build())
 		x.NoError(err)
 	}))
-	t.Run("whoever administers the deployment is not walled in", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
+	// There used to be a caller the wall was not about: whoever held the first
+	// Tenant, told apart by an identifier this app kept as a constant. There is
+	// not one now. A privilege granted by being a particular row cannot be
+	// revoked, cannot be narrowed, and does not appear anywhere it is used.
+	t.Run("nobody is outside the wall, not even the first tenant's admin", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
-
-		// The context of a test is already this one; said again for the record.
 		ctx = c.AsRoot(ctx)
 
-		v, err := c.Holder().Get(ctx, go_app.HolderGetById(p.erlich.GetId()))
+		_, err := c.Holder().Get(ctx, go_app.HolderGetById(p.erlich.GetId()))
+		x.ErrCode(codes.NotFound, err)
+
+		_, err = c.Tenant().Get(ctx, go_app.TenantGetByAlias("acme"))
+		x.ErrCode(codes.NotFound, err)
+
+		// What the deployment does, it does through a server this layer is not
+		// in front of. That is a thing somebody was handed, not a thing they
+		// are.
+		v, err := c.Ungated().Holder().Get(ctx, go_app.HolderGetById(p.erlich.GetId()))
 		x.NoError(err)
 		x.Equal(p.erlich.GetId(), v.GetId())
-
-		_, err = c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "pied-piper"}.Build())
-		x.NoError(err)
 	}))
 }
 

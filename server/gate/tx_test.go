@@ -34,8 +34,9 @@ func TestWithDriver(t *testing.T) {
 	t.Run("the wall is still there inside the transaction", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		p := setup(ctx, x, c)
 
-		// The test is served as the root admin, so the Tenant comes back.
-		john, err := c.Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()).
+		// Read past the wall, since this is arranging the test rather than
+		// being it: what is under test is further down.
+		john, err := c.Ungated().Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()).
 			WithSelect(func(s *go_app.HolderSelect) {
 				s.SetTenant(go_app.TenantSelect_builder{}.Build())
 			}))
@@ -78,7 +79,7 @@ func TestWithDriver(t *testing.T) {
 		// connection is single, so nothing is read from outside until then.
 		x.NoError(tx.Rollback())
 
-		u, err := c.Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()))
+		u, err := c.Ungated().Holder().Get(ctx, go_app.HolderGetById(p.john.GetId()))
 		x.NoError(err)
 		x.Equal("john", u.GetAlias())
 	}))

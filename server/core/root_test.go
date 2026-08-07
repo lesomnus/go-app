@@ -33,23 +33,23 @@ func (noHolderService) Add(context.Context, *go_app.HolderAddRequest) (*go_app.H
 
 func TestRoot(t *testing.T) {
 	t.Run("it is there before anything happens", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		v, err := c.Tenant().Get(ctx, go_app.TenantGetById(core.RootId[:]))
+		v, err := c.Ungated().Tenant().Get(ctx, c.Server.Root.Pick())
 		x.NoError(err)
 		x.Equal(core.RootAlias, v.GetAlias())
 
 		// The same one, whichever way it is asked for.
-		u, err := c.Tenant().Get(ctx, go_app.TenantGetByAlias(core.RootAlias))
+		u, err := c.Ungated().Tenant().Get(ctx, go_app.TenantGetByAlias(core.RootAlias))
 		x.NoError(err)
 		x.Equal(v.GetId(), u.GetId())
-		x.Equal(core.RootId[:], u.GetId())
+		x.Equal(c.Server.Root.GetId(), u.GetId())
 	}))
 	t.Run("somebody administers it", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		v, err := c.Holder().Get(ctx, go_app.HolderGetBySlug(core.AdminAlias, go_app.TenantById(core.RootId[:])))
+		v, err := c.Ungated().Holder().Get(ctx, go_app.HolderGetBySlug(core.AdminAlias, c.Server.Root.Ref()))
 		x.NoError(err)
 		x.Equal(core.AdminAlias, v.GetAlias())
 	}))
 	t.Run("asking for it again changes nothing", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		before, err := c.Tenant().Get(ctx, go_app.TenantGetById(core.RootId[:]))
+		before, err := c.Ungated().Tenant().Get(ctx, c.Server.Root.Pick())
 		x.NoError(err)
 
 		// What every start does, around the gate: there is nobody to be when a
@@ -63,7 +63,7 @@ func TestRoot(t *testing.T) {
 		x.Len(v.GetItems(), 1)
 	}))
 	t.Run("it cannot be added twice", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		_, err := c.Tenant().Add(ctx, core.Root())
+		_, err := c.Ungated().Tenant().Add(ctx, core.Root())
 		x.ErrCode(codes.AlreadyExists, err)
 	}))
 }
@@ -76,7 +76,7 @@ func TestNobodyHoldsTheZeroId(t *testing.T) {
 	t.Run("a holder may not", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
 
-		_, err := c.Holder().Add(ctx, go_app.HolderAddRequest_builder{
+		_, err := c.Ungated().Holder().Add(ctx, go_app.HolderAddRequest_builder{
 			Id:     core.NobodyId[:],
 			Tenant: tenant.Ref(),
 			Alias:  "ghost",
@@ -84,7 +84,7 @@ func TestNobodyHoldsTheZeroId(t *testing.T) {
 		x.ErrCode(codes.InvalidArgument, err)
 	}))
 	t.Run("nor a tenant", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		_, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{
+		_, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{
 			Id:    core.NobodyId[:],
 			Alias: "ghost",
 		}.Build())
@@ -125,7 +125,7 @@ func TestAdmin(t *testing.T) {
 		x.ErrorContains(err, "add the admin holder")
 
 		// Half a tenant is not left behind.
-		_, err = c.Tenant().Get(ctx, go_app.TenantGetByAlias("acme"))
+		_, err = c.Ungated().Tenant().Get(ctx, go_app.TenantGetByAlias("acme"))
 		x.ErrCode(codes.NotFound, err)
 	}))
 }

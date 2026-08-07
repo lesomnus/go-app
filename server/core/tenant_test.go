@@ -14,17 +14,17 @@ import (
 
 func TestTenantAdd(t *testing.T) {
 	t.Run("alias is normalized", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		v, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "  Acme-Corp "}.Build())
+		v, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "  Acme-Corp "}.Build())
 		x.NoError(err)
 		x.Equal("acme-corp", v.GetAlias())
 	}))
 	t.Run("name falls back to the alias", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		v, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
+		v, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
 		x.NoError(err)
 		x.Equal("acme", v.GetName())
 	}))
 	t.Run("name is kept if given", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		v, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme", Name: "Acme, Inc."}.Build())
+		v, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme", Name: "Acme, Inc."}.Build())
 		x.NoError(err)
 		x.Equal("Acme, Inc.", v.GetName())
 	}))
@@ -43,7 +43,7 @@ func TestTenantAdd(t *testing.T) {
 		}
 		for _, tc := range tcs {
 			t.Run(tc.desc, ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-				_, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: tc.alias}.Build())
+				_, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: tc.alias}.Build())
 				x.ErrCode(codes.InvalidArgument, err)
 			}))
 		}
@@ -51,7 +51,7 @@ func TestTenantAdd(t *testing.T) {
 	t.Run("alias is taken", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		c.CreateTenant(ctx, x, "acme")
 
-		_, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "ACME"}.Build())
+		_, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "ACME"}.Build())
 		x.ErrCode(codes.AlreadyExists, err)
 	}))
 }
@@ -59,6 +59,7 @@ func TestTenantAdd(t *testing.T) {
 func TestTenantPatch(t *testing.T) {
 	t.Run("alias is normalized", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		alias := " Acme-Corp "
 		v, err := c.Tenant().Patch(ctx, go_app.TenantPatchRequest_builder{Ref: v.Ref(), Alias: &alias}.Build())
@@ -67,6 +68,7 @@ func TestTenantPatch(t *testing.T) {
 	}))
 	t.Run("alias must be a slug", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		alias := "acme corp"
 		_, err := c.Tenant().Patch(ctx, go_app.TenantPatchRequest_builder{Ref: v.Ref(), Alias: &alias}.Build())
@@ -77,6 +79,7 @@ func TestTenantPatch(t *testing.T) {
 func TestTenantGet(t *testing.T) {
 	t.Run("by alias", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		u, err := c.Tenant().Get(ctx, go_app.TenantGetByAlias("acme"))
 		x.NoError(err)
@@ -97,8 +100,9 @@ func TestTenantBare(t *testing.T) {
 		x.Equal("ACME CORP", v.GetAlias())
 		x.Empty(v.GetName())
 
-		// It is the same database.
-		u, err := c.Tenant().Get(ctx, v.Pick())
+		// It is the same database. Read past the wall, since this Tenant was
+		// made behind everything and nobody is inside it.
+		u, err := c.Ungated().Tenant().Get(ctx, v.Pick())
 		x.NoError(err)
 		x.Equal(v.GetId(), u.GetId())
 	}))

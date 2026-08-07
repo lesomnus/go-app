@@ -14,6 +14,7 @@ import (
 func TestTenantApply(t *testing.T) {
 	t.Run("a document changes what it names", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		v, err := c.Tenant().Apply(ctx, go_app.TenantApplyRequest_builder{
 			Ref: v.Ref(),
@@ -27,6 +28,7 @@ func TestTenantApply(t *testing.T) {
 	}))
 	t.Run("one map entry is edited without the rest being read", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		v, err := c.Tenant().Apply(ctx, go_app.TenantApplyRequest_builder{
 			Ref: v.Ref(),
@@ -50,6 +52,7 @@ func TestTenantApply(t *testing.T) {
 	}))
 	t.Run("a test that does not hold writes nothing", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		_, err := c.Tenant().Apply(ctx, go_app.TenantApplyRequest_builder{
 			Ref: v.Ref(),
@@ -66,6 +69,7 @@ func TestTenantApply(t *testing.T) {
 	}))
 	t.Run("an alias is taken as it is spelled", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		v := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, v)
 
 		// A document states an operation rather than a value to be tidied up,
 		// so `core` refuses a spelling it would have had to change instead of
@@ -102,6 +106,7 @@ func TestTenantApply(t *testing.T) {
 func TestHolderApply(t *testing.T) {
 	t.Run("a document changes what it names", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
 
 		v, err := c.Holder().Apply(ctx, go_app.HolderApplyRequest_builder{
@@ -115,6 +120,7 @@ func TestHolderApply(t *testing.T) {
 	}))
 	t.Run("an alias is taken as it is spelled", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		tenant := c.CreateTenant(ctx, x, "acme")
+		ctx = c.AsAdminOf(ctx, x, tenant)
 		v := c.CreateHolder(ctx, x, tenant.Ref(), "john")
 
 		_, err := c.Holder().Apply(ctx, go_app.HolderApplyRequest_builder{

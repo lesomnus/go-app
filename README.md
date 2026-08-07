@@ -397,9 +397,11 @@ see nothing, so a frame that forgets one fails closed.
 
 - Nothing of another Tenant is visible — `NotFound`, since that it exists is
   itself something not to say.
-- A Tenant is put up and taken down by whoever administers the deployment, which
-  is not something that happens from inside one.
-- Whoever holds the `root` Tenant is not walled in.
+- A Tenant is put up and taken down by the deployment, which is not something
+  that happens from inside one — so both are `Unimplemented`, to everybody.
+- **There is no caller the wall is not about.** What the deployment does for
+  itself, it does through a server the wall was never installed on; that
+  capability is an instance somebody was handed rather than a row somebody is.
 
 Every Tenant comes with the Holder that administers it, `admin`, because a
 Tenant nobody holds is a Tenant nobody can do anything with.
@@ -481,8 +483,9 @@ both are on purpose:
 - A thing transferred to another Tenant **leaves its whole trail behind**.
   Receiving something does not come with the right to read what its previous
   owner did inside their own walls.
-- A Tenant **does not see what was done to its own rows from outside it**. Root
-  writing into acme leaves a row that is root's to read.
+- A Tenant **does not see what was done to its own rows from outside it**. A
+  caller from elsewhere writing into acme leaves a row that is theirs to read,
+  not acme's.
 
 Closing the second half means recording the Tenant of the *object* too, at the
 time of the write, and that is deliberately not done. The recorder is told about
@@ -547,7 +550,10 @@ func TestTenantAdd(t *testing.T) {
 }
 ```
 
-A test is served as whoever administers the deployment; `c.AsHolder(ctx, v)`
+A test is served as the admin of the first Tenant — a Holder like any other, not
+a privileged one. `c.Ungated()` is a client of the stack without the wall, which
+is how a test arranges the Tenants it is about; `c.AsAdminOf(ctx, x, tenant)`
+travels as somebody inside one. `c.AsHolder(ctx, v)`
 says it is somebody else, and `c.AsNobody(ctx)` says nothing at all. Those go
 through the same authentication the app is served with, so what a test travels
 is what a caller travels.

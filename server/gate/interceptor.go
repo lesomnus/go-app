@@ -1,7 +1,6 @@
 package gate
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/google/uuid"
@@ -10,7 +9,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/lesomnus/go-app/internal/grpcx"
-	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/frame"
 )
 
@@ -24,9 +22,9 @@ import (
 // is the sort that has one. This is the same shape `server/auth` uses: an
 // interceptor works out who the caller is, and no layer asks again.
 //
-// A nil `p` is not a missing piece. The deployment then sees what this app has
-// always shown: whoever holds the root Tenant is not walled in, everybody else
-// sees their own. The interface is the seam; see [Policy].
+// A nil `p` is not a missing piece. The deployment then sees what this app
+// shows on its own: everybody sees their own Tenant, and nobody sees more. The
+// interface is the seam; see [Policy].
 //
 // It must be installed behind whatever says who is calling, since it reads the
 // actor. A call that arrives with no frame at all -- health, reflection, and
@@ -81,19 +79,25 @@ func decide(ctx context.Context, p Policy, method string) (context.Context, erro
 }
 
 // holds is what the Holder may see, before the credential is met with it.
+//
+// Without a policy it is their own Tenant, and there is no caller it is not.
+// **There is deliberately no superuser here** -- nothing compares an identifier
+// against a well-known one and answers "everything". A privilege granted by
+// being a particular row is one that cannot be revoked, cannot be narrowed and
+// does not show up anywhere it is used; it is the sort that is discovered by
+// whoever finds the row.
+//
+// What the deployment itself has to do, it does through a server this wall was
+// never installed on -- which is how `core.EnsureRoot` runs before there is
+// anybody to be, and is what an operator's path is made of. That capability is
+// a server instance somebody had to be handed, rather than a comparison
+// anybody can satisfy.
 func holds(ctx context.Context, p Policy, f *frame.Frame, c Call) (frame.Tenants, error) {
 	if p != nil {
 		return p.Where(ctx, c)
 	}
 
-	// Whoever holds the root Tenant administers the deployment, and is the one
-	// caller no wall is about.
-	v := f.Tenant()
-	if bytes.Equal(v.GetId(), core.RootId[:]) {
-		return frame.Everything, nil
-	}
-
-	k, err := uuid.FromBytes(v.GetId())
+	k, err := uuid.FromBytes(f.Tenant().GetId())
 	if err != nil {
 		// It came out of the database with the actor, so this is the app
 		// disagreeing with itself rather than a request being wrong.

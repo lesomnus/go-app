@@ -46,6 +46,16 @@ type Server struct {
 	// authentication looks callers up on.
 	Sink go_app.Server
 
+	// Ungated is the stack without `server/gate` and without the wall it
+	// states, which is what a deployment does its own work through -- putting
+	// up a Tenant, and whatever else is not asked for from inside one.
+	//
+	// It is the whole of what used to be a comparison against a well-known
+	// identifier. A test reaches it with [Client.Ungated], and that it has to
+	// be reached rather than become is the point: the capability is a server
+	// somebody was handed.
+	Ungated go_app.Server
+
 	// Tokens is the bearer store this app is served with, so that a test can
 	// travel as a credential that allows less than its Holder does. Add one
 	// and reach for it with [Client.AsBearer].
@@ -92,6 +102,11 @@ func NewServer(tb testing.TB) *Server {
 	v, err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
 	x.NoError(err)
 
+	// The same stack without the layer that says what a caller may do, on the
+	// server the wall is not installed on.
+	ungated, err := go_app.Build(sink, core.Build(), audit.Build())
+	x.NoError(err)
+
 	// Every deployment has the root Tenant, so every test does too. It is made
 	// around the gate, since there is nobody to be yet.
 	ctx := tb.Context()
@@ -106,10 +121,11 @@ func NewServer(tb testing.TB) *Server {
 
 		Tokens: auth.NewMemTokenStore(),
 
-		Db:    c,
-		Root:  root,
-		Admin: admin,
-		Sink:  sink,
+		Db:      c,
+		Root:    root,
+		Admin:   admin,
+		Sink:    sink,
+		Ungated: ungated,
 
 		Server: v,
 	}

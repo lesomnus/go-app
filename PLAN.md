@@ -132,11 +132,12 @@ Three things to get right:
 ### Phase 2 — what goes through it
 
 - **2.1 The Tenant wall.** `frame` carries a scope — the set of Tenants this
-  caller may see — instead of one Tenant. Root is the whole set, an ordinary
-  caller is their own, and a later sharing or transfer feature is a larger set
-  rather than a special case; `unbounded` stops being a concept. `gate` keeps
-  only the rules that are rules: a Tenant is not created from inside one, and a
-  Holder is created inside a named one. "Not found rather than denied" comes
+  caller may see — instead of one Tenant. An ordinary caller is their own, and a
+  later sharing or transfer feature is a larger set rather than a special case;
+  `unbounded` stops being a concept. (At the time root was the whole set; that
+  privilege was removed afterwards — see phase 7.) `gate` keeps only the rules
+  that are rules: a Tenant is not put up from inside one, and a Holder is
+  created inside a named one. "Not found rather than denied" comes
   for free — a walled query returns nothing, and nothing is `NotFound`.
 - **2.2 Soft delete.** **Done**, once `protobuf-orm` could say it. Declared in
   proto, emitted by the generator: the column, the read predicate (Phase 1's
@@ -203,8 +204,8 @@ Holder lives — they are about who did something.
 So the column is not "history stays put". It is a **different policy**: let a
 Tenant see what was done *to its own rows*, including from outside it. That is
 the limitation the README records, it is a real one, and it is a widening of the
-wall rather than a tightening — acme would start seeing rows whose actor was
-root. It was not asked for, and it has a disclosure trade-off of its own.
+wall rather than a tightening — acme would start seeing rows whose actor is
+somebody outside it. It was not asked for, and it has a disclosure trade-off of its own.
 
 **And it cannot be recorded cheaply.** The recorder runs after the write, inside
 its transaction. For `Add` and `Apply` the row is still there and its Tenant is
@@ -308,12 +309,15 @@ Not now, and not blocked by anything here.
 | 4 validation and the doctrine | **done** | checks in Go beside the rule they belong to; `Patch`/`Apply` closed at the transport, off by default |
 | 5 paging | **done** | `runtime/entpage`; both hand-written lists page by cursor |
 | 6 attenuation | **done** | `frame.Grant`, met with the wall; `gate.Policy` defined and unset |
+| 7 no superuser | **done** | the root comparison is gone; going around the wall is a server instance, not an identity |
 
 Checked against a real PostgreSQL and not only the SQLite the tests run on:
 migrations applied to an empty database, the root Tenant put there before
 anything was served, writes leaving trail rows, a list read across three pages,
-`Patch` refused, a bad identifier refused before the server saw it, and the wall
-answering `NotFound` from inside a Tenant.
+`Patch` refused, a bad identifier refused before the server saw it, the wall
+answering `NotFound` from inside a Tenant, and `Tenant.Add`/`Tenant.Erase`
+answering `Unimplemented` to the first Tenant's admin — who is the caller a
+superuser would have been.
 
 ### What the plan got wrong
 
@@ -333,6 +337,16 @@ Worth keeping, since the errors were in the reasoning rather than in the code.
   the answer for a frame that went missing by mistake. Refusing, and handing a
   server with no wall to the two callers that must go around it, makes the
   bypass something a reader can find.
+- **A superuser is the shape of "the deployment can do more".** It is not, and
+  writing one was the plan's own doing: an identifier kept as a constant, a
+  comparison against it in the middle of the wall, and a `Tenant.Add` served to
+  whoever matched. A privilege granted by *being a particular row* cannot be
+  revoked, cannot be narrowed, does not appear anywhere it is used, and belongs
+  to whoever finds the row. What the deployment needs is a **server the wall was
+  never installed on** — which already existed, because the trail and
+  `EnsureRoot` need one. Removing it made the boundary something a reader can
+  see: a capability somebody was handed rather than one they satisfy, and a test
+  that wants it has to reach for `c.Ungated()` and say so.
 - **Validation belongs on the request, declared.** On the request, yes — but
   written in Go, next to the rule it is part of. Declared, the number survives
   and the reason for it does not, and there is only the one verb where refusing
