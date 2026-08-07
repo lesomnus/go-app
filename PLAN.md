@@ -178,10 +178,14 @@ introduced by the feature, and the fix is a sentence the entity that owns the
 others has to say: `core.TenantServiceServer.Erase` takes its Holders with it,
 in one transaction, which is what erasing a Tenant already meant.
 
-**And a field-level `unique` cannot be made partial.** Only an `indexes` entry
-can, so `Tenant.alias` would keep its name across a soft erasure while
-`Holder.alias` gives it up. It does not bite here -- a Tenant is not erased
-softly -- but it is the sort of asymmetry that would.
+**And a field-level `unique` could not be made partial**, at first. Only an
+`indexes` entry can carry a predicate, so `Tenant.alias` would have kept its
+name across a soft erasure while `Holder.alias` gave it up -- an asymmetry that
+does not bite here, since a Tenant is not erased softly, and would have bitten
+somebody. It was closed rather than written down: for a soft-erasing entity the
+generator promotes a unique field to an index of its own. The `Ref` keeps the
+bare-scalar shape a unique field always had, because that is `graph`'s to decide
+and it reads the field, not the schema.
 
 ### Phase 3 — `object_tenant_id` — **not done, and the reason is a correction**
 

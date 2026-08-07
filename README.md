@@ -281,10 +281,11 @@ too. Whatever owns it has to decide what happens to it.
 
 Two smaller edges, both worth knowing before you copy this:
 
-- **`Tenant.alias` would not come free**, if a Tenant were erased softly. It is
-  `unique` on the field rather than an `indexes` entry, and only an index can be
-  made partial. A name that has to be reusable after an erasure has to be
-  declared as a unique index.
+- **Either spelling of `unique` frees its value.** `Tenant.alias` is `unique` on
+  the field and `Holder`'s slug is an `indexes` entry, and for a soft-erasing
+  entity the generator writes both as partial indexes — the field one loses
+  `.Unique()` and gains an index of its own. The `Ref` does not change shape for
+  it, so a caller cannot tell.
 - **Nothing can read an erased row through these servers**, and there is no
   option asking for one. Restoring something, or looking at what was erased, is
   written by hand against `core.Server.Db()` — like every other RPC nothing
