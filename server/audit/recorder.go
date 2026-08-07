@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/lesomnus/protobuf-patch/patchpb"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -49,7 +48,7 @@ func (Recorder) Record(ctx context.Context, s bare.Server, c bare.Change) error 
 
 	doc, err := document(c.Patch)
 	if err != nil {
-		return status.Errorf(codes.Internal, "hold the patch of %s: %s", c.Method, err)
+		return status.Errorf(codes.Internal, "hold the patch of %s: %s", c.By, err)
 	}
 
 	// The zero identifier for a write nobody asked for, which is what the
@@ -67,7 +66,13 @@ func (Recorder) Record(ctx context.Context, s bare.Server, c bare.Change) error 
 		ActorId:  actor[:],
 		TraceId:  traceId(ctx),
 
-		Action:   action(ctx, c),
+		// What the caller asked for, which is what a trail is read for. The
+		// write also says which of these servers made it (`c.By`), and that
+		// is not what goes here: one request writes through several of them
+		// -- adding a Tenant writes the admin Holder that comes with it --
+		// and an RPC written by hand ends in a Patch nobody called by that
+		// name. "Who renamed this" has to answer with Rename.
+		Action:   c.Method,
 		ObjectId: object,
 		Patch:    doc,
 	}.Build())
@@ -76,34 +81,6 @@ func (Recorder) Record(ctx context.Context, s bare.Server, c bare.Change) error 
 	}
 
 	return nil
-}
-
-// action is what the caller asked for, which is what a trail is read for.
-//
-// The write reports the RPC of the server that made it, and that is not always
-// the one anybody called: the servers behind this are also called in process,
-// and one request can write several rows through several of them -- adding a
-// Tenant writes the admin Holder that comes with it, and the write reports
-// itself as HolderService/Add although nobody asked for a Holder. The same goes
-// for an RPC written by hand: one that ends in a Patch of its own would be a
-// Patch on the trail, and "who patched this" would answer with a method the
-// caller has never heard of.
-//
-// So the request says. gRPC carries the method it dispatched, and it is the
-// whole request's, not this leg of it -- which is the answer to "what was
-// asked for", and leaves the row's own entity and identifier to say what the
-// request did to it.
-//
-// A write nobody called has no such thing, and that is the one case where what
-// the server did is all there is to say. It is also the honest answer: the
-// deployment writing to itself at startup did call TenantService/Add, in the
-// only sense in which anything called it.
-func action(ctx context.Context, c bare.Change) string {
-	if v, ok := grpc.Method(ctx); ok {
-		return v
-	}
-
-	return c.Method
 }
 
 // document is the patch as the trail holds it, byte for byte. A trail is

@@ -118,7 +118,7 @@ func (s HolderServiceServer) List(ctx context.Context, req *go_app.HolderListReq
 	// leaving out the ones that were erased, and a list that reached past it
 	// for the hook alone would quietly answer with the erased ones.
 	q := db.Holder.Query()
-	if p, err := bare.HolderNarrow(ctx, sc.Holder, nil); err != nil {
+	if p, err := bare.HolderNarrow(ctx, sc, nil); err != nil {
 		return nil, err
 	} else if p != nil {
 		q.Where(p)

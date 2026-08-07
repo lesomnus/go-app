@@ -13,7 +13,7 @@ import (
 	"github.com/lesomnus/go-app/server/frame"
 )
 
-// Wall answers with the scopes that put every read behind the Tenant it belongs
+// Wall answers with the scope that puts every read behind the Tenant it belongs
 // to. It is the whole of the rule this package used to spell out one RPC at a
 // time.
 //
@@ -35,55 +35,68 @@ import (
 // Tenant may be put up or taken down, and which Tenant a Holder may be added
 // to. Those are about a row that does not exist yet, so there is nothing to
 // narrow.
-func Wall() bare.Scopes {
-	// Each of these is the same shape: everything, or the rows that hang off
-	// the Tenants in scope. The identifiers are the frame's, so a failure to
-	// read one is the app disagreeing with itself.
-	ids := func(ctx context.Context) ([]uuid.UUID, bool, error) {
-		s, err := Scope(ctx)
-		if err != nil || s.All() {
-			return nil, true, err
-		}
+func Wall() bare.Scope {
+	return wall{}
+}
 
-		return s.Ids(), false, nil
+// wall is the [bare.Scope] [Wall] answers with: one method per entity, all of
+// them the same shape.
+//
+// It embeds [bare.Unscoped] and so says nothing about an entity it has no
+// method for. That is not laziness -- it is what makes adding an entity to the
+// schema a decision rather than a compile error here, and the decision is
+// whether the new thing is inside a Tenant. An entity that is stays out of
+// every read until somebody writes its method, which is the wrong way round;
+// so the rule for this app is that an entity added here gets a method, and the
+// test in wall_test.go is what says so out loud.
+type wall struct {
+	bare.Unscoped
+}
+
+// ids is which Tenants the caller may see, and whether that is all of them. The
+// identifiers are the frame's, so a failure to read one is the app disagreeing
+// with itself.
+func (wall) ids(ctx context.Context) ([]uuid.UUID, bool, error) {
+	s, err := Scope(ctx)
+	if err != nil || s.All() {
+		return nil, true, err
 	}
 
-	return bare.Scopes{
-		// A Holder is inside the Tenant it belongs to.
-		Holder: func(ctx context.Context) (predicate.Holder, error) {
-			vs, all, err := ids(ctx)
-			if all || err != nil {
-				return nil, err
-			}
+	return s.Ids(), false, nil
+}
 
-			return holder.HasTenantWith(tenant.IDIn(vs...)), nil
-		},
-
-		// A Tenant is inside itself, which is what a Tenant being a wall comes
-		// down to: from inside one there is exactly one.
-		Tenant: func(ctx context.Context) (predicate.Tenant, error) {
-			vs, all, err := ids(ctx)
-			if all || err != nil {
-				return nil, err
-			}
-
-			return tenant.IDIn(vs...), nil
-		},
-
-		// A row of the trail belongs to the Tenant that was acting, which is
-		// not the Tenant of whatever it was written to: whoever administers the
-		// deployment may write into any Tenant, and the row saying so is
-		// theirs. It is the same wall either way -- what one Tenant did is not
-		// visible from another.
-		Audit: func(ctx context.Context) (predicate.Audit, error) {
-			vs, all, err := ids(ctx)
-			if all || err != nil {
-				return nil, err
-			}
-
-			return audit.TenantIDIn(vs...), nil
-		},
+// HolderScope: a Holder is inside the Tenant it belongs to.
+func (w wall) HolderScope(ctx context.Context) (predicate.Holder, error) {
+	vs, all, err := w.ids(ctx)
+	if all || err != nil {
+		return nil, err
 	}
+
+	return holder.HasTenantWith(tenant.IDIn(vs...)), nil
+}
+
+// TenantScope: a Tenant is inside itself, which is what a Tenant being a wall
+// comes down to -- from inside one there is exactly one.
+func (w wall) TenantScope(ctx context.Context) (predicate.Tenant, error) {
+	vs, all, err := w.ids(ctx)
+	if all || err != nil {
+		return nil, err
+	}
+
+	return tenant.IDIn(vs...), nil
+}
+
+// AuditScope: a row of the trail belongs to the Tenant that was acting, which
+// is not the Tenant of whatever it was written to. A caller from elsewhere
+// writing into acme leaves a row that is theirs, not acme's. It is the same
+// wall either way -- what one Tenant did is not visible from another.
+func (w wall) AuditScope(ctx context.Context) (predicate.Audit, error) {
+	vs, all, err := w.ids(ctx)
+	if all || err != nil {
+		return nil, err
+	}
+
+	return audit.TenantIDIn(vs...), nil
 }
 
 // Scope is which Tenants the caller of ctx may see, which was worked out once

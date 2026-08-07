@@ -73,7 +73,7 @@ func (s AuditServiceServer) List(ctx context.Context, req *go_app.AuditListReque
 	// asking the scope hook: what narrows a read is the wall today and would be
 	// the wall and something else tomorrow, and a list that reached past it for
 	// the hook alone would be the one read that missed the something else.
-	if p, err := bare.AuditNarrow(ctx, sc.Audit, nil); err != nil {
+	if p, err := bare.AuditNarrow(ctx, sc, nil); err != nil {
 		return nil, err
 	} else if p != nil {
 		q.Where(p)

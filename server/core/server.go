@@ -87,10 +87,13 @@ func (s Server) Db() (*ent.Client, error) {
 // which is wrong twice over. It reads rows the caller may not see, and a list
 // cut short at a limit before it is filtered is one that any caller can push
 // another's rows out of by making enough of their own.
-func (s Server) Scope() (bare.Scopes, error) {
+func (s Server) Scope() (bare.Scope, error) {
 	v, ok := go_app.Find[bare.Server](s)
 	if !ok {
-		return bare.Scopes{}, status.Error(codes.Internal, "no database in the server stack")
+		// Not [bare.Unscoped]: a stack with no database is a stack that cannot
+		// answer, and a scope that narrows nothing is the wrong thing to hand
+		// back to whoever is about to read with it.
+		return nil, status.Error(codes.Internal, "no database in the server stack")
 	}
 
 	return v.Scope, nil

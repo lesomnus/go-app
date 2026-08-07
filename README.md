@@ -457,16 +457,16 @@ Three things follow from *where* it is, and they are the whole design:
   asserts something and writes nothing, and is not on the trail. Neither is an
   erase that erased nothing, nor a request the gate refused.
 
-What is stored as the `action`, though, is not `Change.Method`. That field is
-the RPC of the *generated* server that did the writing, which is not always one
-anybody called: adding a Tenant writes the admin Holder that comes with it, and
-that write reports itself as `HolderService/Add`. So `server/audit` asks gRPC
-for the method it dispatched, and stores that — the whole request's name, not
-the leg of it that reached the database. An RPC written by hand that ends in a
-`Patch` is on the trail under its own name for the same reason. What the request
-did to which row is `object_id`'s to say, and a write nobody called — the
-deployment writing to itself at startup — falls back to `Change.Method`, which
-is the only name it has.
+What is stored as the `action` is `Change.Method`, which is what the *caller*
+asked for — the RPC gRPC dispatched. A write also says which generated server
+made it (`Change.By`), and that is deliberately not what goes here: adding a
+Tenant writes the admin Holder that comes with it, and that write is a
+`HolderService/Add` although nobody asked for a Holder. An RPC written by hand
+that ends in a `Patch` is on the trail under its own name for the same reason —
+"who renamed this" has to answer with `Rename`. What the request did to which
+row is `object_id`'s to say, and a write nobody called over the wire — the
+deployment writing to itself at startup — has only the one name, so `Method` is
+`By` there.
 
 The row is named by its identifier and not by its kind, because an identifier is
 unique across every table: whatever answers to it is what the row was about. The

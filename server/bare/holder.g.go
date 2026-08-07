@@ -23,15 +23,7 @@ import (
 )
 
 type HolderServiceServer struct {
-	Db *ent.Client
-
-	// Rec is told about every write this server makes, and nothing is told
-	// if it is nil. See [Recorder].
-	Rec Recorder
-
-	// Scope narrows every query this server builds, and it sees every row
-	// if it is nil. See [Scopes].
-	Scope func(ctx context.Context) (predicate.Holder, error)
+	Store
 
 	go_app.UnimplementedHolderServiceServer
 }
@@ -42,11 +34,11 @@ type HolderServiceServer struct {
 // where to report its writes and what it may see. Built without them, it
 // reports nowhere and sees everything.
 func NewHolderServiceServer(db *ent.Client, opts ...Option) go_app.HolderServiceServer {
-	s := Server{Db: db}
+	s := Server{Store: Store{Db: db}}
 	for _, opt := range opts {
 		opt(&s)
 	}
-	return HolderServiceServer{Db: s.Db, Rec: s.Rec, Scope: s.Scope.Holder}
+	return HolderServiceServer{Store: s.Store}
 }
 
 // HolderNarrow answers with `p` and everything else that narrows a
@@ -56,7 +48,7 @@ func NewHolderServiceServer(db *ent.Client, opts ...Option) go_app.HolderService
 // Every read this package makes goes through it, and a read written by
 // hand should too -- a List is the one read nothing generates, and so the
 // one that would otherwise answer with rows nobody should be given.
-func HolderNarrow(ctx context.Context, scope func(context.Context) (predicate.Holder, error), p predicate.Holder) (predicate.Holder, error) {
+func HolderNarrow(ctx context.Context, scope Scope, p predicate.Holder) (predicate.Holder, error) {
 	ps := make([]predicate.Holder, 0, 3)
 
 	// A row that was erased is not a row a read answers with.
@@ -65,7 +57,7 @@ func HolderNarrow(ctx context.Context, scope func(context.Context) (predicate.Ho
 		ps = append(ps, p)
 	}
 	if scope != nil {
-		q, err := scope(ctx)
+		q, err := scope.HolderScope(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -144,8 +136,8 @@ func (s HolderServiceServer) Add(ctx context.Context, req *go_app.HolderAddReque
 	}
 
 	if err := record(ctx, s.Rec, st.Db, Change{
-		Method: go_app.HolderService_Add_FullMethodName,
-		Key:    u.ID,
+		By:  go_app.HolderService_Add_FullMethodName,
+		Key: u.ID,
 	}); err != nil {
 		return nil, err
 	}
@@ -294,7 +286,7 @@ func (s HolderServiceServer) Apply(ctx context.Context, req *go_app.HolderApplyR
 	return s.apply(ctx, req.GetRef(), req.GetPatch(), go_app.HolderService_Apply_FullMethodName)
 }
 
-func (s HolderServiceServer) apply(ctx context.Context, ref *go_app.HolderRef, doc *patchpb.Patch, method string) (*go_app.Holder, error) {
+func (s HolderServiceServer) apply(ctx context.Context, ref *go_app.HolderRef, doc *patchpb.Patch, by string) (*go_app.Holder, error) {
 	plan := &ormpatch.Plan{Entity: holderOrmEntity}
 	if doc != nil {
 		v, err := ormpatch.Compile(holderOrmEntity, doc)
@@ -374,9 +366,9 @@ func (s HolderServiceServer) apply(ctx context.Context, ref *go_app.HolderRef, d
 
 	if mod != nil {
 		if err := record(ctx, s.Rec, st.Db, Change{
-			Method: method,
-			Key:    k,
-			Patch:  doc,
+			By:    by,
+			Key:   k,
+			Patch: doc,
 		}); err != nil {
 			return nil, err
 		}
@@ -433,8 +425,8 @@ func (s HolderServiceServer) Erase(ctx context.Context, req *go_app.HolderRef) (
 	}
 	if n > 0 {
 		if err := record(ctx, s.Rec, st.Db, Change{
-			Method: go_app.HolderService_Erase_FullMethodName,
-			Key:    k,
+			By:  go_app.HolderService_Erase_FullMethodName,
+			Key: k,
 		}); err != nil {
 			return nil, err
 		}

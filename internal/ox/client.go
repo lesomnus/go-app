@@ -96,7 +96,7 @@ func (c *Client) Bare() go_app.Client {
 	// this server, so it is one of the rules in front even though it does not
 	// run there -- and this client is for arranging a state the rules would
 	// refuse. A test that wants to see the wall travels the ordinary client.
-	s.Scope = bare.Scopes{}
+	s.Scope = bare.Unscoped{}
 
 	c.bare = newClient(c.tb, c.Server, c.Server.GrpcOf(s))
 	return c.bare

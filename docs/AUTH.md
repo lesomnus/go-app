@@ -170,6 +170,13 @@ Narrowing what a caller may see is a predicate, and a predicate belongs in the
 app had thirteen of them across three entities, and they had already started to
 drift: one carried a bug that was fixed in one copy and left in the next.
 
+`gate.Wall()` answers with a `bare.Scope` — one method per entity, all of them
+the same shape: everything, or the rows that hang off the Tenants in scope. It
+embeds `bare.Unscoped`, which is the generated "no opinion" for every entity, so
+an entity added to the schema is not a compile error here. In this app that is
+the wrong way round — everything is inside a Tenant — so `wall_test.go` asks
+each method what it answers and fails when one of them says nothing.
+
 Three things fall out of it rather than being written:
 
 - **`NotFound`, not `PermissionDenied`.** A row out of the wall is a row the

@@ -329,7 +329,7 @@ Not now, and not blocked by anything here.
 | 0.2 default deadline | **done** | `grpcx.Deadline`, `server.timeout`, unary only |
 | 0.3 readiness / liveness | **done** | `""` follows the database, `"liveness"` follows the process |
 | 0.4 more than one recorder | **done** | `WithRecorder` accumulates; every recorder is required |
-| 1 the `Scope` hook | **done** | `bare.Scopes`, one per entity, into every query the generated servers build |
+| 1 the `Scope` hook | **done** | `bare.Scope`, a method per entity, into every query the generated servers build |
 | 2.1 the Tenant wall | **done** | `gate.Wall()`; thirteen overrides became three rules and a predicate |
 | 2.2 soft delete | **done** | `erased: {}` in `protobuf-orm`, stamped by the generated `Erase`, partial unique index; `Holder` uses it |
 | 3 `object_tenant_id` | **dropped** | the premise was wrong and the cost is a generator-wide one; written down instead |

@@ -67,10 +67,13 @@ func (s Server) Db() (*ent.Client, error) {
 
 // Scope returns what that server narrows its queries with, so that List
 // narrows its own the same way. See [core.Server.Scope].
-func (s Server) Scope() (bare.Scopes, error) {
+func (s Server) Scope() (bare.Scope, error) {
 	v, ok := go_app.Find[bare.Server](s)
 	if !ok {
-		return bare.Scopes{}, status.Error(codes.Internal, "no database in the server stack")
+		// Not [bare.Unscoped]: a stack with no database is a stack that cannot
+		// answer, and a scope that narrows nothing is the wrong thing to hand
+		// back to whoever is about to read with it.
+		return nil, status.Error(codes.Internal, "no database in the server stack")
 	}
 
 	return v.Scope, nil
