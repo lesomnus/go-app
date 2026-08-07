@@ -515,6 +515,47 @@ it: an event is published in this process, to whoever is listening in this
 process, and a crash between the commit and the dispatch loses it. Something that
 must not be lost is written in the transaction, as a row somebody else picks up.
 
+#### `HolderService.Watch` — state, not deltas
+
+What a client gets is **the row as it is now**, never a description of what
+changed. That is what makes a stream that missed something still correct: the
+next item about a Holder carries the whole of it, so a client converges instead
+of replaying. It is why nothing here keeps a version, a cursor or a backlog.
+
+```
+subscribe                    first, so nothing that happens while reading is lost
+List(filters)                the snapshot, page by page
+per event:  Get(id)          the row as it is now, and the filters tested on it
+```
+
+Three things fall out of that order:
+
+- **A client does not List and then Watch and race the two.** Subscribing first
+  means the only thing that can go wrong is a Holder arriving twice — in the
+  snapshot and again as a change — and a duplicate is harmless when the payload
+  is state.
+- **The wall stays in one place.** The row is read back *through the servers
+  behind this one*, with the context of the caller who asked, so it is walled by
+  the same predicate as every other read. Nothing in `server/watch` knows what a
+  Tenant is. The filters are the caller's own and are tested in Go, which is a
+  different kind of thing: a filter that is wrong shows somebody a row of theirs
+  they asked not to see, and a wall that is wrong shows them somebody else's.
+- **A removal is said by absence.** `HolderWatchItem.value` is unset when the
+  Holder is no longer one this caller may see, and there is deliberately no way
+  to tell "erased" from "no longer yours" — a stream that distinguished them
+  would be reporting rows that stopped being the caller's. It is only ever said
+  about a Holder the stream has already carried.
+
+`action` is the RPC the caller of *that* change asked for, so an RPC written by
+hand is here under its own name; what it means is that RPC's documentation to
+say. `Change.By` — the write it actually became — is deliberately **not** on the
+wire, since publishing it would tell callers about `Patch` and `Apply`, the two
+RPCs this app does not serve them.
+
+A stream that falls more than `watch.Backlog` behind is cut off with
+`ResourceExhausted`. Asking again is the recovery: a fresh stream begins with
+everything that matches now.
+
 **The trail is the actor's, not the object's.** A row is stamped with the Tenant
 the caller was held by, and nothing moves it afterwards. Two things follow, and
 both are on purpose:

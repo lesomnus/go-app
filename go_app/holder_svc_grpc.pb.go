@@ -26,6 +26,7 @@ const (
 	HolderService_Apply_FullMethodName = "/go_app.HolderService/Apply"
 	HolderService_Erase_FullMethodName = "/go_app.HolderService/Erase"
 	HolderService_List_FullMethodName  = "/go_app.HolderService/List"
+	HolderService_Watch_FullMethodName = "/go_app.HolderService/Watch"
 )
 
 // HolderServiceClient is the client API for HolderService service.
@@ -44,6 +45,18 @@ type HolderServiceClient interface {
 	Erase(ctx context.Context, in *HolderRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// List holders
 	List(ctx context.Context, in *HolderListRequest, opts ...grpc.CallOption) (*HolderListResponse, error)
+	// Watch the Holders a caller may see, as they are now and as they change.
+	//
+	// What arrives is state and never a delta, so a client converges rather than
+	// replays: it keeps what it was last told about a Holder and replaces it. An
+	// event it did not receive is one it does not need, since the next one about
+	// that Holder carries the whole of it.
+	//
+	// The first message is everything that matches right now, so a client does
+	// not have to List first and race the subscription. A Holder may arrive twice
+	// -- once in that first message and once as a change that happened while it
+	// was being read -- and that is harmless for the same reason.
+	Watch(ctx context.Context, in *HolderWatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[HolderWatchResponse], error)
 }
 
 type holderServiceClient struct {
@@ -114,6 +127,25 @@ func (c *holderServiceClient) List(ctx context.Context, in *HolderListRequest, o
 	return out, nil
 }
 
+func (c *holderServiceClient) Watch(ctx context.Context, in *HolderWatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[HolderWatchResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &HolderService_ServiceDesc.Streams[0], HolderService_Watch_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[HolderWatchRequest, HolderWatchResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type HolderService_WatchClient = grpc.ServerStreamingClient[HolderWatchResponse]
+
 // HolderServiceServer is the server API for HolderService service.
 // All implementations must embed UnimplementedHolderServiceServer
 // for forward compatibility.
@@ -130,6 +162,18 @@ type HolderServiceServer interface {
 	Erase(context.Context, *HolderRef) (*emptypb.Empty, error)
 	// List holders
 	List(context.Context, *HolderListRequest) (*HolderListResponse, error)
+	// Watch the Holders a caller may see, as they are now and as they change.
+	//
+	// What arrives is state and never a delta, so a client converges rather than
+	// replays: it keeps what it was last told about a Holder and replaces it. An
+	// event it did not receive is one it does not need, since the next one about
+	// that Holder carries the whole of it.
+	//
+	// The first message is everything that matches right now, so a client does
+	// not have to List first and race the subscription. A Holder may arrive twice
+	// -- once in that first message and once as a change that happened while it
+	// was being read -- and that is harmless for the same reason.
+	Watch(*HolderWatchRequest, grpc.ServerStreamingServer[HolderWatchResponse]) error
 	mustEmbedUnimplementedHolderServiceServer()
 }
 
@@ -157,6 +201,9 @@ func (UnimplementedHolderServiceServer) Erase(context.Context, *HolderRef) (*emp
 }
 func (UnimplementedHolderServiceServer) List(context.Context, *HolderListRequest) (*HolderListResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedHolderServiceServer) Watch(*HolderWatchRequest, grpc.ServerStreamingServer[HolderWatchResponse]) error {
+	return status.Error(codes.Unimplemented, "method Watch not implemented")
 }
 func (UnimplementedHolderServiceServer) mustEmbedUnimplementedHolderServiceServer() {}
 func (UnimplementedHolderServiceServer) testEmbeddedByValue()                       {}
@@ -287,6 +334,17 @@ func _HolderService_List_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HolderService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(HolderWatchRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(HolderServiceServer).Watch(m, &grpc.GenericServerStream[HolderWatchRequest, HolderWatchResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type HolderService_WatchServer = grpc.ServerStreamingServer[HolderWatchResponse]
+
 // HolderService_ServiceDesc is the grpc.ServiceDesc for HolderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -319,6 +377,12 @@ var HolderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _HolderService_List_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Watch",
+			Handler:       _HolderService_Watch_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "go_app/holder_svc.proto",
 }

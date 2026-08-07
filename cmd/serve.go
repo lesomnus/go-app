@@ -119,7 +119,10 @@ func NewCmdServe() *xli.Command {
 				return z.Err(err, "build the server that talks to the database")
 			}
 
-			s, err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
+			// Watch is behind the gate, so a caller who may not ask has already
+			// been refused, and in front of core, so the list it reads is the
+			// hand-written one with its filters and its paging.
+			s, err := go_app.Build(walled, core.Build(), audit.Build(), wat.Build(), gate.Build())
 			if err != nil {
 				return z.Err(err, "build server")
 			}

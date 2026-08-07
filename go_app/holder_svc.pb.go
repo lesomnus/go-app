@@ -1430,6 +1430,285 @@ func (b0 HolderFilter_builder) Build() *HolderFilter {
 	return m0
 }
 
+type HolderWatchRequest struct {
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Filters *[]*HolderFilter       `protobuf:"bytes,1,rep,name=filters"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *HolderWatchRequest) Reset() {
+	*x = HolderWatchRequest{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HolderWatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HolderWatchRequest) ProtoMessage() {}
+
+func (x *HolderWatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *HolderWatchRequest) GetFilters() []*HolderFilter {
+	if x != nil {
+		if x.xxx_hidden_Filters != nil {
+			return *x.xxx_hidden_Filters
+		}
+	}
+	return nil
+}
+
+func (x *HolderWatchRequest) SetFilters(v []*HolderFilter) {
+	x.xxx_hidden_Filters = &v
+}
+
+type HolderWatchRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Which Holders to watch, in the same words `List` takes them: what is
+	// watched is what that list would answer with, now and afterwards.
+	//
+	// Bounded the way `HolderListRequest.filters` is, and for a heavier reason.
+	// A list runs its filters once; a watch runs them again for every write that
+	// touches a Holder, for as long as the stream is open.
+	Filters []*HolderFilter
+}
+
+func (b0 HolderWatchRequest_builder) Build() *HolderWatchRequest {
+	m0 := &HolderWatchRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Filters = &b.Filters
+	return m0
+}
+
+type HolderWatchResponse struct {
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Items *[]*HolderWatchItem    `protobuf:"bytes,1,rep,name=items"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *HolderWatchResponse) Reset() {
+	*x = HolderWatchResponse{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HolderWatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HolderWatchResponse) ProtoMessage() {}
+
+func (x *HolderWatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *HolderWatchResponse) GetItems() []*HolderWatchItem {
+	if x != nil {
+		if x.xxx_hidden_Items != nil {
+			return *x.xxx_hidden_Items
+		}
+	}
+	return nil
+}
+
+func (x *HolderWatchResponse) SetItems(v []*HolderWatchItem) {
+	x.xxx_hidden_Items = &v
+}
+
+type HolderWatchResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// What changed, or -- in the first message -- everything that matches.
+	Items []*HolderWatchItem
+}
+
+func (b0 HolderWatchResponse_builder) Build() *HolderWatchResponse {
+	m0 := &HolderWatchResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Items = &b.Items
+	return m0
+}
+
+type HolderWatchItem struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id          []byte                 `protobuf:"bytes,1,opt,name=id"`
+	xxx_hidden_Value       *Holder                `protobuf:"bytes,2,opt,name=value"`
+	xxx_hidden_Action      *string                `protobuf:"bytes,3,opt,name=action"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *HolderWatchItem) Reset() {
+	*x = HolderWatchItem{}
+	mi := &file_go_app_holder_svc_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HolderWatchItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HolderWatchItem) ProtoMessage() {}
+
+func (x *HolderWatchItem) ProtoReflect() protoreflect.Message {
+	mi := &file_go_app_holder_svc_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *HolderWatchItem) GetId() []byte {
+	if x != nil {
+		return x.xxx_hidden_Id
+	}
+	return nil
+}
+
+func (x *HolderWatchItem) GetValue() *Holder {
+	if x != nil {
+		return x.xxx_hidden_Value
+	}
+	return nil
+}
+
+func (x *HolderWatchItem) GetAction() string {
+	if x != nil {
+		if x.xxx_hidden_Action != nil {
+			return *x.xxx_hidden_Action
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *HolderWatchItem) SetId(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Id = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
+}
+
+func (x *HolderWatchItem) SetValue(v *Holder) {
+	x.xxx_hidden_Value = v
+}
+
+func (x *HolderWatchItem) SetAction(v string) {
+	x.xxx_hidden_Action = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
+}
+
+func (x *HolderWatchItem) HasId() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *HolderWatchItem) HasValue() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Value != nil
+}
+
+func (x *HolderWatchItem) HasAction() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
+}
+
+func (x *HolderWatchItem) ClearId() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Id = nil
+}
+
+func (x *HolderWatchItem) ClearValue() {
+	x.xxx_hidden_Value = nil
+}
+
+func (x *HolderWatchItem) ClearAction() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_Action = nil
+}
+
+type HolderWatchItem_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Which Holder. Always said, since one that is gone still has to be named.
+	Id []byte
+	// The Holder as it is now, and **absent when it is no longer one this caller
+	// may see**: erased, or moved out of the filters this stream named.
+	//
+	// Absence is the whole of how a removal is said. There is no flag for it, and
+	// there is deliberately no way to tell those two apart -- a stream that
+	// distinguished "erased" from "no longer yours" would be telling a caller
+	// about rows that stopped being theirs, which is the thing the wall is for.
+	//
+	// It is only ever said about a Holder this stream has already carried. One
+	// that never matched is not news.
+	Value *Holder
+	// The RPC that changed it, by the name gRPC knows it by:
+	// "/go_app.HolderService/Add". It is what the caller of *that* RPC asked for
+	// and not the write it became, so an RPC written by hand is here under its
+	// own name and a client reads what it means from that RPC's documentation.
+	//
+	// Empty in the first message, which is not something anybody asked for -- it
+	// is what is already there.
+	Action *string
+}
+
+func (b0 HolderWatchItem_builder) Build() *HolderWatchItem {
+	m0 := &HolderWatchItem{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.Id != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
+		x.xxx_hidden_Id = b.Id
+	}
+	x.xxx_hidden_Value = b.Value
+	if b.Action != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		x.xxx_hidden_Action = b.Action
+	}
+	return m0
+}
+
 var File_go_app_holder_svc_proto protoreflect.FileDescriptor
 
 const file_go_app_holder_svc_proto_rawDesc = "" +
@@ -1487,16 +1766,25 @@ const file_go_app_holder_svc_proto_rawDesc = "" +
 	"\x05items\x18\x01 \x03(\v2\x0e.go_app.HolderR\x05items\x12\x12\n" +
 	"\x04next\x18\x02 \x01(\tR\x04next\"3\n" +
 	"\fHolderFilter\x12#\n" +
-	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref2\xce\x02\n" +
+	"\x03ref\x18\x01 \x01(\v2\x11.go_app.HolderRefR\x03ref\"D\n" +
+	"\x12HolderWatchRequest\x12.\n" +
+	"\afilters\x18\x01 \x03(\v2\x14.go_app.HolderFilterR\afilters\"D\n" +
+	"\x13HolderWatchResponse\x12-\n" +
+	"\x05items\x18\x01 \x03(\v2\x17.go_app.HolderWatchItemR\x05items\"_\n" +
+	"\x0fHolderWatchItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\fR\x02id\x12$\n" +
+	"\x05value\x18\x02 \x01(\v2\x0e.go_app.HolderR\x05value\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action2\x92\x03\n" +
 	"\rHolderService\x12/\n" +
 	"\x03Add\x12\x18.go_app.HolderAddRequest\x1a\x0e.go_app.Holder\x12/\n" +
 	"\x03Get\x12\x18.go_app.HolderGetRequest\x1a\x0e.go_app.Holder\x123\n" +
 	"\x05Patch\x12\x1a.go_app.HolderPatchRequest\x1a\x0e.go_app.Holder\x123\n" +
 	"\x05Apply\x12\x1a.go_app.HolderApplyRequest\x1a\x0e.go_app.Holder\x122\n" +
 	"\x05Erase\x12\x11.go_app.HolderRef\x1a\x16.google.protobuf.Empty\x12=\n" +
-	"\x04List\x12\x19.go_app.HolderListRequest\x1a\x1a.go_app.HolderListResponseB\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
+	"\x04List\x12\x19.go_app.HolderListRequest\x1a\x1a.go_app.HolderListResponse\x12B\n" +
+	"\x05Watch\x12\x1a.go_app.HolderWatchRequest\x1a\x1b.go_app.HolderWatchResponse0\x01B\x1cZ\x1agithub.com/lesomnus/go-appb\beditionsp\xe8\a"
 
-var file_go_app_holder_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_go_app_holder_svc_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_go_app_holder_svc_proto_goTypes = []any{
 	(*HolderAddRequest)(nil),      // 0: go_app.HolderAddRequest
 	(*HolderGetRequest)(nil),      // 1: go_app.HolderGetRequest
@@ -1508,48 +1796,56 @@ var file_go_app_holder_svc_proto_goTypes = []any{
 	(*HolderListRequest)(nil),     // 7: go_app.HolderListRequest
 	(*HolderListResponse)(nil),    // 8: go_app.HolderListResponse
 	(*HolderFilter)(nil),          // 9: go_app.HolderFilter
-	nil,                           // 10: go_app.HolderAddRequest.LabelsEntry
-	nil,                           // 11: go_app.HolderPatchRequest.LabelsEntry
-	(*TenantRef)(nil),             // 12: go_app.TenantRef
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
-	(*TenantSelect)(nil),          // 14: go_app.TenantSelect
-	(*patchpb.Patch)(nil),         // 15: patch.Patch
-	(*Holder)(nil),                // 16: go_app.Holder
-	(*emptypb.Empty)(nil),         // 17: google.protobuf.Empty
+	(*HolderWatchRequest)(nil),    // 10: go_app.HolderWatchRequest
+	(*HolderWatchResponse)(nil),   // 11: go_app.HolderWatchResponse
+	(*HolderWatchItem)(nil),       // 12: go_app.HolderWatchItem
+	nil,                           // 13: go_app.HolderAddRequest.LabelsEntry
+	nil,                           // 14: go_app.HolderPatchRequest.LabelsEntry
+	(*TenantRef)(nil),             // 15: go_app.TenantRef
+	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
+	(*TenantSelect)(nil),          // 17: go_app.TenantSelect
+	(*patchpb.Patch)(nil),         // 18: patch.Patch
+	(*Holder)(nil),                // 19: go_app.Holder
+	(*emptypb.Empty)(nil),         // 20: google.protobuf.Empty
 }
 var file_go_app_holder_svc_proto_depIdxs = []int32{
-	12, // 0: go_app.HolderAddRequest.tenant:type_name -> go_app.TenantRef
-	10, // 1: go_app.HolderAddRequest.labels:type_name -> go_app.HolderAddRequest.LabelsEntry
-	13, // 2: go_app.HolderAddRequest.date_created:type_name -> google.protobuf.Timestamp
+	15, // 0: go_app.HolderAddRequest.tenant:type_name -> go_app.TenantRef
+	13, // 1: go_app.HolderAddRequest.labels:type_name -> go_app.HolderAddRequest.LabelsEntry
+	16, // 2: go_app.HolderAddRequest.date_created:type_name -> google.protobuf.Timestamp
 	2,  // 3: go_app.HolderGetRequest.ref:type_name -> go_app.HolderRef
 	4,  // 4: go_app.HolderGetRequest.select:type_name -> go_app.HolderSelect
 	3,  // 5: go_app.HolderRef.slug:type_name -> go_app.HolderRefBySlug
-	12, // 6: go_app.HolderRefBySlug.tenant:type_name -> go_app.TenantRef
-	14, // 7: go_app.HolderSelect.tenant:type_name -> go_app.TenantSelect
+	15, // 6: go_app.HolderRefBySlug.tenant:type_name -> go_app.TenantRef
+	17, // 7: go_app.HolderSelect.tenant:type_name -> go_app.TenantSelect
 	2,  // 8: go_app.HolderPatchRequest.ref:type_name -> go_app.HolderRef
-	11, // 9: go_app.HolderPatchRequest.labels:type_name -> go_app.HolderPatchRequest.LabelsEntry
+	14, // 9: go_app.HolderPatchRequest.labels:type_name -> go_app.HolderPatchRequest.LabelsEntry
 	2,  // 10: go_app.HolderApplyRequest.ref:type_name -> go_app.HolderRef
-	15, // 11: go_app.HolderApplyRequest.patch:type_name -> patch.Patch
+	18, // 11: go_app.HolderApplyRequest.patch:type_name -> patch.Patch
 	9,  // 12: go_app.HolderListRequest.filters:type_name -> go_app.HolderFilter
-	16, // 13: go_app.HolderListResponse.items:type_name -> go_app.Holder
+	19, // 13: go_app.HolderListResponse.items:type_name -> go_app.Holder
 	2,  // 14: go_app.HolderFilter.ref:type_name -> go_app.HolderRef
-	0,  // 15: go_app.HolderService.Add:input_type -> go_app.HolderAddRequest
-	1,  // 16: go_app.HolderService.Get:input_type -> go_app.HolderGetRequest
-	5,  // 17: go_app.HolderService.Patch:input_type -> go_app.HolderPatchRequest
-	6,  // 18: go_app.HolderService.Apply:input_type -> go_app.HolderApplyRequest
-	2,  // 19: go_app.HolderService.Erase:input_type -> go_app.HolderRef
-	7,  // 20: go_app.HolderService.List:input_type -> go_app.HolderListRequest
-	16, // 21: go_app.HolderService.Add:output_type -> go_app.Holder
-	16, // 22: go_app.HolderService.Get:output_type -> go_app.Holder
-	16, // 23: go_app.HolderService.Patch:output_type -> go_app.Holder
-	16, // 24: go_app.HolderService.Apply:output_type -> go_app.Holder
-	17, // 25: go_app.HolderService.Erase:output_type -> google.protobuf.Empty
-	8,  // 26: go_app.HolderService.List:output_type -> go_app.HolderListResponse
-	21, // [21:27] is the sub-list for method output_type
-	15, // [15:21] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	9,  // 15: go_app.HolderWatchRequest.filters:type_name -> go_app.HolderFilter
+	12, // 16: go_app.HolderWatchResponse.items:type_name -> go_app.HolderWatchItem
+	19, // 17: go_app.HolderWatchItem.value:type_name -> go_app.Holder
+	0,  // 18: go_app.HolderService.Add:input_type -> go_app.HolderAddRequest
+	1,  // 19: go_app.HolderService.Get:input_type -> go_app.HolderGetRequest
+	5,  // 20: go_app.HolderService.Patch:input_type -> go_app.HolderPatchRequest
+	6,  // 21: go_app.HolderService.Apply:input_type -> go_app.HolderApplyRequest
+	2,  // 22: go_app.HolderService.Erase:input_type -> go_app.HolderRef
+	7,  // 23: go_app.HolderService.List:input_type -> go_app.HolderListRequest
+	10, // 24: go_app.HolderService.Watch:input_type -> go_app.HolderWatchRequest
+	19, // 25: go_app.HolderService.Add:output_type -> go_app.Holder
+	19, // 26: go_app.HolderService.Get:output_type -> go_app.Holder
+	19, // 27: go_app.HolderService.Patch:output_type -> go_app.Holder
+	19, // 28: go_app.HolderService.Apply:output_type -> go_app.Holder
+	20, // 29: go_app.HolderService.Erase:output_type -> google.protobuf.Empty
+	8,  // 30: go_app.HolderService.List:output_type -> go_app.HolderListResponse
+	11, // 31: go_app.HolderService.Watch:output_type -> go_app.HolderWatchResponse
+	25, // [25:32] is the sub-list for method output_type
+	18, // [18:25] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_go_app_holder_svc_proto_init() }
@@ -1569,7 +1865,7 @@ func file_go_app_holder_svc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_app_holder_svc_proto_rawDesc), len(file_go_app_holder_svc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

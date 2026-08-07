@@ -39,11 +39,15 @@ package watch
 
 import (
 	"context"
+	"strings"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/lesomnus/signals"
 	"github.com/lesomnus/z"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	go_app "github.com/lesomnus/go-app/go_app"
@@ -96,12 +100,27 @@ type Event struct {
 // to remember into. Neither is an error and both are wiring somebody can read;
 // see `cmd/serve.go`.
 type Watch struct {
-	to signals.Dispatcher[Event]
+	to signals.Signal[Event]
 }
 
-// New answers with the two halves, publishing into `to`.
-func New(to signals.Dispatcher[Event]) *Watch {
+// New answers with the two halves, publishing into `to` -- which is also what
+// [Server] reads, since a `Watch` RPC is a subscriber like any other.
+func New(to signals.Signal[Event]) *Watch {
 	return &Watch{to: to}
+}
+
+// Backlog is how many events a subscriber may fall behind by before the signal
+// cuts it off.
+//
+// Generous, because falling behind costs a client its stream and it should take
+// more than a moment of slowness. Not unbounded, because the whole point of the
+// hard signal is that somebody eventually pays and it is not the write path.
+const Backlog = 64
+
+// subscribe is what a `Watch` RPC listens on. The channel is closed if this
+// subscriber falls more than [Backlog] behind; see [next].
+func (w *Watch) subscribe() (<-chan Event, func() error) {
+	return w.to.Subscribe(Backlog)
 }
 
 // Signal answers with a signal shaped the way this package needs one, for a
@@ -224,4 +243,80 @@ func (c *changes) taken() []bare.Change {
 	c.vs = nil
 
 	return vs
+}
+
+// errBehind is what a stream that could not keep up is told.
+//
+// ResourceExhausted, and the message says what to do about it: ask again. A
+// fresh stream begins with everything that matches now, so a client that was
+// cut off converges by reconnecting rather than by being sent what it missed.
+// That is the whole of the recovery story, and it is only enough because what
+// is sent is state; see [Event] and `HolderService.Watch`.
+var errBehind = status.Error(codes.ResourceExhausted,
+	"this stream fell behind and was cut off; ask again and you will be given what is there now")
+
+// next waits for changes to an entity and answers with the rows they name, each
+// once, with the RPC that last touched it.
+//
+// Everything already queued is taken and not just the first of it. A row that
+// changed three times while a stream was busy is one row to read, and reading
+// it once answers with the last of the three -- so a stream that is behind gets
+// *cheaper* rather than more expensive, which is what a stream of state buys
+// and a stream of deltas cannot.
+func next(ctx context.Context, events <-chan Event, service string) (map[uuid.UUID]string, error) {
+	ks := map[uuid.UUID]string{}
+	take := func(v Event) {
+		for _, c := range v.Changes {
+			// The service is named for the entity it is about, so the name of
+			// the RPC that made the write says which entity this was. It is
+			// `By` and never `Method`: an RPC written by hand is dispatched
+			// under its own name and could be about anything.
+			if !strings.HasPrefix(c.By, service) {
+				continue
+			}
+
+			k, ok := c.Key.(uuid.UUID)
+			if !ok {
+				// An entity keyed by something else is not one this app has.
+				continue
+			}
+
+			ks[k] = v.Method
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case v, ok := <-events:
+			if !ok {
+				return nil, errBehind
+			}
+
+			take(v)
+		}
+
+		// And whatever else is already here.
+	drained:
+		for {
+			select {
+			case v, ok := <-events:
+				if !ok {
+					return nil, errBehind
+				}
+
+				take(v)
+			default:
+				break drained
+			}
+		}
+
+		if len(ks) > 0 {
+			return ks, nil
+		}
+
+		// Everything that arrived was about something else, which is most of
+		// what arrives. Wait again rather than answering with nothing.
+	}
 }

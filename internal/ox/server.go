@@ -122,7 +122,7 @@ func NewServer(tb testing.TB) *Server {
 	)
 	x.NoError(err)
 
-	v, err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
+	v, err := go_app.Build(walled, core.Build(), audit.Build(), wat.Build(), gate.Build())
 	x.NoError(err)
 
 	// The same stack without the layer that says what a caller may do, on the

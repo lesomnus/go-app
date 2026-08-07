@@ -22,6 +22,18 @@ service HolderService {
   rpc Erase(HolderRef) returns (google.protobuf.Empty);
   // List holders
   rpc List(HolderListRequest) returns (HolderListResponse);
+  // Watch the Holders a caller may see, as they are now and as they change.
+  //
+  // What arrives is state and never a delta, so a client converges rather than
+  // replays: it keeps what it was last told about a Holder and replaces it. An
+  // event it did not receive is one it does not need, since the next one about
+  // that Holder carries the whole of it.
+  //
+  // The first message is everything that matches right now, so a client does
+  // not have to List first and race the subscription. A Holder may arrive twice
+  // -- once in that first message and once as a change that happened while it
+  // was being read -- and that is harmless for the same reason.
+  rpc Watch(HolderWatchRequest) returns (stream HolderWatchResponse);
 }
 
 message HolderAddRequest {
@@ -106,4 +118,45 @@ message HolderListResponse {
 
 message HolderFilter {
   HolderRef ref = 1;
+}
+
+message HolderWatchRequest {
+  // Which Holders to watch, in the same words `List` takes them: what is
+  // watched is what that list would answer with, now and afterwards.
+  //
+  // Bounded the way `HolderListRequest.filters` is, and for a heavier reason.
+  // A list runs its filters once; a watch runs them again for every write that
+  // touches a Holder, for as long as the stream is open.
+  repeated HolderFilter filters = 1;
+}
+
+message HolderWatchResponse {
+  // What changed, or -- in the first message -- everything that matches.
+  repeated HolderWatchItem items = 1;
+}
+
+message HolderWatchItem {
+  // Which Holder. Always said, since one that is gone still has to be named.
+  bytes id = 1;
+
+  // The Holder as it is now, and **absent when it is no longer one this caller
+  // may see**: erased, or moved out of the filters this stream named.
+  //
+  // Absence is the whole of how a removal is said. There is no flag for it, and
+  // there is deliberately no way to tell those two apart -- a stream that
+  // distinguished "erased" from "no longer yours" would be telling a caller
+  // about rows that stopped being theirs, which is the thing the wall is for.
+  //
+  // It is only ever said about a Holder this stream has already carried. One
+  // that never matched is not news.
+  Holder value = 2;
+
+  // The RPC that changed it, by the name gRPC knows it by:
+  // "/go_app.HolderService/Add". It is what the caller of *that* RPC asked for
+  // and not the write it became, so an RPC written by hand is here under its
+  // own name and a client reads what it means from that RPC's documentation.
+  //
+  // Empty in the first message, which is not something anybody asked for -- it
+  // is what is already there.
+  string action = 3;
 }
