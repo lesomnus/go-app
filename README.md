@@ -486,8 +486,8 @@ deployment-specific, and edited by something that is not this app.
 
 ```go
 type Policy interface {
-	May(ctx context.Context, d Decision) error                                   // a point
-	Where(ctx context.Context, actor *go_app.Holder, action string) (Tenants, error)  // a set
+	May(ctx context.Context, c Call) error              // a point
+	Where(ctx context.Context, c Call) (frame.Tenants, error)  // a set
 }
 ```
 

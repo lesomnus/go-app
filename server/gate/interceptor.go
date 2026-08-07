@@ -63,13 +63,14 @@ func decide(ctx context.Context, p Policy, method string) (context.Context, erro
 		return ctx, nil
 	}
 
+	c := Call{Actor: f.Actor, Action: method}
 	if p != nil {
-		if err := p.May(ctx, Decision{Actor: f.Actor, Action: method}); err != nil {
+		if err := p.May(ctx, c); err != nil {
 			return nil, err
 		}
 	}
 
-	t, err := holds(ctx, p, f, method)
+	t, err := holds(ctx, p, f, c)
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +81,9 @@ func decide(ctx context.Context, p Policy, method string) (context.Context, erro
 }
 
 // holds is what the Holder may see, before the credential is met with it.
-func holds(ctx context.Context, p Policy, f *frame.Frame, method string) (frame.Tenants, error) {
+func holds(ctx context.Context, p Policy, f *frame.Frame, c Call) (frame.Tenants, error) {
 	if p != nil {
-		return p.Where(ctx, f.Actor, method)
+		return p.Where(ctx, c)
 	}
 
 	// Whoever holds the root Tenant administers the deployment, and is the one

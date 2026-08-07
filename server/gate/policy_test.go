@@ -21,28 +21,28 @@ type policy struct {
 	wheres atomic.Int64
 
 	// may and where are what it answers. Nil is yes, and everything.
-	may   func(d gate.Decision) error
-	where func(actor *go_app.Holder, action string) (frame.Tenants, error)
+	may   func(c gate.Call) error
+	where func(c gate.Call) (frame.Tenants, error)
 }
 
 var _ gate.Policy = (*policy)(nil)
 
-func (p *policy) May(_ context.Context, d gate.Decision) error {
+func (p *policy) May(_ context.Context, c gate.Call) error {
 	p.mays.Add(1)
 	if p.may == nil {
 		return nil
 	}
 
-	return p.may(d)
+	return p.may(c)
 }
 
-func (p *policy) Where(_ context.Context, actor *go_app.Holder, action string) (frame.Tenants, error) {
+func (p *policy) Where(_ context.Context, c gate.Call) (frame.Tenants, error) {
 	p.wheres.Add(1)
 	if p.where == nil {
 		return frame.Everything, nil
 	}
 
-	return p.where(actor, action)
+	return p.where(c)
 }
 
 // behind serves the app with `p` injected and answers with a client of it, the
@@ -60,7 +60,7 @@ func behind(x *ox.X, c *ox.Client, p *policy) *ox.Client {
 func TestPolicyIsConsulted(t *testing.T) {
 	t.Run("a refusal is the caller's answer", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
 		pc := behind(x, c, &policy{
-			may: func(gate.Decision) error {
+			may: func(gate.Call) error {
 				return status.Error(codes.PermissionDenied, "not today")
 			},
 		})
@@ -70,10 +70,10 @@ func TestPolicyIsConsulted(t *testing.T) {
 	}))
 
 	t.Run("it is told who asked and for what", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		var got gate.Decision
+		var got gate.Call
 		pc := behind(x, c, &policy{
-			may: func(d gate.Decision) error {
-				got = d
+			may: func(c gate.Call) error {
+				got = c
 				return nil
 			},
 		})
@@ -112,7 +112,7 @@ func TestPolicyIsConsulted(t *testing.T) {
 
 		// The root admin, who without a policy sees every Tenant.
 		pc := behind(x, c, &policy{
-			where: func(*go_app.Holder, string) (frame.Tenants, error) {
+			where: func(gate.Call) (frame.Tenants, error) {
 				return frame.Only(id(x, pr.hooli)), nil
 			},
 		})
@@ -137,7 +137,7 @@ func TestPolicyIsConsulted(t *testing.T) {
 		pr := setup(ctx, x, c)
 
 		pc := behind(x, c, &policy{
-			where: func(*go_app.Holder, string) (frame.Tenants, error) {
+			where: func(gate.Call) (frame.Tenants, error) {
 				return frame.Only(id(x, pr.hooli)), nil
 			},
 		})

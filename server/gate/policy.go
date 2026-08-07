@@ -53,18 +53,23 @@ import (
 // distinction `server/auth` makes: `Unavailable` when it could not find out,
 // which is not the caller's fault, rather than a refusal that reads as theirs.
 type Policy interface {
-	// May reports whether the caller may make this call at all. A refusal is
-	// answered to the caller as it is, so it should be a status.
-	May(ctx context.Context, d Decision) error
+	// May reports whether this call may be made at all. A refusal is answered
+	// to the caller as it is, so it should be a status.
+	May(ctx context.Context, c Call) error
 
-	// Where answers with the Tenants the actor may take `action` in.
-	Where(ctx context.Context, actor *go_app.Holder, action string) (frame.Tenants, error)
+	// Where answers with the Tenants this call may reach.
+	Where(ctx context.Context, c Call) (frame.Tenants, error)
 }
 
-// Decision is one call, as a policy sees it: who, and what they asked for.
+// Call is one call, as a policy sees it: who, and what they asked for.
+//
+// Both questions take it, because both are asked at the same moment about the
+// same call and neither knows anything the other does not. Spelled out as
+// arguments for one and gathered into a struct for the other, it would be the
+// same two values in an interface that could not decide.
 //
 // There is no field for the row. That is not an omission -- see [Policy].
-type Decision struct {
+type Call struct {
 	Actor *go_app.Holder
 
 	// Action is the RPC gRPC dispatched, by the name it knows it by, such as
