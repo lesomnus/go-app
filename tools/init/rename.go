@@ -291,25 +291,21 @@ func (t *tree) move(from, to string) error {
 	return os.Rename(from, to)
 }
 
-// write copies everything under `dir` of `src` into the tree, overwriting what
-// is there. It is how a variant replaces a file it could not simply mark.
+// write copies everything in `src` into the tree, overwriting what is there. It
+// is how a variant replaces a file it could not simply mark.
 //
-// A directory that is not in `src` is not an error: a variant with nothing to
-// replace has no directory of its own.
-func (t *tree) write(src fs.FS, dir string) error {
-	if _, err := fs.Stat(src, dir); err != nil {
-		return nil //nolint:nilerr // a variant with nothing to replace
+// A nil `src` is a variant with nothing to replace, which is most of them.
+func (t *tree) write(src fs.FS) error {
+	if src == nil {
+		return nil
 	}
 
-	return fs.WalkDir(src, dir, func(p string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(src, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
 
-		rel, err := filepath.Rel(dir, p)
-		if err != nil {
-			return err
-		}
+		rel := filepath.FromSlash(p)
 		if t.dry {
 			t.log("would write %s", filepath.ToSlash(rel))
 			return nil

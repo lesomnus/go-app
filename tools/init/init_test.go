@@ -201,6 +201,21 @@ func TestStrip(t *testing.T) {
 	})
 }
 
+// variantCase is one shape of app the tool promises to produce.
+type variantCase struct {
+	name string
+	args []string
+	// gone is what must not be in the tree afterwards.
+	gone []string
+	// kept is what must be.
+	kept []string
+}
+
+// variantCases is what the branch-specific variants add to the table below, in
+// the same file that registers them -- so a branch without a variant has no
+// case for it and nothing to delete. See variant.go.
+var variantCases []variantCase
+
 // TestVariantsBuild is the promise this tool makes, kept.
 //
 // A template that offers to leave a part out has said that what is left still
@@ -214,14 +229,7 @@ func TestVariantsBuild(t *testing.T) {
 		t.Skip("builds the whole tree, once per variant")
 	}
 
-	for _, tc := range []struct {
-		name string
-		args []string
-		// gone is what must not be in the tree afterwards.
-		gone []string
-		// kept is what must be.
-		kept []string
-	}{
+	for _, tc := range append([]variantCase{
 		{
 			name: "whole",
 			// A name of the same length as the template's, so the protobuf
@@ -232,21 +240,7 @@ func TestVariantsBuild(t *testing.T) {
 			kept: []string{"internal/ent", "server/bare", "migrations", "gg_bpp", "gg-bpp.yaml"},
 			gone: []string{"go_app", "go-app.yaml", "tools/init", "scripts/init.sh"},
 		},
-		{
-			name: "no-db",
-			args: []string{"--no-generate", "--no-db", "github.com/acme/svc"},
-			gone: []string{
-				"internal/ent", "server/bare", "migrations", "internal/migrate",
-				"server/watch", "server/spin", "proto.svc", "svc", "cmd/migrate.go",
-				"cmd/config/db.go", "buf.gen.svc.yaml", "internal/ox/server.go",
-				"server/core/coffee.go", "server/gate/gate.go", "tools/init",
-			},
-			kept: []string{
-				"server/auth", "server/gate", "internal/grpcx", "internal/httpx",
-				"internal/ox/stack.go", "cmd/serve.go", "svc.yaml", "ui/src/App.tsx",
-			},
-		},
-	} {
+	}, variantCases...) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

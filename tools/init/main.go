@@ -34,7 +34,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -270,7 +269,7 @@ func leaveOut(t *tree, without []string) error {
 				return err
 			}
 		}
-		if err := t.write(replacements, path.Join("files", "no-"+name)); err != nil {
+		if err := t.write(v.Files); err != nil {
 			return err
 		}
 	}

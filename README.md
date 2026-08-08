@@ -187,11 +187,19 @@ Do not, until somebody has actually wanted one. Each is a shape this repository
 promises to keep working -- a column in CI and a thing to fix whenever the
 template moves -- so one nobody asked for costs and returns nothing.
 
-When somebody has: add it to `variants` in `tools/init/variant.go`, mark the
-places inside files that stay, add a case to `TestVariantsBuild`, and add it to
-the CI matrix. If it has to *replace* a file rather than trim one -- two `App`
-components cannot both compile, whichever is about to be deleted -- put the
-replacement under `tools/init/files/no-<name>/`, and keep that rare.
+When somebody has, it goes in **a file of its own** -- `tools/init/variant_db.go`
+is the one that exists, and it registers itself from an `init`. That shape is
+about branches rather than tidiness: this repository keeps one per kind of app
+and they do not have the same parts to leave out, so a list in a shared file
+would put the difference in the one place every merge from `main` lands. A file
+that only exists on the branches that have the thing never conflicts with
+anything, and `--help` lists what the branch you are on actually has.
+
+So: add `variant_<name>.go`, mark the places inside the files that stay, add a
+case to `variantCases` in `variant_<name>_test.go`, and add a column to the CI
+matrix. If it has to *replace* a file rather than trim one -- two `App`
+components cannot both compile, whichever is about to be deleted -- embed the
+replacement in the same file, and keep that rare.
 
 <!--template:end self-->
 

@@ -189,9 +189,11 @@ file that survives is marked at the coupling:
 ```
 
 and `grep -rn "template:db"` is the whole list. Whole files are named in
-`tools/init/variant.go`. `go run ./tools/init --no-db` applies it, and
-`go test ./tools/init` proves the result still builds — which is the only reason
-the list can be trusted.
+`tools/init/variant_db.go`, which is a file this branch has and `main` does not
+— a variant lives with the branch that has the thing, so nothing about it sits
+in a file that every merge would touch. `go run ./tools/init --no-db` applies
+it, and `go test ./tools/init` proves the result still builds, which is the only
+reason the list can be trusted.
 
 What survives `--no-db` is worth knowing even if you never use it, because it is
 the same statement as "what does not depend on the store": `server/frame`,
