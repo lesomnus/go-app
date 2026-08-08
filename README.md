@@ -209,6 +209,14 @@ so by having its loop do it.
 were erased long enough ago — is a retention policy, and picking a number is the
 deployment's, not the template's.
 
+## Reading further
+
+| | |
+| --- | --- |
+| [docs/EXTENDING.md](docs/EXTENDING.md) | how to add an entity and how to add an RPC — start here |
+| [docs/DESIGN.md](docs/DESIGN.md) | why the parts that look odd are that way, and what it would cost to change them |
+| [docs/AUTH.md](docs/AUTH.md) | who is calling, and what they may do |
+
 ## Servers
 
 A server is a `go_app.Server`, which is no more than a set of the service
@@ -506,8 +514,8 @@ enforces what it is told, and it does not define roles or decide who holds them.
 **There is no wall here.** Nothing narrows what a caller may *see* — every row
 is everybody's to read. An app whose rows belong to somebody says so as a
 predicate in the query rather than as a rule per RPC, which is what `bare.Scope`
-is the hook for; this branch installs none. See the `kind/server` branch, whose
-whole subject is that.
+is the hook for; this branch installs none. See `kind/server-x`, whose whole
+subject is that.
 
 ## Telling somebody what changed
 

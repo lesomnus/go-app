@@ -133,8 +133,7 @@ in an interceptor at all. It belongs in the query, as a predicate — `bare.Scop
 is the hook the generated servers put one into every read they build. **This
 branch installs none**: nothing here narrows what a caller may see, and every row
 is everybody's to read. An app whose rows belong to somebody installs one there
-rather than asking per row; see the `kind/server` branch, whose whole subject is
-that.
+rather than asking per row; see `kind/server-x`, whose whole subject is that.
 
 And the answer is a function of the actor and the method with nothing of the
 request in it, so it can be **held as a snapshot and evaluated in process** —
