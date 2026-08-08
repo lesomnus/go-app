@@ -233,12 +233,16 @@ func TestVariantsBuild(t *testing.T) {
 		{
 			name: "whole",
 			// A name of the same length as the template's, so the protobuf
-			// descriptors in the committed generated code stay valid without
+			// descriptors in any committed generated code stay valid without
 			// having to run the generators here -- they need buf, which a unit
 			// test should not.
 			args: []string{"--no-generate", "github.com/acme/gg-bpp"},
-			kept: []string{"internal/ent", "server/bare", "migrations", "gg_bpp", "gg-bpp.yaml"},
-			gone: []string{"go_app", "go-app.yaml", "tools/init", "scripts/init.sh"},
+			// Only what is true of every branch. This test file is shared, and
+			// `main` has no entities, no server and no UI to assert about --
+			// what each branch has of its own is asserted by the variant that
+			// removes it, in the file that defines it.
+			kept: []string{"cmd", "go.mod", "gg-bpp.yaml"},
+			gone: []string{"go-app.yaml", "tools/init", "scripts/init.sh"},
 		},
 	}, variantCases...) {
 		t.Run(tc.name, func(t *testing.T) {
