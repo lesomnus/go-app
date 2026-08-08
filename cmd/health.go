@@ -1,16 +1,13 @@
 package cmd
 
 import (
-	//template:begin db
 	"context"
 	"log/slog"
 	"time"
 
-	"github.com/lesomnus/go-app/cmd/config"
 	"github.com/lesomnus/otx/log"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	//template:end db
 )
 
 // The two questions a health check is asked, which are not the same question
@@ -21,13 +18,17 @@ import (
 // and a load balancer routes around what says no. The difference is what the
 // answer costs when it is wrong.
 //
-// The database is the reason they are split here. Every deployment shares one,
-// so a database that blinks makes every process answer the same way at the
-// same moment. Answered as readiness that is a few seconds of failed calls;
-// answered as liveness it is every process killed at once, restarted into a
-// database that is still not there, and a restart loop that outlives the
-// outage that started it. So the database moves readiness and nothing moves
-// liveness.
+// The store is the reason they are split here -- the database in this app, and
+// whatever it is in one that replaced it. Every deployment shares it, so a store
+// that blinks makes every process answer the same way at the same moment.
+// Answered as readiness that is a few seconds of failed calls; answered as
+// liveness it is every process killed at once, restarted into a store that is
+// still not there, and a restart loop that outlives the outage that started it.
+// So the store moves readiness and nothing moves liveness.
+//
+// None of that reasoning is about databases, which is why what follows is not
+// either. An app whose store is a queue, an API or a directory keeps this file
+// and answers [Store] with that.
 const (
 	// ServiceReadiness is the empty name, which the health protocol gives to
 	// the server as a whole and which is what a caller that names nothing
@@ -46,24 +47,38 @@ const (
 	ServiceLiveness = "liveness"
 )
 
-//template:begin db
 const (
-	// dbCheckInterval is how often the database is asked whether it is still
-	// there, and dbCheckTimeout is how long it is given to answer.
-	dbCheckInterval = 5 * time.Second
-	dbCheckTimeout  = 3 * time.Second
+	// storeCheckInterval is how often the store is asked whether it is still
+	// there, and storeCheckTimeout is how long it is given to answer.
+	//
+	// A database answers down a connection that is already open, so this is
+	// cheap; a store reached over HTTP is a round trip, and an app with one of
+	// those should slow this down rather than ask a gateway five times a
+	// second all day.
+	storeCheckInterval = 5 * time.Second
+	storeCheckTimeout  = 3 * time.Second
 )
 
-// watchDb reports the app as ready for as long as the database answers, asking
+// Store is whatever this app cannot serve without.
+//
+// One method, because readiness is one question: is it answering. What it is --
+// a database, a controller, an API somebody else runs -- is not this file's
+// business, and keeping it that way is what lets the reasoning above survive an
+// app that changes its mind about the store.
+type Store interface {
+	Ping(ctx context.Context) error
+}
+
+// watchStore reports the app as ready for as long as the store answers, asking
 // it every `every`.
-func watchDb(ctx context.Context, h *health.Server, db *config.Db, every time.Duration) {
+func watchStore(ctx context.Context, h *health.Server, s Store, every time.Duration) {
 	t := time.NewTicker(every)
 	defer t.Stop()
 
 	for {
 		// The status is not ours to set once the server is shutting down.
-		if s := dbStatus(ctx, db); ctx.Err() == nil {
-			h.SetServingStatus(ServiceReadiness, s)
+		if v := storeStatus(ctx, s); ctx.Err() == nil {
+			h.SetServingStatus(ServiceReadiness, v)
 		}
 
 		select {
@@ -74,17 +89,15 @@ func watchDb(ctx context.Context, h *health.Server, db *config.Db, every time.Du
 	}
 }
 
-// dbStatus is SERVING for as long as the database answers.
-func dbStatus(ctx context.Context, db *config.Db) grpc_health_v1.HealthCheckResponse_ServingStatus {
-	ctx, cancel := context.WithTimeout(ctx, dbCheckTimeout)
+// storeStatus is SERVING for as long as the store answers.
+func storeStatus(ctx context.Context, s Store) grpc_health_v1.HealthCheckResponse_ServingStatus {
+	ctx, cancel := context.WithTimeout(ctx, storeCheckTimeout)
 	defer cancel()
 
-	if err := db.Ping(ctx); err != nil {
-		log.From(ctx).WarnContext(ctx, "database is not reachable", slog.String("error", err.Error()))
+	if err := s.Ping(ctx); err != nil {
+		log.From(ctx).WarnContext(ctx, "the store is not reachable", slog.String("error", err.Error()))
 		return grpc_health_v1.HealthCheckResponse_NOT_SERVING
 	}
 
 	return grpc_health_v1.HealthCheckResponse_SERVING
 }
-
-//template:end db

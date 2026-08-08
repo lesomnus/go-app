@@ -57,6 +57,14 @@ type Actor struct {
 	// It is here so that a deployment whose policy turns on something the
 	// issuer said -- a group, a plan, a scope -- has somewhere to carry it
 	// without every layer growing a field.
+	//
+	// It is **not only for deciding things**, and that is worth saying because
+	// the sentence above reads as though it were. Anything else the credential
+	// or its transport carried goes here too: the address a request was
+	// forwarded for, a correlation id, whatever an audit line has to say. Such
+	// a value is often worth exactly as much as whoever set the header it came
+	// from -- which is fine for a log and is why nothing that grants anything
+	// should read it without knowing that.
 	Claims map[string]string
 }
 

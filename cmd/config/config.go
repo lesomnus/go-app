@@ -39,6 +39,12 @@ func ReadFromFile(p string) (*Config, error) {
 	// be named in the file without being written in it. A name that is neither
 	// set nor given a default is an error rather than an empty string. Write
 	// "$$" for a literal dollar sign.
+	//
+	// That last rule catches people out with secrets. `${env:API_KEY}` makes
+	// *reading the file* fail on a machine that has no key, so `config` and
+	// `version` stop working for somebody who has no reason to hold one. Write
+	// `${env:API_KEY:-}` and let the command that needs it be the one to
+	// refuse; see [Config.Evaluate].
 	b, err = mkot.ExpandEnv(b)
 	if err != nil {
 		return nil, z.Err(err, "expand")
@@ -57,6 +63,21 @@ func (c *Config) Path() string {
 	return c.path
 }
 
+// Evaluate completes the configuration and says whether it is usable: it fills
+// in what was left unsaid, normalizes what was said loosely, and refuses what
+// cannot be meant. Everything that is true of the configuration as a document
+// belongs here, values included -- a duration that is negative, a CIDR that
+// does not parse, two settings that contradict each other.
+//
+// What does **not** belong here is "this must be set" for something only one
+// command uses. A credential that only `serve` needs, refused here, is a
+// `config` and a `version` that fail on a machine that was never going to serve
+// anything -- and a test suite that cannot construct a Config without it. Build
+// it in the command instead, which fails just as early for the command that
+// cares and not at all for the ones that do not.
+//
+// The line is not "shape here, values in the command". It is: **is this true of
+// the configuration, or is it a requirement of one thing that reads it.**
 func (c *Config) Evaluate() error {
 	// Before anything else, since it is about the shape of this struct rather
 	// than about what is in it: two fields folding to one environment variable

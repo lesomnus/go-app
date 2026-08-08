@@ -194,13 +194,16 @@ func NewCmdServe() *xli.Command {
 			health_srv.SetServingStatus(ServiceLiveness, grpc_health_v1.HealthCheckResponse_SERVING)
 
 			//template:begin db
-			// The app has nothing to serve without the database it runs on.
-			go watchDb(ctx, health_srv, db, dbCheckInterval)
+			// The app has nothing to serve without the store it runs on.
+			go watchStore(ctx, health_srv, db, storeCheckInterval)
 			//template:end db
 			//template:begin no-db
-			// Nothing this app depends on can be down, so it is ready as soon
-			// as it is serving. An app with a store to depend on watches it
-			// here; see the note in cmd/health.go.
+			// Nothing this app depends on yet, so it is ready as soon as it is
+			// serving. Once there is a store, watch it here instead:
+			//
+			//	go watchStore(ctx, health_srv, theStore, storeCheckInterval)
+			//
+			// See cmd/health.go for why that moves readiness and not liveness.
 			health_srv.SetServingStatus(ServiceReadiness, grpc_health_v1.HealthCheckResponse_SERVING)
 			//template:end no-db
 

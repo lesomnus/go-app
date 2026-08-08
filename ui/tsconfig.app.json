@@ -4,7 +4,11 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    // "node" as well as the browser: a script that runs under node rather
+    // than in the page -- checking something, generating something -- is a
+    // normal thing to want, and without this it cannot see `process` or
+    // `Buffer`. @types/node is already a devDependency.
+    "types": ["vite/client", "node"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 

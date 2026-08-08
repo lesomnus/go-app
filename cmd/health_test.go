@@ -2,29 +2,50 @@ package cmd
 
 import (
 	"context"
+	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/ncruces/go-sqlite3/vfs/memdb"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-
-	"github.com/lesomnus/go-app/cmd/config"
 )
 
-func TestDbStatus(t *testing.T) {
+// store is one that can be turned off.
+//
+// A fake rather than a real database, and that is the point rather than a
+// shortcut: what is being tested is which probe moves when the store stops
+// answering, and that is true of every store. Reaching for a real one here
+// would tie this test to the answer this branch happens to have.
+type store struct{ up atomic.Bool }
+
+func newStore() *store {
+	s := &store{}
+	s.up.Store(true)
+
+	return s
+}
+
+func (s *store) Ping(context.Context) error {
+	if s.up.Load() {
+		return nil
+	}
+
+	return errors.New("not answering")
+}
+
+var _ Store = (*store)(nil)
+
+func TestStoreStatus(t *testing.T) {
 	x := require.New(t)
 
-	c := config.DbConfig{Driver: "sqlite3", Dsn: memdb.TestDB(t)}
-	db, err := c.Open(t.Context())
-	x.NoError(err)
+	s := newStore()
+	x.Equal(grpc_health_v1.HealthCheckResponse_SERVING, storeStatus(t.Context(), s))
 
-	x.Equal(grpc_health_v1.HealthCheckResponse_SERVING, dbStatus(t.Context(), db))
-
-	// The app is not serving anything if the database is gone.
-	x.NoError(db.Close())
-	x.Equal(grpc_health_v1.HealthCheckResponse_NOT_SERVING, dbStatus(t.Context(), db))
+	// The app is not serving anything if the store is gone.
+	s.up.Store(false)
+	x.Equal(grpc_health_v1.HealthCheckResponse_NOT_SERVING, storeStatus(t.Context(), s))
 }
 
 // status asks the health server the way a probe does.
@@ -37,15 +58,13 @@ func status(t *testing.T, h *health.Server, service string) grpc_health_v1.Healt
 	return v.GetStatus()
 }
 
-// TestDbMovesReadinessOnly is the whole reason the two names are told apart. A
-// database that is gone must send traffic elsewhere, and must not have every
-// process killed and restarted into the same database it was killed for.
-func TestDbMovesReadinessOnly(t *testing.T) {
+// TestStoreMovesReadinessOnly is the whole reason the two names are told apart.
+// A store that is gone must send traffic elsewhere, and must not have every
+// process killed and restarted into the same store it was killed for.
+func TestStoreMovesReadinessOnly(t *testing.T) {
 	x := require.New(t)
 
-	c := config.DbConfig{Driver: "sqlite3", Dsn: memdb.TestDB(t)}
-	db, err := c.Open(t.Context())
-	x.NoError(err)
+	s := newStore()
 
 	h := health.NewServer()
 	h.SetServingStatus(ServiceLiveness, grpc_health_v1.HealthCheckResponse_SERVING)
@@ -60,18 +79,18 @@ func TestDbMovesReadinessOnly(t *testing.T) {
 	defer cancel()
 
 	const every = time.Millisecond
-	go watchDb(ctx, h, db, every)
+	go watchStore(ctx, h, s, every)
 
-	reads := func(s grpc_health_v1.HealthCheckResponse_ServingStatus) func() bool {
-		return func() bool { return status(t, h, ServiceReadiness) == s }
+	reads := func(v grpc_health_v1.HealthCheckResponse_ServingStatus) func() bool {
+		return func() bool { return status(t, h, ServiceReadiness) == v }
 	}
 
 	x.Eventually(reads(grpc_health_v1.HealthCheckResponse_SERVING), time.Second, every)
 	x.Equal(grpc_health_v1.HealthCheckResponse_SERVING, status(t, h, ServiceLiveness))
 
-	x.NoError(db.Close())
+	s.up.Store(false)
 
 	x.Eventually(reads(grpc_health_v1.HealthCheckResponse_NOT_SERVING), time.Second, every)
 	x.Equal(grpc_health_v1.HealthCheckResponse_SERVING, status(t, h, ServiceLiveness),
-		"the database is not a reason to kill the process")
+		"the store is not a reason to kill the process")
 }

@@ -71,10 +71,14 @@ func init() {
 
 			// The layer that binds the stack to an ent transaction, and the
 			// tests that name the sample's RPCs.
+			//
+			// cmd/health.go is *not* here, and that is the point of the
+			// `Store` interface in it: readiness following the store is a rule
+			// about every store, so the file stays and an app answers `Ping`
+			// with whatever it has.
 			"server/gate/gate.go",
 			"server/gate/gate_test.go",
 			"server/gate/roles/roles_test.go",
-			"cmd/health_test.go",
 
 			// The half of the test fixture that knows about the store. The
 			// other half -- the interceptor chain, the assertions, the

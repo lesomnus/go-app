@@ -16,6 +16,8 @@ func init() {
 		kept: []string{
 			"server/auth", "server/gate", "internal/grpcx", "internal/httpx",
 			"internal/ox/stack.go", "cmd/serve.go", "svc.yaml", "ui/src/App.tsx",
+			// Store-neutral, so it survives losing the database.
+			"cmd/health.go", "cmd/health_test.go",
 			// Written by the variant in place of what it removed.
 			"ui/src/client.ts",
 		},
