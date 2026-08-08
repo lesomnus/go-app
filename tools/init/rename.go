@@ -338,6 +338,22 @@ func (t *tree) has(paths []string) bool {
 	return false
 }
 
+// removeIfEmpty deletes a directory that has nothing left in it.
+func (t *tree) removeIfEmpty(rel string) error {
+	p := filepath.Join(t.root, filepath.FromSlash(rel))
+	es, err := os.ReadDir(p)
+	if err != nil || len(es) > 0 {
+		return nil //nolint:nilerr // not there, or not empty
+	}
+	if t.dry {
+		t.log("would remove %s", filepath.ToSlash(rel))
+		return nil
+	}
+
+	t.log("remove %s", filepath.ToSlash(rel))
+	return os.Remove(p)
+}
+
 // remove deletes a path, and says nothing about one that is already not there.
 func (t *tree) remove(rel string) error {
 	p := filepath.Join(t.root, filepath.FromSlash(rel))

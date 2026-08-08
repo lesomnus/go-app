@@ -202,7 +202,9 @@ func initialize(o options, out io.Writer) error {
 		if err := t.remove(self); err != nil {
 			return err
 		}
-		if err := t.remove("scripts/init.sh"); err != nil {
+		// And the directory that held it, if this was the only thing in it. An
+		// empty `tools/` is a thing somebody would have to wonder about.
+		if err := t.removeIfEmpty(filepath.Dir(self)); err != nil {
 			return err
 		}
 	}
