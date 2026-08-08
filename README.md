@@ -54,8 +54,11 @@ $ GO_APP_SERVER_HTTP_ADDR=:8080 \
   GO_APP_SERVER_HTTP_ALLOW_GRPC_WEB=true \
   GO_APP_SERVER_HTTP_ORIGINS='["http://localhost:5173"]' \
   GO_APP_SERVER_ALLOW_ANONYMOUS_READS=true \
-  go run . serve --db-migrate
+  go run . serve
 ```
+
+Nothing else has to be running: the bundled configuration is SQLite **in
+memory**, so there is no database to bring up and no migration to apply.
 
 Three things it exists to show:
 
@@ -634,17 +637,25 @@ stats handler never sees what an interceptor put in the context.
 server.
 
 It talks to SQLite through [go-sqlite3](https://github.com/ncruces/go-sqlite3)
-by default, so it runs without anything else around:
+by default, and to a database held **in memory** — so it runs without anything
+else around and leaves nothing behind:
 
 ```sh
-$ go run . serve --db-migrate
+$ go run . serve
 > |........| 19:08:03.037 ○ 000000 000000 serving grpc - addr=[::]:50051 tls=false auth=[plain]
 > |........| 19:08:07.451 ○ 98de37 73b3a4 ›» 127.0.0.1......... 0008B go_app.RoasterService/Get
 > |........| 19:08:07.455 ○ 98de37 73b3a4 «‹ .OK 001.18ms 0008B 0081B go_app.RoasterService/Get
 ```
 
-`--db-migrate` runs ent's auto migration on startup, which is handy in
-development; prefer versioned migrations in production.
+`db.migrate` runs ent's auto migration on startup, and an in-memory database
+has nowhere to have had migrations applied to it, so that is what puts the
+schema there at all. A deployment that keeps its data says so in `db.dsn` — a
+file, or PostgreSQL — and runs `migrate apply` instead; see
+[Migration](#migration).
+
+`db.max_open_conns` is 1 on SQLite, because SQLite takes one writer: a second
+connection asking to write reports a busy database rather than waiting for the
+first.
 
 The compose file is the shape of a deployment: the database, then the
 migrations, then the server. `migrate` runs from the image that is about to
@@ -809,9 +820,11 @@ that strips the trace headers of callers it does not know, and mutual TLS so
 that "does not know" means something. Behind that boundary, believing the
 caller is the whole point.
 
-The database is chosen by the configuration file. SQLite is what the bundled
-configuration names because it needs nothing around it; **production runs on
-PostgreSQL**, which is what the migrations are written for.
+The database is chosen by the configuration file. SQLite **in memory** is what
+the bundled configuration names, because it needs nothing around it and leaves
+nothing behind — it is a demonstration and not a place to keep anything. The
+file DSN is a comment beside it. **Production runs on PostgreSQL**, which is
+what the migrations are written for.
 
 ```yaml
 db:

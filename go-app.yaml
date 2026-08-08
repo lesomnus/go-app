@@ -142,19 +142,34 @@ db:
   # Registered drivers are "sqlite3" (SQLite on Wasm) and "pgx" (PostgreSQL);
   # see cmd/config/db-*.go to add another one.
   #
-  # SQLite needs nothing around it, which is why it is what this file names.
+  # What this file names is SQLite **in memory**: it needs nothing around it,
+  # and it leaves nothing behind. `go run . serve` and there is an app. Every
+  # connection naming the same file gets the same database, and the whole thing
+  # goes when the process does -- so it is a demonstration and not a place to
+  # keep anything.
+  driver: sqlite3
+  dsn: "file:/go-app.db?vfs=memdb&_pragma=foreign_keys(1)"
+
+  # One, because SQLite takes one writer: a second connection asking to write
+  # reports a busy database rather than waiting for the first.
+  max_open_conns: 1
+
+  # A file instead, which survives a restart.
+  # dsn: "file:go-app.db?_pragma=foreign_keys(1)"
+
   # Production runs on PostgreSQL, since that is what the migrations are
   # written for; `docker compose up -d db` brings one up.
-  driver: sqlite3
-  dsn: "file:go-app.db?_pragma=foreign_keys(1)"
   # driver: pgx
   # dsn: "postgres://postgres:postgres@localhost:5432/go-app?sslmode=disable"
+  # max_open_conns: 0
   # The dev database `migrate plan` works the migrations out on. It is emptied
   # every time it is used, so nothing may live in it.
   # dev_dsn: "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable"
 
   # Run ent auto migration on startup. It is for development only; production
-  # runs `migrate apply`, which is versioned and reviewed.
+  # runs `migrate apply`, which is versioned and reviewed -- and an in-memory
+  # database has nowhere to have applied them, so this is what puts the schema
+  # there at all.
   migrate: true
 
 # Greeting configuration (used by the `greet` subcommand).

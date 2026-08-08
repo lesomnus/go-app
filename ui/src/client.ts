@@ -10,8 +10,20 @@ import { RoasterService } from "./gen/go_app/roaster_svc_pb.js";
  * The gRPC port is not this one and cannot be: a browser cannot speak the
  * transport gRPC brings, so the server serves grpc-web on a listener of its own
  * and translates it into the same handlers. See `internal/httpx`.
+ *
+ * The default is **the host this page came from**, on 8080, rather than
+ * `localhost`. Those are the same thing until somebody opens the page from
+ * another machine -- and then `localhost` is *their* machine, which is the sort
+ * of wrong that looks like the server being down.
+ *
+ * `VITE_API` overrides it, which is what a real deployment does: the API is
+ * behind its own name and nothing infers it.
  */
-const target = import.meta.env?.VITE_API ?? "http://localhost:8080";
+const target =
+  import.meta.env?.VITE_API ??
+  (typeof location === "undefined"
+    ? "http://localhost:8080"
+    : `${location.protocol}//${location.hostname}:8080`);
 
 /**
  * says who is calling, in the way `server/auth`'s `plain` handler reads.
