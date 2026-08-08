@@ -1,12 +1,14 @@
 version: v2
 modules:
   - path: proto
+#template:begin db
 deps:
   - buf.build/orm/orm
   # The generated Apply RPC carries a patch.Patch, so every service contract
   # imports patch/patch.proto. That schema is not frozen yet, so it is pinned
   # by buf.lock rather than tracked.
   - buf.build/patch/patch
+#template:end db
 lint:
   use:
     - STANDARD
@@ -15,10 +17,13 @@ lint:
     # repository it lives in.
     - PACKAGE_VERSION_SUFFIX
 
+    #template:begin db
     # The service contracts are generated from the messages by
     # protoc-gen-orm-service, which names a request after the message it is
     # about and answers with the message itself. That is the whole point of
-    # the stack and it is not what buf expects of a hand written service.
+    # the stack and it is not what buf expects of a hand written service. A
+    # service written by hand can keep the standard names, so these go with it.
     - RPC_REQUEST_STANDARD_NAME
     - RPC_RESPONSE_STANDARD_NAME
     - RPC_REQUEST_RESPONSE_UNIQUE
+    #template:end db

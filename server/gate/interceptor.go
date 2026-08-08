@@ -25,10 +25,27 @@ type Anonymous func(method string) bool
 // AnonymousReads is the shape most deployments want: a catalogue anybody may
 // read and only a caller who said who they are may change.
 //
-// It names the reads this app *generates*, by their suffix, and so says nothing
-// about an RPC written by hand. That is the right way round -- a `Search`
-// somebody adds is closed until they open it -- and it is the whole reason this
-// is a list of what is allowed.
+// It matches **by suffix**, so it names every RPC called `Get`, `List` or
+// `Watch` -- the ones this app generates, and any written by hand that happen
+// to be spelled that way.
+//
+// That last part is the trap, and it is worth stating rather than discovering.
+// `List` is exactly the RPC [EXTENDING.md] tells somebody to write by hand, and
+// a hand-written one is usually hand-written *because* it does something a
+// generated read does not -- narrowing to the caller's own rows, most often. It
+// is opened by this along with the rest, and no reading of the name would
+// suggest that.
+//
+// So this is a convenience for an app whose reads really are a catalogue. An
+// app where a read means something is better off naming its reads, which is
+// what [AnonymousOnly] is for:
+//
+//	gate.WithAnonymous(gate.AnonymousOnly(
+//		go_app.CoffeeService_Get_FullMethodName,
+//		go_app.CoffeeService_List_FullMethodName,
+//	))
+//
+// [EXTENDING.md]: https://github.com/lesomnus/go-app/blob/kind/server/docs/EXTENDING.md
 func AnonymousReads(method string) bool {
 	for _, v := range []string{"/Get", "/List", "/Watch"} {
 		if strings.HasSuffix(method, v) {
@@ -37,6 +54,24 @@ func AnonymousReads(method string) bool {
 	}
 
 	return false
+}
+
+// AnonymousOnly names the RPCs exactly, and is the one to reach for when being
+// wrong is expensive.
+//
+// The generated `..._FullMethodName` constants are what to pass, so an RPC that
+// is renamed is a compile error here rather than a call that quietly stops
+// being allowed -- or quietly starts.
+func AnonymousOnly(methods ...string) Anonymous {
+	allowed := make(map[string]struct{}, len(methods))
+	for _, m := range methods {
+		allowed[m] = struct{}{}
+	}
+
+	return func(method string) bool {
+		_, ok := allowed[method]
+		return ok
+	}
 }
 
 // Option adjusts what [Interceptor] decides.

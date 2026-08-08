@@ -38,11 +38,42 @@ func TestAnonymousReads(t *testing.T) {
 	x.False(gate.AnonymousReads(go_app.CoffeeService_Erase_FullMethodName))
 	x.False(gate.AnonymousReads(go_app.CoffeeService_Patch_FullMethodName))
 
-	// And an RPC written by hand is closed until somebody opens it, which is
-	// the whole reason this is a list of what is *allowed*: `Rename` is a
-	// write, it is not spelled `Patch`, and a rule that named the writes would
-	// have let it through.
+	// An RPC written by hand is closed until somebody opens it, which is the
+	// whole reason this is a list of what is *allowed*: `Rename` is a write, it
+	// is not spelled `Patch`, and a rule that named the writes would have let
+	// it through.
 	x.False(gate.AnonymousReads("/go_app.CoffeeService/Rename"))
+
+	// But it matches by suffix, so a hand-written RPC that *is* spelled like a
+	// read is opened along with the generated ones -- including one that
+	// narrows to the caller's own rows, which is the usual reason to write a
+	// `List` by hand. That is the trap the documentation now names, and this is
+	// what keeps the two saying the same thing.
+	x.True(gate.AnonymousReads("/go_app.SomethingService/List"),
+		"a hand-written List is opened by this, whatever it does")
+}
+
+func TestAnonymousOnly(t *testing.T) {
+	x := require.New(t)
+
+	// The alternative, for an app whose reads are not a catalogue: nothing is
+	// open but what was named.
+	f := gate.AnonymousOnly(
+		go_app.CoffeeService_Get_FullMethodName,
+		go_app.CoffeeService_List_FullMethodName,
+	)
+
+	x.True(f(go_app.CoffeeService_Get_FullMethodName))
+	x.True(f(go_app.CoffeeService_List_FullMethodName))
+
+	x.False(f(go_app.CoffeeService_Watch_FullMethodName))
+	x.False(f(go_app.CoffeeService_Add_FullMethodName))
+	// And the same read of a *different* service, which the suffix rule would
+	// have let through.
+	x.False(f(go_app.RoasterService_List_FullMethodName))
+
+	x.False(gate.AnonymousOnly()(go_app.CoffeeService_Get_FullMethodName),
+		"naming nothing opens nothing")
 }
 
 func TestAnonymous(t *testing.T) {

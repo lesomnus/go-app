@@ -21,7 +21,7 @@ func NewCmdRoot() *xli.Command {
 			NewCmdVersion(),
 			NewCmdConfig(),
 			NewCmdGreet(),
-			NewCmdMigrate(),
+			NewCmdMigrate(), //template:db
 			NewCmdServe(),
 		},
 

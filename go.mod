@@ -3,24 +3,24 @@ module github.com/lesomnus/go-app
 go 1.26.4
 
 require (
-	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1
-	entgo.io/ent v0.14.6
+	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1 //template:db
+	entgo.io/ent v0.14.6 //template:db
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/improbable-eng/grpc-web v0.15.0
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.10.0 //template:db
 	github.com/lesomnus/mkot v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/mkot/mkotx v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/mkot/pretty v0.0.0-20260801183340-9c83100aa7c2
 	github.com/lesomnus/otx v0.0.0-20260801181427-44ac698b8971
 	github.com/lesomnus/otx/otxgrpc v0.0.0-20260807173743-977a5687d6ba
-	github.com/lesomnus/protobuf-patch v0.0.0-20260803175157-e1b7a0c2804f
+	github.com/lesomnus/protobuf-patch v0.0.0-20260803175157-e1b7a0c2804f //template:db
 	github.com/lesomnus/signals v0.0.0-20260807182234-d2443d2312df
 	github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7
 	github.com/lesomnus/z v0.0.0-20260531102454-3f1853bb4278
-	github.com/ncruces/go-sqlite3 v0.35.2
-	github.com/protobuf-orm/protobuf-orm v0.0.0-20260807003431-ce1156ba9f29
-	github.com/protobuf-orm/protoc-gen-orm-ent/runtime v0.0.0-20260807180930-61b5fa2c38b0
+	github.com/ncruces/go-sqlite3 v0.35.2 //template:db
+	github.com/protobuf-orm/protobuf-orm v0.0.0-20260807003431-ce1156ba9f29 //template:db
+	github.com/protobuf-orm/protoc-gen-orm-ent/runtime v0.0.0-20260807180930-61b5fa2c38b0 //template:db
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/log v0.20.0
@@ -98,11 +98,11 @@ require (
 )
 
 tool (
-	entgo.io/ent/cmd/ent
-	github.com/protobuf-orm/protobuf-merge
-	github.com/protobuf-orm/protoc-gen-orm-ent
-	github.com/protobuf-orm/protoc-gen-orm-go
-	github.com/protobuf-orm/protoc-gen-orm-service
+	entgo.io/ent/cmd/ent //template:db
+	github.com/protobuf-orm/protobuf-merge //template:db
+	github.com/protobuf-orm/protoc-gen-orm-ent //template:db
+	github.com/protobuf-orm/protoc-gen-orm-go //template:db
+	github.com/protobuf-orm/protoc-gen-orm-service //template:db
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )

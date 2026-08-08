@@ -22,7 +22,7 @@ type Config struct {
 
 	Server ServerConfig
 	Auth   AuthConfig
-	Db     DbConfig
+	Db     DbConfig //template:db
 	Greet  GreetConfig
 
 	Otel OtelConfig
@@ -67,8 +67,10 @@ func (c *Config) Evaluate() error {
 	}
 
 	z.FallbackP(&c.Server.Addr, ":50051")
+	//template:begin db
 	z.FallbackP(&c.Db.Driver, "sqlite3")
 	z.FallbackP(&c.Db.Dsn, "file:go-app.db?_pragma=foreign_keys(1)")
+	//template:end db
 	z.FallbackP(&c.Greet.Format, "Hello, %s!")
 
 	// A certificate says who is calling only if it was checked against

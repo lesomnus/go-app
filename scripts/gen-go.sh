@@ -45,12 +45,14 @@ rm -rf "${GEN_DIR}"
 # Drop the previously generated files so that renamed or removed entities do not
 # leave stale code behind. The ent runtime (see `scripts/gen-ent.sh`) is left
 # alone; only the files owned by this pipeline are removed.
-rm -rf "${__root:?}/${PKG_DIR}" "${__root}/internal/ent/schema"
+rm -rf "${__root:?}/${PKG_DIR}" "${__root}/internal/ent/schema" #template:db
+#template:begin db
 for d in "${__root}/internal/ent" "${__root}/server/bare"; do
 	if [ -d "${d}" ]; then
 		find "${d}" -maxdepth 1 -type f -name '*.g.go' -delete
 	fi
 done
+#template:end db
 
 # Move the messages and their helpers into PKG_DIR.
 mkdir -p "${__root}/${PKG_DIR}"
@@ -95,4 +97,4 @@ fi
 
 echo ""
 echo "Done."
-echo "Next: ${__dir#"${__root}/"}/gen-ent.sh"
+echo "Next: ${__dir#"${__root}/"}/gen-ent.sh" #template:db

@@ -2,25 +2,14 @@ package ox
 
 import (
 	"context"
-	"errors"
-	"net"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/test/bufconn"
 
 	go_app "github.com/lesomnus/go-app/go_app"
-	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/bare"
 )
-
-// bufSize is the buffer of the in-memory listener; large enough that a message
-// never blocks on it.
-const bufSize = 1 << 20
 
 // Client talks to a [Server] over an in-memory connection, so a test goes
 // through the same gRPC stack the app is served with without opening a port.
@@ -32,48 +21,43 @@ type Client struct {
 
 	go_app.Client
 
-	grpc *grpc.Server
-	wg   sync.WaitGroup
-
+	stop func()
 	bare *Client
 }
 
 func NewClient(tb testing.TB, s *Server) *Client {
 	tb.Helper()
-	return newClient(tb, s, s.Grpc())
+	return newClient(tb, s, s.Grpc)
 }
 
-func newClient(tb testing.TB, s *Server, g *grpc.Server) *Client {
+func newClient(tb testing.TB, s *Server, register func(*grpc.Server)) *Client {
 	tb.Helper()
-	x := require.New(tb)
 
-	l := bufconn.Listen(bufSize)
-	conn, err := grpc.NewClient(
-		"passthrough://bufconn",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return l.DialContext(ctx)
-		}),
-	)
-	x.NoError(err)
+	conn, stop := s.Stack.Serve(register)
 
-	v := &Client{
+	return &Client{
 		tb: tb,
 
 		Server: s,
 		Conn:   conn,
 		Client: go_app.NewClient(conn),
 
-		grpc: g,
+		stop: stop,
 	}
-	v.wg.Go(func() {
-		if err := g.Serve(l); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			// Not `require`, which must be called from the test goroutine.
-			tb.Errorf("serve: %s", err)
-		}
-	})
+}
 
-	return v
+// As, AsBearer and AsNobody are [Stack]'s, and are here so that a test says
+// `c.As(...)` rather than reaching through to the stack for it.
+func (c *Client) As(ctx context.Context, subject string) context.Context {
+	return c.Server.Stack.As(ctx, subject)
+}
+
+func (c *Client) AsBearer(ctx context.Context, token string) context.Context {
+	return c.Server.Stack.AsBearer(ctx, token)
+}
+
+func (c *Client) AsNobody(ctx context.Context) context.Context {
+	return c.Server.Stack.AsNobody(ctx)
 }
 
 // Bare returns a client of the innermost server, the one that runs the queries
@@ -105,37 +89,8 @@ func (c *Client) Close() error {
 		c.bare = nil
 	}
 
-	c.Conn.Close()
-	c.grpc.GracefulStop()
-	c.wg.Wait()
+	c.stop()
 	return nil
-}
-
-// As says the call is from the given subject, the way a caller of the app says
-// it. Every call made with the context it returns is served as them.
-func (c *Client) As(ctx context.Context, subject string) context.Context {
-	return auth.PlainProvider(subject).Provide(ctx)
-}
-
-// AsBearer says the call comes with the given token, which is how a test
-// travels as a credential that allows less than its subject does. Put one in
-// [Server.Tokens] first.
-func (c *Client) AsBearer(ctx context.Context, token string) context.Context {
-	return auth.BearerProvider(token).Provide(ctx)
-}
-
-// AsNobody says nothing about who is calling, which is what an anonymous caller
-// looks like. It is a caller like any other; see `server/frame`.
-func (c *Client) AsNobody(ctx context.Context) context.Context {
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		return ctx
-	}
-
-	md = md.Copy()
-	md.Delete("authorization")
-
-	return metadata.NewOutgoingContext(ctx, md)
 }
 
 // CreateRoaster adds a Roaster, failing the test if it cannot.

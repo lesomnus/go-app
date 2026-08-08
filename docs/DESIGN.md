@@ -171,6 +171,35 @@ every app that narrows anything — and it is also the trap: "no opinion" means
 every row. An app that installs a scope should have a test that asks each method
 what it answers, the way `kind/server-x`'s `wall_test.go` does.
 
+<!--template:begin self-->
+## What a variant may remove
+
+Most of this template assumes a database, and the assumption reaches further
+than it looks: the layer stack (`go_app.Server`, `Overlay`, `WithDriver`), the
+entity codegen, `server/watch`, and half of `internal/ox` are all properties of
+having a store this app owns and writes through. That is not obvious from
+reading them, and finding it out by deleting things is a poor way to spend an
+afternoon.
+
+So it is written down where it is true rather than here. A coupling inside a
+file that survives is marked at the coupling:
+
+```go
+	Db     DbConfig //template:db
+```
+
+and `grep -rn "template:db"` is the whole list. Whole files are named in
+`tools/init/variant.go`. `go run ./tools/init --no-db` applies it, and
+`go test ./tools/init` proves the result still builds — which is the only reason
+the list can be trusted.
+
+What survives `--no-db` is worth knowing even if you never use it, because it is
+the same statement as "what does not depend on the store": `server/frame`,
+`server/auth`, `server/gate`'s interceptor, `internal/grpcx`, `internal/httpx`,
+`internal/ox.Stack`, the configuration machinery, and the UI's build.
+
+<!--template:end self-->
+
 ## Later
 
 Not now, and not blocked by anything here.

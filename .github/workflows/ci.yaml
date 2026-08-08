@@ -14,7 +14,7 @@ on:
     # at once, and a filter per job would have to say so twice.
     paths: &paths
       - .github/workflows/ci.yaml
-      - buf.gen.svc.yaml
+      - buf.gen.svc.yaml #template:db
       - buf.gen.ui.yaml
       - buf.gen.yaml
       - buf.lock
@@ -27,11 +27,12 @@ on:
       - go_app/**
       - internal/**
       - main.go
-      - migrations/**
+      - migrations/** #template:db
       - proto/**
-      - proto.svc/**
+      - proto.svc/** #template:db
       - scripts/**
       - server/**
+      - tools/** #template:self
       - ui/**
   pull_request:
     branches:
@@ -50,6 +51,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
 
+    #template:begin db
     services:
       # The dev database the migrations are planned against. It is emptied by
       # the planning, so it holds nothing to begin with.
@@ -65,6 +67,7 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+    #template:end db
 
     steps:
       - uses: actions/checkout@v6
@@ -116,12 +119,15 @@ jobs:
 
       - name: Generated code is what the definitions say
         run: |
+          #template:begin db
           buf generate --template buf.gen.svc.yaml
           ./scripts/gen-service.sh
+          #template:end db
           ./scripts/gen-go.sh
-          ./scripts/gen-ent.sh
+          ./scripts/gen-ent.sh #template:db
           git diff --exit-code
 
+      #template:begin db
       - name: Migrations are what the schema says
         run: |
           go run . migrate plan \
@@ -130,6 +136,67 @@ jobs:
           # Planning writes a file only if the schema moved without one.
           test -z "$(git status --porcelain migrations/)" \
             || { git status --short migrations/; exit 1; }
+      #template:end db
+
+  # Whether the parts this template offers to leave out can actually be left
+  # out. A template that offers a variant has promised that what is left still
+  # builds, and nothing but building it keeps that promise -- a marker in the
+  # wrong place is otherwise found by whoever tried the flag, months later.
+  #
+  # The test does the work: it copies the repository into a temporary
+  # directory, runs `tools/init` over the copy, and builds and vets the result.
+  # This job is here to run the same thing over the UI, which the Go test does
+  # not touch.
+  #
+  # An app made from this template deletes this job along with tools/.
+  variants: #template:self
+    #template:begin self
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: whole
+            args: ""
+          - name: no-db
+            args: "--no-db"
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ui/.nvmrc
+
+      # Into a directory of its own, since the tool rewrites the tree it is
+      # given and this one is also the checkout.
+      - name: Make an app of it
+        run: |
+          mkdir -p "${RUNNER_TEMP}/app"
+          tar --exclude=.git --exclude=node_modules --exclude=dist -cf - . \
+            | tar -xf - -C "${RUNNER_TEMP}/app"
+          cd "${RUNNER_TEMP}/app"
+          # --no-generate, because the generators want buf and the plugins, and
+          # what this job is asking is whether the tree is coherent. The Go test
+          # covers the same ground; this adds the half of it that is TypeScript.
+          go run ./tools/init --no-generate ${{ matrix.args }} github.com/acme/app
+
+      - name: It builds
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          go build ./...
+          go vet ./...
+
+      - name: And so does the UI
+        working-directory: ${{ runner.temp }}/app/ui
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+    #template:end self
 
   # The same question as `check`, asked of the other half of the contract. The
   # protos are generated into `ui/src/gen` too, and nothing in the Go job can

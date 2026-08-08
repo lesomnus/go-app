@@ -14,7 +14,6 @@
 package ox
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -57,18 +56,4 @@ func (x *X) ErrCode(expected codes.Code, err error) {
 		actual, actual,
 		err,
 	))
-}
-
-// T runs `run` against a fresh app. The context it hands over is the one of the
-// test, so it is canceled as soon as the test is done.
-func T(run func(ctx context.Context, x *X, c *Client)) func(t *testing.T) {
-	return func(t *testing.T) {
-		s := NewServer(t)
-		c := NewClient(t, s)
-		defer c.Close()
-
-		// As somebody, since a test is usually not about being nobody. One
-		// that is says so with [Client.AsNobody].
-		run(c.As(t.Context(), "somebody"), NewX(t), c)
-	}
 }

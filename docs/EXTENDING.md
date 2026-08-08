@@ -379,7 +379,7 @@ filter through both roads.
 - **Every layer must implement `WithDriver`.** Four lines, and a
   `var _ enttx.Binder[go_app.Server] = Server{}` in each layer turns forgetting
   it into a compile error rather than a surprise at the first transaction.
-- **`init.sh` regenerates for a reason.** A compiled protobuf descriptor is a
+- **`init` regenerates for a reason.** A compiled protobuf descriptor is a
   length-prefixed byte string with the package name inside it, so renaming
   without regenerating leaves one that compiles and panics on the first init.
 - **Adding an entity adds a method to `bare.Scope`.** Nothing in this branch

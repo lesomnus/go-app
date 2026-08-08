@@ -93,10 +93,21 @@ One rule of this app's own:
 
 > an anonymous caller may make the calls that were named, and no others.
 
-`server.allow_anonymous_reads` names the reads this app generates — `Get`,
-`List`, `Watch` — which is the catalogue shape: anybody may read it, and only a
-caller who said who they are may change it. Unwritten, an anonymous caller may
-do nothing.
+`server.allow_anonymous_reads` names `Get`, `List` and `Watch` — the catalogue
+shape: anybody may read it, and only a caller who said who they are may change
+it. Unwritten, an anonymous caller may do nothing.
+
+It matches **by suffix**, which is worth knowing before turning it on: it names
+every RPC spelled that way, not only the generated ones. `List` is exactly the
+RPC [EXTENDING.md](EXTENDING.md) tells you to write by hand, and a hand-written
+one usually exists *because* it does something a generated read does not —
+narrowing to the caller's own rows, most often. This opens it along with the
+rest, and nothing in the name suggests that.
+
+For an app where a read means something, name them:
+`gate.WithAnonymous(gate.AnonymousOnly(go_app.CoffeeService_Get_FullMethodName))`.
+The generated `..._FullMethodName` constants make a renamed RPC a compile error
+rather than a rule that quietly changed.
 
 **A list of what is allowed, not a list of what is not.** The other way round
 reads the same today and is wrong the day somebody writes `Rename`: it is a

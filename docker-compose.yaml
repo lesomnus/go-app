@@ -1,4 +1,5 @@
 services:
+  #template:begin db
   # Runs the migrations the database has not run yet, then exits. It runs from
   # the image that is about to serve, so the schema a deployment applies is the
   # one the code it ships was written against.
@@ -15,6 +16,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  #template:end db
 
   app:
     image: ghcr.io/lesomnus/go-app:${REVISION:-local}
@@ -28,13 +30,15 @@ services:
     volumes:
       - ./go-app.yaml:/go-app.yaml:ro
 
-    environment: *db
+    environment: *db #template:db
 
+    #template:begin db
     # Serving a database that is behind the code is how a deployment breaks
     # quietly, so it waits for the migrations to have run.
     depends_on:
       migrate:
         condition: service_completed_successfully
+    #template:end db
 
     deploy:
       resources:
@@ -45,6 +49,7 @@ services:
           cpus: "2"
           memory: 64M
 
+  #template:begin db
   # The database to run against locally. It also holds the dev database that
   # `migrate plan` works the migrations out on, which db-init.sql creates.
   db:
@@ -70,3 +75,4 @@ services:
 
 volumes:
   db.data:
+  #template:end db

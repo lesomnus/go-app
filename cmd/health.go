@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	//template:begin db
 	"context"
 	"log/slog"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/lesomnus/otx/log"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	//template:end db
 )
 
 // The two questions a health check is asked, which are not the same question
@@ -44,6 +46,7 @@ const (
 	ServiceLiveness = "liveness"
 )
 
+//template:begin db
 const (
 	// dbCheckInterval is how often the database is asked whether it is still
 	// there, and dbCheckTimeout is how long it is given to answer.
@@ -83,3 +86,5 @@ func dbStatus(ctx context.Context, db *config.Db) grpc_health_v1.HealthCheckResp
 
 	return grpc_health_v1.HealthCheckResponse_SERVING
 }
+
+//template:end db

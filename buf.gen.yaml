@@ -17,6 +17,26 @@ plugins:
     out: .gen
     opt:
       - module=github.com/lesomnus/go-app
+  #template:begin db
+version: v2
+inputs:
+  - directory: proto
+
+# Everything is generated into a staging directory (`.gen`) and then moved into
+# place by `scripts/gen-go.sh`, which also rewrites the import path of the
+# message package. The plugins below emit paths relative to the `go_package` of
+# each proto file, which is the module root here, so the message package would
+# otherwise collide with `package main` at the repository root.
+plugins:
+  - local: [go, tool, google.golang.org/protobuf/cmd/protoc-gen-go]
+    out: .gen
+    opt:
+      - module=github.com/lesomnus/go-app
+      - default_api_level=API_OPAQUE
+  - local: [go, tool, google.golang.org/grpc/cmd/protoc-gen-go-grpc]
+    out: .gen
+    opt:
+      - module=github.com/lesomnus/go-app
   # Query helpers (Ref/Pick/By<Key>/JSON) and the Server/Client wiring.
   - local: [go, tool, github.com/protobuf-orm/protoc-gen-orm-go]
     out: .gen
@@ -36,3 +56,4 @@ plugins:
       - ent.namer=internal/ent/{{ .Name }}.g.go
       - server.namer=server/bare/{{ .Name }}.g.go
       - store.name=server/bare/store.g.go
+  #template:end db

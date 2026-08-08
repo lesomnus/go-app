@@ -19,11 +19,15 @@ server:
   # everywhere in this file.
   allow_reflection: true
   #
-  # Lets a caller who said nothing about who they are make the reads this app
-  # generates -- Get, List and Watch -- and nothing else. It is a list of what
-  # is *allowed*: an RPC written by hand is closed until somebody opens it,
-  # which is the right way round, since `Rename` is a write and is not called
-  # `Patch`. A caller who says who they are is not affected either way.
+  # Lets a caller who said nothing about who they are make Get, List and Watch,
+  # and nothing else. A caller who says who they are is not affected either way.
+  #
+  # It matches **by suffix**, so it is every RPC spelled that way and not only
+  # the generated ones. Read that twice before turning it on: a `List` written
+  # by hand is usually written by hand *because* it narrows to the caller's own
+  # rows, and this opens it along with the rest. An app whose reads are not a
+  # catalogue should name them instead -- `gate.AnonymousOnly(...)`, wired in
+  # cmd/serve.go.
   # allow_anonymous_reads: true
   #
   # Serves `Patch` and `Apply`, the two RPCs every generated service has that
@@ -137,6 +141,7 @@ auth:
   #         - /go_app.CoffeeService/Get
   #         - /go_app.CoffeeService/List
 
+#template:begin db
 # Database used by the gRPC services (used by the `serve` subcommand).
 db:
   # Registered drivers are "sqlite3" (SQLite on Wasm) and "pgx" (PostgreSQL);
@@ -171,6 +176,7 @@ db:
   # database has nowhere to have applied them, so this is what puts the schema
   # there at all.
   migrate: true
+#template:end db
 
 # Greeting configuration (used by the `greet` subcommand).
 greet:

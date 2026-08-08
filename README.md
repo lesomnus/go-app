@@ -32,8 +32,14 @@ behind; Docker comes into it when you build an image or write a migration.
 # 1. Make it yours: the module path, the proto package and its directories, the
 #    binary, the config file and the `GO_APP_` environment prefix. It then
 #    generates everything that is generated, again -- see below for why that is
-#    not optional.
-$ ./scripts/init.sh github.com/your-name/your-app
+#    not optional, and removes itself.
+$ go run ./tools/init github.com/your-name/your-app
+
+#    Leaving a part out is a flag. `--help` lists what there is; today there is
+#    one, and it is the big one:
+#      --no-db   no ent, no generated servers, no migrations, no sample --
+#                the transport, the auth and the config, and you write the
+#                store. See "Leaving parts out" below.
 
 # 2. It already works, and there is nothing to bring up first. If either of
 #    these does not, it is the tooling above and not anything you wrote.
@@ -52,16 +58,16 @@ Then the actual first task, which is **replacing `Roaster` and `Coffee` with
 what your app is about** — they are a sample, and every one of them is meant to
 go. [docs/EXTENDING.md](docs/EXTENDING.md#replacing-the-sample) is the procedure.
 
-`init.sh` regenerates rather than leaving the generated files it just rewrote,
-and that is load-bearing: a compiled protobuf descriptor is a length-prefixed
-byte string with the proto package name inside it, so replacing `go_app` with a
-name of a different length leaves one whose prefixes say the old lengths. It
+`init` regenerates rather than leaving the generated files it just rewrote, and
+that is load-bearing: a compiled protobuf descriptor is a length-prefixed byte
+string with the proto package name inside it, so replacing `go_app` with a name
+of a different length leaves one whose prefixes say the old lengths. It
 compiles, and panics on the first init with a slice bounds error a long way from
 anything anybody wrote. `--no-generate` skips it for somebody who has to run the
 generation elsewhere, and says so.
 
 The TypeScript half needs `ui/node_modules`, which a fresh clone does not have,
-so `init.sh` says what to run rather than failing:
+so `init` says what to run rather than failing:
 
 ```sh
 $ cd ui && npm install && cd .. && ./scripts/gen-ui.sh
@@ -118,6 +124,72 @@ Three things it exists to show:
 The Vite template's own files are gone — no logo, no counter, no CSS nobody
 asked for. What is left is `index.html`, `main.tsx`, `App.tsx`, the client, the
 hook, and the stylesheet.
+
+<!--template:begin self-->
+
+## Leaving parts out
+
+Most of what is here assumes a database. If yours is somewhere else -- a SaaS
+API, a gateway, an LDAP directory, anything you do not own -- then ent, the
+generated servers, the migrations and the entity codegen are not scaffolding,
+they are a thing to remove before you can start.
+
+`init` removes them:
+
+```sh
+$ go run ./tools/init --no-db github.com/your-name/your-app
+```
+
+What is left is the transport and nothing behind it: the two listeners,
+authentication, the gate, the rate limit, the configuration, the health server
+and the UI's build. You write the proto by hand, implement it in `server/core`,
+and register it in `cmd/serve.go` where a marker says the sample used to be.
+`docs/EXTENDING.md` has the procedure.
+
+### How the seam is kept honest
+
+Two things, and the second is the one that matters.
+
+**The map lives in the source.** Where the coupling is inside a file that
+stays, it is marked at the coupling:
+
+```go
+type Config struct {
+	Server ServerConfig
+	Auth   AuthConfig
+	Db     DbConfig //template:db
+	Greet  GreetConfig
+}
+```
+
+So `grep -rn "template:db"` is the whole list of what the database half touches,
+and it cannot go stale the way a document beside the code would -- it is the
+thing being moved. `//template:begin db` … `//template:end db` marks a region,
+and `no-db` marks what takes its place. Whole files are listed in
+`tools/init/variant.go` instead, since a file that exists only to serve one part
+has nothing to mark. Every marker is removed on the way out, whether its part is
+being kept or not: an app should not inherit the template's bookkeeping.
+
+**CI builds each variant.** `go test ./tools/init` copies the repository into a
+temporary directory, runs the tool over it, and builds and vets the result --
+once per variant, on every change. Without that, a marker in the wrong place is
+a promise this repository quietly stops keeping. It is also the reason `init` is
+Go and not the shell script it used to be: the tool and the thing that checks it
+are the same program.
+
+### Adding a variant
+
+Do not, until somebody has actually wanted one. Each is a shape this repository
+promises to keep working -- a column in CI and a thing to fix whenever the
+template moves -- so one nobody asked for costs and returns nothing.
+
+When somebody has: add it to `variants` in `tools/init/variant.go`, mark the
+places inside files that stay, add a case to `TestVariantsBuild`, and add it to
+the CI matrix. If it has to *replace* a file rather than trim one -- two `App`
+components cannot both compile, whichever is about to be deleted -- put the
+replacement under `tools/init/files/no-<name>/`, and keep that rare.
+
+<!--template:end self-->
 
 ## Configuration
 

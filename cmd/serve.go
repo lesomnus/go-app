@@ -11,14 +11,20 @@ import (
 	"syscall"
 	"time"
 
+	//template:begin db
 	go_app "github.com/lesomnus/go-app/go_app"
+	//template:end db
 	"github.com/lesomnus/go-app/internal/grpcx"
 	"github.com/lesomnus/go-app/internal/httpx"
+	//template:begin db
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
+	//template:end db
 	"github.com/lesomnus/go-app/server/gate"
+	//template:begin db
 	"github.com/lesomnus/go-app/server/spin"
 	"github.com/lesomnus/go-app/server/watch"
+	//template:end db
 	"github.com/lesomnus/otx/log"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
@@ -49,8 +55,10 @@ func NewCmdServe() *xli.Command {
 			&flg.String{Name: "addr", Brief: "address to listen on"},
 			&flg.String{Name: "tls-cert", Brief: "path to TLS certificate file"},
 			&flg.String{Name: "tls-key", Brief: "path to TLS private key file"},
+			//template:begin db
 			&flg.String{Name: "db-dsn", Brief: "database connection string"},
 			&flg.Switch{Name: "db-migrate", Brief: "run auto migration on startup"},
+			//template:end db
 		},
 
 		Handler: xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
@@ -61,14 +69,17 @@ func NewCmdServe() *xli.Command {
 				c.Server.TLS.Enabled = true
 			}
 			flg.VisitP(cmd, "tls-key", &c.Server.TLS.KeyFile)
+			//template:begin db
 			flg.VisitP(cmd, "db-dsn", &c.Db.Dsn)
 			flg.VisitP(cmd, "db-migrate", &c.Db.Migrate)
+			//template:end db
 
 			creds, err := c.Server.TLS.Credentials()
 			if err != nil {
 				return z.Err(err, "load tls credentials")
 			}
 
+			//template:begin db
 			db, err := c.Db.Open(ctx)
 			if err != nil {
 				return z.Err(err, "open database")
@@ -80,12 +91,14 @@ func NewCmdServe() *xli.Command {
 					return z.Err(err, "migrate database")
 				}
 			}
+			//template:end db
 
 			// Canceled once this command returns, which is what stops the
 			// tasks it leaves running in the background.
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
+			//template:begin db
 			// And the other end of the same hook: what a call changed, told to
 			// whoever is listening once the call has answered.
 			//
@@ -130,6 +143,11 @@ func NewCmdServe() *xli.Command {
 				defer close(spun)
 				spin.All(ctx, s)
 			}()
+			//template:end db
+			//template:begin no-db
+			// Nothing is served yet. Write a service, implement it in
+			// `server/core`, and register it below where the sample did.
+			//template:end no-db
 
 			auth_opts, err := c.Auth.GrpcOptions()
 			if err != nil {
@@ -152,12 +170,16 @@ func NewCmdServe() *xli.Command {
 			opts = append(opts, gate.Interceptor(c.Server.GateOptions()...)...)
 			// Outside the handler and inside everything that could refuse the
 			// call, so that what is published is what was served.
+			//template:begin db
 			opts = append(opts, wat.Interceptor()...)
+			//template:end db
 			opts = append(opts, grpcx.Closed(c.Server.Closed())...)
 			opts = append(opts, grpc.Creds(creds))
 
 			srv := grpc.NewServer(opts...)
+			//template:begin db
 			go_app.RegisterServer(srv, s)
+			//template:end db
 
 			health_srv := health.NewServer()
 			grpc_health_v1.RegisterHealthServer(srv, health_srv)
@@ -171,8 +193,16 @@ func NewCmdServe() *xli.Command {
 			// below it.
 			health_srv.SetServingStatus(ServiceLiveness, grpc_health_v1.HealthCheckResponse_SERVING)
 
+			//template:begin db
 			// The app has nothing to serve without the database it runs on.
 			go watchDb(ctx, health_srv, db, dbCheckInterval)
+			//template:end db
+			//template:begin no-db
+			// Nothing this app depends on can be down, so it is ready as soon
+			// as it is serving. An app with a store to depend on watches it
+			// here; see the note in cmd/health.go.
+			health_srv.SetServingStatus(ServiceReadiness, grpc_health_v1.HealthCheckResponse_SERVING)
+			//template:end no-db
 
 			lis, err := net.Listen("tcp", c.Server.Addr)
 			if err != nil {
