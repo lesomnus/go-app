@@ -74,8 +74,12 @@ $ cd ui && npm install && cd .. && ./scripts/gen-ui.sh
 ```
 
 One thing it cannot do for you: the app name becomes the alias of the message
-package (`go_app` here), so a local variable of that name shadows it. Pick a
-name and `go build ./...` will say if you picked one this repository uses.
+package (`go_app` here), so a local variable of that name shadows it. The sample
+uses `beans` and `coffee` as variables, so those two are the ones to avoid.
+
+`go build ./...` does **not** catch it -- the shadowing is in the tests, which a
+build never compiles -- so `init` runs `go vet ./...` too and says to pick
+another name.
 
 ## The UI
 

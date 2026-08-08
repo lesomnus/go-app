@@ -180,13 +180,21 @@ func initialize(o options, out io.Writer) error {
 
 	if o.generate && !o.dry {
 		fmt.Fprintln(out, "\nGenerating...")
-		if err := generate(root, o.without, out); err != nil {
+		if err := generate(root, out); err != nil {
 			return err
 		}
 
 		fmt.Fprintln(out, "\nBuilding...")
 		if err := command(root, out, "go", "build", "./..."); err != nil {
 			return err
+		}
+		// And vet, which compiles the tests as well. That is not thoroughness
+		// for its own sake: the app name becomes the alias of the message
+		// package, so choosing one that the sample uses as a *variable* shadows
+		// it -- and only in the tests, which `go build` never looks at. Found
+		// here it is a name to change; found later it is a puzzle.
+		if err := command(root, out, "go", "vet", "./..."); err != nil {
+			return fmt.Errorf("the tree builds but does not vet, which is usually the app name shadowing the message package it is also the alias of; pick another name: %w", err)
 		}
 	}
 
@@ -248,6 +256,15 @@ func leaveOut(t *tree, without []string) error {
 		if !ok {
 			return fmt.Errorf("there is no variant called %q", name)
 		}
+		if !t.has(v.Paths) {
+			// Asking for a tree to be without something it is already without
+			// is a request that has been met. `main` carries no database half
+			// at all, and writing the files that stand in for one would build
+			// half of something nobody asked for.
+			t.log("there is no %s in this tree to leave out", name)
+			continue
+		}
+
 		for _, p := range v.Paths {
 			if err := t.remove(p); err != nil {
 				return err
@@ -273,51 +290,87 @@ func stripAll(t *tree, tags map[string]bool) error {
 	})
 }
 
-// generate runs what makes the generated code, skipping the steps a variant
-// took away.
-func generate(root string, without []string, out io.Writer) error {
-	left := make(map[string]bool, len(without))
-	for _, n := range without {
-		left[n] = true
+// generate runs what makes the generated code.
+//
+// Which steps there are is read from the tree rather than assumed, because the
+// tree differs: `main` carries no protos at all, a variant may have taken the
+// entity codegen away, and an app that deleted the UI has no TypeScript half.
+// A step whose script is not there is a step this tree does not have.
+//
+// Running it is not a convenience. The rename rewrote the *.pb.go files too,
+// and a compiled protobuf descriptor is a length-prefixed byte string with the
+// proto package name inside it -- so replacing the old name with one of a
+// different length leaves a descriptor whose prefixes say the old lengths. The
+// result compiles and panics on the first init, with a slice bounds error a
+// long way from anything anybody wrote.
+//
+// So the generated files are made again from the sources, which are text and
+// were rewritten correctly.
+func generate(root string, out io.Writer) error {
+	here := func(p string) bool {
+		_, err := os.Stat(filepath.Join(root, filepath.FromSlash(p)))
+		return err == nil
 	}
 
-	// This is not a convenience. The rename rewrote the *.pb.go files too, and
-	// a compiled protobuf descriptor is a length-prefixed byte string with the
-	// proto package name inside it -- so replacing the old name with one of a
-	// different length leaves a descriptor whose prefixes say the old lengths.
-	// The result compiles and panics on the first init, with a slice bounds
-	// error a long way from anything anybody wrote.
-	//
-	// So the generated files are made again from the sources, which are text
-	// and were rewritten correctly.
-	steps := [][]string{}
-	if !left["db"] {
-		steps = append(steps,
-			[]string{"buf", "generate", "--template", "buf.gen.svc.yaml"},
-			[]string{"./scripts/gen-service.sh"},
-		)
-	}
-	steps = append(steps, []string{"./scripts/gen-go.sh"})
-	if !left["db"] {
-		steps = append(steps, []string{"./scripts/gen-ent.sh"})
+	// Nothing to generate *from* is not a failure. `main` has no protos at all,
+	// and a variant that took the sample away leaves the directory empty --
+	// which buf reports as an error ("had no .proto files") rather than as
+	// nothing to do, so the emptiness is checked here instead.
+	if !anyProto(filepath.Join(root, "proto")) {
+		fmt.Fprintln(out, "  there are no protos here yet, so there is nothing to generate")
+		return nil
 	}
 
+	steps := []struct {
+		needs string
+		argv  []string
+	}{
+		{"buf.gen.svc.yaml", []string{"buf", "generate", "--template", "buf.gen.svc.yaml"}},
+		{"scripts/gen-service.sh", []string{"./scripts/gen-service.sh"}},
+		{"scripts/gen-go.sh", []string{"./scripts/gen-go.sh"}},
+		{"scripts/gen-ent.sh", []string{"./scripts/gen-ent.sh"}},
+	}
 	for _, s := range steps {
-		if err := command(root, out, s[0], s[1:]...); err != nil {
-			return fmt.Errorf("the renaming is done and the generation is not; run %q and the rest by hand: %w", strings.Join(s, " "), err)
+		if !here(s.needs) {
+			continue
 		}
+		if err := command(root, out, s.argv[0], s.argv[1:]...); err != nil {
+			return fmt.Errorf("the renaming is done and the generation is not; run %q and the rest by hand: %w", strings.Join(s.argv, " "), err)
+		}
+	}
+
+	if !here("scripts/gen-ui.sh") {
+		return nil
 	}
 
 	// The TypeScript half needs the UI's own node_modules, so a fresh clone has
 	// to install before it can be generated. Saying so is better than a failure
 	// that reads as the rename having gone wrong.
-	if _, err := os.Stat(filepath.Join(root, "ui", "node_modules", ".bin", "protoc-gen-es")); err != nil {
+	if !here("ui/node_modules/.bin/protoc-gen-es") {
 		fmt.Fprintln(out, "  ui/node_modules is not installed, so ui/src/gen was not regenerated.")
 		fmt.Fprintln(out, "  Before running the UI: cd ui && npm install && cd .. && ./scripts/gen-ui.sh")
 		return nil
 	}
 
 	return command(root, out, "./scripts/gen-ui.sh")
+}
+
+// anyProto reports whether there is anything under `dir` for buf to read.
+func anyProto(dir string) bool {
+	found := false
+	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil //nolint:nilerr // a missing directory is simply no protos
+		}
+		if !d.IsDir() && filepath.Ext(d.Name()) == ".proto" {
+			found = true
+			return filepath.SkipAll
+		}
+
+		return nil
+	})
+
+	return found
 }
 
 func command(dir string, out io.Writer, name string, args ...string) error {

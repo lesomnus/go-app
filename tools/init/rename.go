@@ -330,6 +330,18 @@ func (t *tree) write(src fs.FS, dir string) error {
 	})
 }
 
+// has reports whether any of `paths` is in the tree, which is how a variant
+// says whether it applies here at all.
+func (t *tree) has(paths []string) bool {
+	for _, p := range paths {
+		if _, err := os.Lstat(filepath.Join(t.root, filepath.FromSlash(p))); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 // remove deletes a path, and says nothing about one that is already not there.
 func (t *tree) remove(rel string) error {
 	p := filepath.Join(t.root, filepath.FromSlash(rel))
