@@ -58,7 +58,7 @@ func TestPlanApply(t *testing.T) {
 	x.NoError(err)
 	x.Len(fs, 1)
 	x.Contains(fs[0].Name(), "_init.sql")
-	x.Contains(string(fs[0].Bytes()), `CREATE TABLE `+"`tenant`")
+	x.Contains(string(fs[0].Bytes()), `CREATE TABLE `+"`roaster`")
 
 	// What was written is what is applied.
 	db := open(t)
@@ -69,7 +69,7 @@ func TestPlanApply(t *testing.T) {
 	applied, err := migrate.Apply(ctx, db, dialect.SQLite, dir)
 	x.NoError(err)
 	x.Len(applied, 1)
-	x.Subset(tables(ctx, t, db), []string{"tenant", "holder", migrate.RevisionTable})
+	x.Subset(tables(ctx, t, db), []string{"roaster", "coffee", migrate.RevisionTable})
 
 	// Applying again is not applying anything.
 	pending, err = migrate.Pending(ctx, db, dialect.SQLite, dir)

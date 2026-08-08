@@ -1,390 +1,184 @@
 # Who is calling, and what they may do
 
-Two questions, kept apart because they change for different reasons, and
-answered by four things that hand their answers to each other.
+Two questions, kept apart because they change for different reasons and are
+answered by different things.
 
 ```
-   a request arrives
-          │
-          ▼
-  server/auth ─────────── who is this?
-          │               a Handler reads a claim, a Resolver looks it up.
-          │               The answer is a Holder read from the database.
-          │
-          │               ...and what did the credential itself allow?
-          │               frame.Grant, at most what that Holder allows.
-          ▼
-  server/gate ─────────── what may they see?
-   (interceptor)          gate.Policy if a deployment injected one,
-          │               the Tenant wall if not. Met with the Grant.
-          ▼
-  server/frame ────────── Actor · Grant · Scope
-          │               Worked out once. Everything after reads it.
-          ▼
-  server/bare ─────────── ...and it is a WHERE clause.
-   (the queries)          gate.Wall() put a predicate in every one of them.
+  a request  --->  server/auth   who is this? and what did the credential allow?
+                        |
+                        v
+                   server/gate   may they make this call?
+                        |
+                        v
+                   the servers,  which ask neither again
 ```
 
-Everything below is that picture, slowly.
+**Every request has an answer to the first one**, including the ones from
+nobody. A caller who presents no credential is `frame.Anonymous`, which is a
+caller like any other rather than the absence of one.
 
-## `server/frame` — what is known about a request
-
-```go
-type Frame struct {
-	Actor *go_app.Holder  // who
-	Grant Grant           // what their credential allows
-	Scope Tenants         // which Tenants they may see
-}
-```
-
-A frame is put into the context by whatever worked each of those out, and read
-from it by everything that has to decide anything. **Each is worked out once.**
-That is not an optimisation, it is what keeps the answers consistent: a scope
-computed twice during one request is a request that can be told two things.
-
-The zero value of `Grant` allows nothing and the zero value of `Tenants` sees
-nothing. Both are that way round on purpose. A frame built by hand that forgets
-one is a frame that can do nothing, which somebody notices at once; the other
-way round it is a frame that can do everything, which nobody notices at all.
-
-A request that reaches a walled server **with no frame is refused**. There is no
-scope that means "everything, because nobody asked".
+That is worth saying twice, because it is where this sort of thing goes wrong. A
+request with no frame is a question nothing has an answer to, and every answer
+that suggests itself is bad: refuse it, and the app's own calls have to go around
+the layer that refuses; serve it as nobody-in-particular, and the code deciding
+what nobody-in-particular may do is somewhere else, unwritten, defaulting to
+whatever a zero value means. Making the anonymous caller a caller means the
+question is asked and answered in one place, for everybody.
 
 ## `server/auth` — who is this
 
-A `Handler` reads a claim out of the transport, a `Resolver` looks it up. What
-comes back is a Holder read from the database rather than one the caller
-described, so what it says about itself can be relied on.
-
-Three handlers are written, and they differ in one thing: **where the name comes
-from.**
+A `Handler` reads whatever the transport carries and says who the caller is.
+Three are written, and they differ in one thing: where the name comes from.
 
 | | | |
 | --- | --- | --- |
-| `plain` | the caller writes it, and is believed | `authorization: Plain acme/admin` |
-| `mtls` | the client certificate carries it | a URI SAN, or the common name |
-| `bearer` | the token carries nothing, and is exchanged for one | `authorization: Bearer <token>` |
+| `plain` | `authorization: Plain anna` | Believed. Nothing is checked, which is the point; it is for development and for tests, and the server says so out loud at startup. |
+| `mtls` | the client certificate | Nothing is checked here either, and here that is right — the handshake already did it. Read out of the **verified chain**, never out of what the peer merely sent. |
+| `bearer` | `authorization: Bearer …` | The only one that has to *ask* something, which is what makes it the interesting one. |
 
-`plain` checks nothing, which is the point — a test or a call by hand says who
-it is and gets on with it — and the server says so out loud when it starts:
+**There is no second step and no user table.** This app has no users — it has
+Coffees — so who somebody is comes from outside: a token's subject, a
+certificate's name, a header in development. `frame.Actor.Subject` is an opaque
+string and nothing here compares it with anything but itself. A deployment with
+more than one issuer makes the subject say which, since two issuers can call two
+different people the same thing.
 
-```
-> ! callers are believed when they say who they are - auth=plain
-```
+### `auth.TokenStore` is where an issuer is injected
 
-`mtls` checks nothing either, and there it is right: the handshake already did
-it. It reads only a chain the server **verified**, never what the peer merely
-sent, so it says nothing at all under a TLS configuration that asks for a
-certificate without checking one.
-
-`bearer` is the only one that has to ask something, and that is what makes it
-the interesting one. `server/auth/token.go` has a sample store — a map, with the
-tokens held as digests and each carrying its own expiry, because a token having
-a life of its own is exactly what a header and a certificate do not have. A real
-store is a table or an issuer; the shape is the same.
-
-### Falling back
-
-The configuration names them in the order they are tried:
-
-```yaml
-auth:
-  methods: [bearer, mtls]   # a token, and the certificate for whoever has none
-```
-
-The first one that finds a credential answers. One that finds a **bad** one, or
-that **cannot tell** whether it is good, refuses the call rather than letting
-the next one have a go — and that is the whole of what makes a fallback safe. A
-token that expired must not quietly become whoever the certificate says, and a
-token store that is down must not either.
-
-That third answer is why `ErrUnavailable` exists. Told `Unauthenticated`, a
-caller throws away a token that was never wrong and goes to get another one,
-from the issuer that is already having a bad day; told `Unavailable`, it waits.
-
-For a caller who has only a token to get as far as the token, the handshake has
-to let them in without a certificate — `server.tls.client_cert_optional`. Leave
-it off where the certificate is the floor and everything else is said on top.
-
-A new way of asking is a `Handler` and nothing else.
-
-## `frame.Grant` — what the credential itself allows
-
-Every handler answers who. What that caller may then do is `server/gate`'s, and
-a credential has nothing to say about it — **except that it should be able to do
-less**. A token meaning "john, but only for reading" needs somewhere to put the
-"only":
-
-```yaml
-acme/ci:
-  token: "a-secret"
-  tenants: ["018f2c...."]                 # or omitted: wherever the Holder may act
-  actions: [/go_app.HolderService/Get]    # or omitted: whatever the Holder may call
-```
-
-Two axes, each narrowed or not, which is the shape of a GitHub fine-grained
-token: a set of resources and a set of things that may be done to them.
-Deliberately **not a map of one to the other** — "write here, read there" —
-because a permission set that varies per resource is a policy, and a policy is
-not something a credential should be carrying around. GitHub does not do that
-either.
-
-- **It only ever takes away.** Whatever decided the scope runs first and this is
-  met with the answer. A token naming every Tenant, held by somebody who may see
-  one, still sees one.
-- **Only `bearer` can carry one**, because only a token has anywhere to put it.
-  `plain` and `mtls` name somebody and stop, so they answer `frame.Whole()` and
-  say so.
-- **The action is checked once**, in `auth`'s interceptor, before the handler.
-  It is not a rule about the caller — it is the credential saying it was not
-  made for this, which is a question about the request rather than about the row
-  it was going to touch.
-
-What issues such a token, and who decided what to narrow it to, is not here and
-should not be. **This app is a resource server, not an authorization server**:
-it reads credentials and enforces them; it does not mint them.
-
-## `gate.Wall()` — the Tenant wall, as a predicate
-
-`server/gate` holds one rule: a Tenant is a wall.
-
-- Nothing of another Tenant is visible. Not `PermissionDenied` but `NotFound`,
-  since that it exists is itself something not to say.
-- A Tenant is put up and taken down by the deployment, which is not something
-  that happens from inside one — so both are `Unimplemented` here, to everybody.
-- **There is no caller the wall is not about.** Nothing compares an identifier
-  against a well-known one and answers "everything".
-
-The first of those is **stated** in `server/gate` and **enforced** somewhere
-else — on the innermost server, as a predicate in every query it builds:
+A header and a certificate carry a name. A token carries nothing, so somebody
+has to be asked — and being asked can fail in a way the caller did not cause.
 
 ```go
-sink,   err := bare.NewServer(db, bare.WithRecorder(audit.NewRecorder()))
-walled, err := bare.NewServer(db, bare.WithRecorder(audit.NewRecorder()), bare.WithScope(gate.Wall()))
-s,      err := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
+type TokenStore interface {
+	Lookup(ctx context.Context, token string) (frame.Actor, frame.Grant, error)
+}
 ```
 
-Narrowing what a caller may see is a predicate, and a predicate belongs in the
-`WHERE`. Done from in front it is an override of `Get`, `Patch`, `Apply` and
-`Erase`, once per entity and once more for every entity added afterwards. This
-app had thirteen of them across three entities, and they had already started to
-drift: one carried a bug that was fixed in one copy and left in the next.
+What is bundled is a map (`auth.MemTokenStore`), and it is a sample of the
+*shape*: tokens held as digests so the store cannot give away what it was told,
+and a life of its own that is not its subject's. What a deployment has is a JWT
+it verifies, an introspection endpoint, or a table somebody else owns. None of
+that belongs in this app — it reads credentials and enforces them, and does not
+mint them.
 
-`gate.Wall()` answers with a `bare.Scope` — one method per entity, all of them
-the same shape: everything, or the rows that hang off the Tenants in scope. It
-embeds `bare.Unscoped`, which is the generated "no opinion" for every entity, so
-an entity added to the schema is not a compile error here. In this app that is
-the wrong way round — everything is inside a Tenant — so `wall_test.go` asks
-each method what it answers and fails when one of them says nothing.
+**Three answers, not two.** A credential that is absent falls through to the next
+handler. One that is *wrong* stops the search — serving somebody as whatever the
+next handler makes of them would be answering a question nobody asked. And one
+the store could not check answers `Unavailable`, not `Unauthenticated`: told the
+latter, a caller throws away a token that is perfectly good and goes to get
+another one from the thing that is already down.
 
-Three things fall out of it rather than being written:
+### `frame.Grant` — what the credential allowed
 
-- **`NotFound`, not `PermissionDenied`.** A row out of the wall is a row the
-  query does not match. Nothing has to remember to answer carefully.
-- **A selection is the caller's alone.** The old wall read the Tenant of a row
-  to decide, so it had to add that column to a selection that did not ask for it
-  and take it back out afterwards — which meant the same request answered
-  different rows depending on who sent it. Nothing reads the answer now.
-- **A list is walled before it is cut short.** A limit taken across every Tenant
-  and filtered afterwards is one that any Tenant can push the others out of by
-  making a hundred rows of its own — and the victim sees an empty list, which
-  reads like "nothing happened" rather than like an error. `List` is written by
-  hand, so it borrows the same predicate (`bare.<Entity>Narrow`); that is the
-  one read the generated servers do not make.
-
-### Going around it is a server, not an identity
-
-There used to be a superuser: whoever held a Tenant whose identifier this app
-kept as a constant, told apart by a comparison in the middle of the wall. There
-is not one now. A privilege granted by **being a particular row** cannot be
-revoked, cannot be narrowed, does not appear anywhere it is used, and belongs to
-whoever finds the row.
-
-What the deployment has to do for itself, it does through a server the wall was
-never installed on:
+A token may allow **less** than its subject may, and never more. One axis: the
+set of methods it is for.
 
 ```go
-sink,   err := bare.NewServer(db, ...)                              // no wall
-walled, err := bare.NewServer(db, ..., bare.WithScope(gate.Wall()))
-
-ungated := go_app.Build(sink,   core.Build(), audit.Build())                 // no gate either
-served  := go_app.Build(walled, core.Build(), audit.Build(), gate.Build())
+frame.Whole()                                  // a header, a certificate
+frame.To("/go_app.CoffeeService/Get")          // a token that may only read
 ```
 
-`cmd/serve.go` serves the second and uses the first for the two things that
-cannot go through a wall: working out **who is calling**, which happens before
-there is anybody to be walled by, and `EnsureRoot`, which puts the first Tenant
-there before anybody exists at all. A deployment that wants an operator's path
-serves the ungated stack somewhere only an operator can reach — a second port, a
-unix socket, a separate binary.
+**The zero value allows nothing.** A store that answers with a Grant it forgot to
+fill in hands out a credential that can do nothing, which somebody notices
+immediately; the other way round it hands out one that can do everything, which
+nobody notices at all.
 
-The difference is the whole point: that capability is **a server instance
-somebody was handed**, which can be withheld and taken away, rather than **a row
-somebody is**, which cannot. `internal/ox` exposes it as `c.Ungated()`, and that
-a test has to reach for it is the same fact from the other side.
+One axis and not two, because a permission set that varied per resource would be
+a policy, and a policy is not something a credential should be carrying around.
+GitHub's fine-grained tokens do not do it either.
 
-The first Tenant is called `root` and is not privileged. It exists because a
-deployment with no Tenant has nobody who can authenticate at all.
+## `server/gate` — what they may do
 
-One consequence is worth knowing: erasing something out of the wall **succeeds
-and erases nothing**, because erasing what is not there succeeds and out of the
-wall is not there. It reads odd and it is the honest answer — an erase is
-idempotent, and answering `NotFound` for a row that exists but is not yours
-would tell a caller apart from the case where it never existed.
+One rule of this app's own:
 
-### What is left in `server/gate`
+> an anonymous caller may make the calls that were named, and no others.
 
-What is genuinely not a predicate — decisions about a row that does not exist
-yet, where there is nothing to narrow:
+`server.allow_anonymous_reads` names the reads this app generates — `Get`,
+`List`, `Watch` — which is the catalogue shape: anybody may read it, and only a
+caller who said who they are may change it. Unwritten, an anonymous caller may
+do nothing.
 
-| | |
-| --- | --- |
-| `Tenant.Add`, `Tenant.Erase` | `Unimplemented`, to everybody — the deployment does these |
-| `Holder.Add` | the Tenant must be one the caller can read |
+**A list of what is allowed, not a list of what is not.** The other way round
+reads the same today and is wrong the day somebody writes `Rename`: it is a
+write, it is not spelled `Patch`, and it would have been open to everybody with
+nothing anywhere to say so.
 
-`Holder.Add` reads the Tenant **through the wall** rather than comparing a
-reference against the scope, and answers `NotFound`. A reference names a Tenant
-by identifier or by alias, and answering "is this one of mine" without a query
-means holding every Tenant in scope in full — fine while that is the caller's
-own, wrong as soon as it is a list a credential or a policy narrowed to.
+The refusal is `Unauthenticated` and not `PermissionDenied`, because the two say
+different things to do about it — this one is fixed by saying who you are.
 
-## `gate.Policy` — what a deployment says about a caller
+### `gate.Policy` — what a deployment says
 
-Roles, and who is bound to them, are dynamic, deployment-specific, and edited by
-something that is not this app. `gate.Policy` is the seam, and it is
-deliberately not implemented here:
+Everything finer is a deployment's, and this is the seam. It is **unset by
+default**, and that is not a placeholder: a deployment that injects nothing gets
+exactly what is written above.
 
 ```go
 type Policy interface {
-	May(ctx context.Context, c Call) error                     // a point
-	Where(ctx context.Context, c Call) (frame.Tenants, error)  // a set
+	May(ctx context.Context, c Call) error
 }
 
 type Call struct {
-	Actor  *go_app.Holder
-	Action string          // "/go_app.HolderService/Patch"
+	Actor  frame.Actor
+	Action string          // "/go_app.CoffeeService/Patch"
 }
 ```
 
-**Two questions because there are two.** `May` answers whether a call may happen
-at all, and is asked before the handler, so it must not need the row — a request
-may name one by an alias, and resolving that is a query in front of the query.
-Ask it about the *kind* of thing, which is what a method name already says.
-`Where` answers which Tenants a caller may act in, and it is a set because **a
-list is not a boolean**: asked for a boolean per row instead, a list has to fetch
-rows it may not answer with and drop them, which cannot be paged and which any
-Tenant can use to push another's rows out of an answer.
+**It is asked once per request, before the handler**, which is why there is no
+field for the row: a request may name one by an alias, and resolving that is a
+query in front of the query. Ask it about the *kind* of thing, which is what a
+method name already says.
 
-Both take the same `Call`, because both are asked at the same moment about the
-same call and neither knows anything the other does not.
+A rule about a *particular row* is a different shape of thing and does not belong
+in an interceptor at all. It belongs in the query, as a predicate — `bare.Scope`
+is the hook the generated servers put one into every read they build. **This
+branch installs none**: nothing here narrows what a caller may see, and every row
+is everybody's to read. An app whose rows belong to somebody installs one there
+rather than asking per row; see the `kind/server` branch, whose whole subject is
+that.
 
-**There is no field for the row**, and that is not an omission. Anything about a
-particular row is `Where`'s, and becomes a predicate.
-
-### It is injected where the server is built
-
-```go
-opts = append(opts, auth_opts...)
-opts = append(opts, gate.Interceptor(nil)...)   // or whatever a deployment consults
-```
-
-**Unset is not a placeholder.** A deployment that injects nothing behaves exactly
-as this app always has: everybody sees their own Tenant, and nobody sees more.
-Nothing here takes a dependency on a running service; the interface is the seam,
-and an integration with a real engine belongs in a branch of its own — this
-repository already keeps a branch per kind of app.
+And the answer is a function of the actor and the method with nothing of the
+request in it, so it can be **held as a snapshot and evaluated in process** —
+which is what Kubernetes does with RBAC, and what makes an authorization service
+that is briefly unreachable not an outage.
 
 ### `server/gate/roles` — what one looks like
 
-A sample implementation, and nothing wires it in. It answers out of a table of
-roles and bindings, held in memory and swapped whole:
+A sample implementation, and nothing wires it in. Roles name actions, bindings
+give a subject a role, and the whole table is swapped at once:
 
 ```go
-p, err := roles.New(roles.Table{
+p, _ := roles.New(roles.Table{
 	Roles: map[string]roles.Role{
-		"reader": {Actions: []string{"/go_app.HolderService/Get"}},
-		"admin":  {Actions: []string{"/go_app.HolderService/*"}},
+		"reader": {Actions: []string{"/go_app.CoffeeService/Get"}},
+		"admin":  {Actions: []string{"/go_app.CoffeeService/*"}},
 	},
-	Bindings: []roles.Binding{
-		{Holder: john, Role: "reader"},                         // in his own Tenant
-		{Holder: ci, Role: "reader", Tenants: []uuid.UUID{acme}}, // and in acme
-	},
+	Bindings: []roles.Binding{{Subject: "anna", Role: "admin"}},
 })
-opts = append(opts, gate.Interceptor(p)...)
+opts = append(opts, gate.Interceptor(gate.WithPolicy(p))...)
 p.Store(next)   // whenever the engine that produces the table says so
 ```
 
-Three things it is there to show:
+`Store` swaps it and no request ever waits on anything, which is the property
+that makes the seam usable: a request answered from the last table that arrived
+is a request answered while the engine that produces them is down.
 
-- **A binding that names no Tenant is the wall**, said in the table's words. So
-  a table of those behaves exactly like no policy at all, and the step from one
-  to the other is small.
-- **`Where` replaces the wall, it does not add to it.** A binding that names
-  `acme` is a caller who has left their own Tenant behind — a table that means
-  "and their own" has to say so. It is the trap, and it has a test.
-- **The table is a snapshot.** `Store` swaps it and no request ever waits on
-  anything, which is the property that makes the seam usable: a request answered
-  from the last table that arrived is a request answered while the engine that
-  produces them is down.
+## Where the trust boundary is
 
-`Binding.Everywhere` answers `frame.Everything`, and is the only thing in this
-repository that does. It is the superuser this app deliberately does not
-have — put back, if a deployment writes it, in a table it can edit and revoke
-rather than as a comparison against a row anybody can find. What the deployment
-does for *itself* still wants the ungated stack.
+`plain` believes whatever it is told. It must not be reachable by anyone who is
+not already trusted to say the truth — behind a gateway that strips the header,
+on a socket only the deployment can reach, or in development. The server logs a
+warning at startup when it is on, and that warning is the whole of what stops
+somebody shipping it.
 
-**It is asked once per request**, which is why it is an interceptor rather than
-something the wall consults. The hooks `Wall()` installs run per *query*, and a
-request makes several — a `Get` that also asks for the Tenant runs two. The
-answer goes on the frame and everything after reads it, the same way `auth`
-carries who the caller is.
+The trace context a caller sends is the caller's word too; see the README,
+"Whose trace is it".
 
-And it is a function of the actor and the method with nothing of the request in
-it, so it can be **held as a snapshot and evaluated in process** — which is what
-Kubernetes does with RBAC, and what makes an authorization service that is
-briefly unreachable not an outage. An implementation that does call out owes the
-caller the same distinction `auth` makes: `Unavailable` when it could not find
-out, which is not the caller's fault, rather than a refusal that reads as theirs.
+## The summary table
 
-The credential is met with the answer **afterwards**, because it can only take
-away: a policy that grants a Tenant and a token that does not name it is a call
-that does not reach it.
-
-## Where each thing is decided
-
-| question | decided by | when | carried as |
+| question | who answers | when | what it becomes |
 | --- | --- | --- | --- |
-| who is this | `auth.Handler` + `auth.Resolver` | interceptor | `frame.Actor` |
-| what did the credential allow | `auth.Handler` | interceptor | `frame.Grant` |
-| may this call happen at all | `gate.Policy.May` | interceptor | — refused there |
-| which Tenants may they see | `gate.Policy.Where`, or the wall | interceptor | `frame.Scope` |
-| which rows, exactly | `gate.Wall()` | every query | a `WHERE` clause |
-| may they create this | `server/gate` | the RPC | — refused there |
-
-## What this is not
-
-**Not an authorization server.** It does not issue credentials and it does not
-define roles. Both belong to something a deployment already runs.
-
-**Not Zanzibar, and the line is worth knowing.** A relationship-graph service
-answers *point* questions — may this actor do this to this object — and answers
-them by traversal. That is the right tool for permissions **derived over a deep
-graph**: nested teams, folder inheritance, "viewer of the parent of the parent".
-It is the wrong tool for a list, because a list needs a predicate and a
-traversal cannot become one.
-
-The dividing line is not "instance-level or not". It is:
-
-> **Can the grant be a predicate in the query?**
-
-A row in this database can — a collaborator table is instance-level and lists
-fine. A graph in another service cannot, and every list built on it must either
-fetch rows it may not show and discard them, or ask that service to enumerate
-every object first. GitHub's fine-grained tokens are not Zanzibar either: they
-are attenuation, which is [`frame.Grant`](#framegrant-what-the-credential-itself-allows).
-
-So if a Zanzibar-like engine is added, it belongs **above** the wall and not
-instead of it, and `gate.Tenants` being a set is where its answer would land:
-"which Tenants may this caller see" is small and bounded, unlike "which rows".
-If you find yourself reaching for `LookupResources` to build a list, that is the
-signal that the wrong thing went into the graph.
+| who is this | `server/auth` | interceptor | `frame.Actor`, or `frame.Anonymous` |
+| what did the credential allow | `frame.Grant` | interceptor | a refusal, or nothing |
+| may an anonymous caller do this | `gate.Anonymous` | interceptor | `Unauthenticated`, or nothing |
+| may *this* caller do this | `gate.Policy` | interceptor | whatever it says |
+| which rows | — | — | nothing here; `bare.Scope` is the hook |

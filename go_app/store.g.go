@@ -26,60 +26,50 @@ import (
 )
 
 type Server interface {
-	Audit() AuditServiceServer
-	Tenant() TenantServiceServer
-	Holder() HolderServiceServer
+	Roaster() RoasterServiceServer
+	Coffee() CoffeeServiceServer
 }
 
 func RegisterServer(g *grpc.Server, s Server) {
-	RegisterAuditServiceServer(g, s.Audit())
-	RegisterTenantServiceServer(g, s.Tenant())
-	RegisterHolderServiceServer(g, s.Holder())
+	RegisterRoasterServiceServer(g, s.Roaster())
+	RegisterCoffeeServiceServer(g, s.Coffee())
 }
 
 type UnimplementedServer struct {
-	AuditServer  AuditServiceServer
-	TenantServer TenantServiceServer
-	HolderServer HolderServiceServer
+	RoasterServer RoasterServiceServer
+	CoffeeServer  CoffeeServiceServer
 }
 
-func (UnimplementedServer) Audit() AuditServiceServer   { return UnimplementedAuditServiceServer{} }
-func (UnimplementedServer) Tenant() TenantServiceServer { return UnimplementedTenantServiceServer{} }
-func (UnimplementedServer) Holder() HolderServiceServer { return UnimplementedHolderServiceServer{} }
+func (UnimplementedServer) Roaster() RoasterServiceServer { return UnimplementedRoasterServiceServer{} }
+func (UnimplementedServer) Coffee() CoffeeServiceServer   { return UnimplementedCoffeeServiceServer{} }
 
 type StaticServer struct {
-	AuditServer  AuditServiceServer
-	TenantServer TenantServiceServer
-	HolderServer HolderServiceServer
+	RoasterServer RoasterServiceServer
+	CoffeeServer  CoffeeServiceServer
 }
 
-func (s StaticServer) Audit() AuditServiceServer   { return s.AuditServer }
-func (s StaticServer) Tenant() TenantServiceServer { return s.TenantServer }
-func (s StaticServer) Holder() HolderServiceServer { return s.HolderServer }
+func (s StaticServer) Roaster() RoasterServiceServer { return s.RoasterServer }
+func (s StaticServer) Coffee() CoffeeServiceServer   { return s.CoffeeServer }
 
 type Client interface {
-	Audit() AuditServiceClient
-	Tenant() TenantServiceClient
-	Holder() HolderServiceClient
+	Roaster() RoasterServiceClient
+	Coffee() CoffeeServiceClient
 }
 
 func NewClient(c *grpc.ClientConn) Client {
 	return &client{
-		_Audit:  NewAuditServiceClient(c),
-		_Tenant: NewTenantServiceClient(c),
-		_Holder: NewHolderServiceClient(c),
+		_Roaster: NewRoasterServiceClient(c),
+		_Coffee:  NewCoffeeServiceClient(c),
 	}
 }
 
 type client struct {
-	_Audit  AuditServiceClient
-	_Tenant TenantServiceClient
-	_Holder HolderServiceClient
+	_Roaster RoasterServiceClient
+	_Coffee  CoffeeServiceClient
 }
 
-func (c *client) Audit() AuditServiceClient   { return c._Audit }
-func (c *client) Tenant() TenantServiceClient { return c._Tenant }
-func (c *client) Holder() HolderServiceClient { return c._Holder }
+func (c *client) Roaster() RoasterServiceClient { return c._Roaster }
+func (c *client) Coffee() CoffeeServiceClient   { return c._Coffee }
 
 // Middleware is a server that delegates to another server.
 type Middleware interface {
@@ -151,7 +141,7 @@ func SinkOf(s Server) Server {
 //		Overlay
 //	}
 //
-//	func (s Server) Audit() AuditServiceServer { ... }
+//	func (s Server) Roaster() RoasterServiceServer { ... }
 type Overlay struct {
 	Server
 }

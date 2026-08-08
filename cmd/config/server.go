@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/lesomnus/go-app/internal/grpcx"
+	"github.com/lesomnus/go-app/server/gate"
 )
 
 type ServerConfig struct {
@@ -57,6 +58,20 @@ type ServerConfig struct {
 	// written by hand goes on being implemented with them. That is what they
 	// are for. See the README, "The general write is not an API".
 	AllowGeneralWrites bool `yaml:"allow_general_writes"`
+
+	// AllowAnonymousReads lets a caller who said nothing about who they are
+	// make the reads this app generates -- `Get`, `List` and `Watch` -- and
+	// nothing else.
+	//
+	// It is a list of what is *allowed*, and it names only the generated reads.
+	// An RPC written by hand is closed until somebody opens it, which is the
+	// right way round: `Rename` is a write, it is not called `Patch`, and a
+	// rule that named the writes instead would have opened it to everybody
+	// with nothing anywhere to say so.
+	//
+	// Off unless it is written down. A caller who says who they are is not
+	// affected either way.
+	AllowAnonymousReads bool `yaml:"allow_anonymous_reads"`
 
 	Limit LimitConfig `yaml:"limit"`
 
@@ -202,6 +217,17 @@ func (c ServerConfig) CallTimeout() time.Duration {
 	}
 
 	return c.Timeout
+}
+
+// GateOptions is what `server/gate` decides with. A deployment that has more to
+// say than this injects a `gate.Policy`, which is not something a configuration
+// file can hold.
+func (c ServerConfig) GateOptions() []gate.Option {
+	if !c.AllowAnonymousReads {
+		return nil
+	}
+
+	return []gate.Option{gate.WithAnonymous(gate.AnonymousReads)}
 }
 
 // Closed names the methods this server does not serve at all.

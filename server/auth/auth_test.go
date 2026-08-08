@@ -14,9 +14,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
-	"google.golang.org/protobuf/proto"
 
-	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/frame"
 )
@@ -68,10 +66,11 @@ func certOf(cn string, uris ...string) *x509.Certificate {
 func TestPlain(t *testing.T) {
 	x := require.New(t)
 
-	v, err := auth.Plain().Handle(incoming("Plain acme/admin"))
+	v, err := auth.Plain().Handle(incoming("Plain anna"))
 	x.NoError(err)
 	x.Equal(auth.MethodPlain, v.Method)
-	x.True(proto.Equal(go_app.HolderBySlug("admin", go_app.TenantByAlias("acme")), v.Ref))
+	x.Equal("anna", v.Actor.Subject)
+	x.True(v.Grant.IsWhole(), "a header has nowhere to carry an attenuation")
 
 	// Nothing said is not the same as something wrong.
 	_, err = auth.Plain().Handle(incoming())
@@ -86,18 +85,18 @@ func TestMTLS(t *testing.T) {
 	t.Run("the name is read from the verified chain", func(t *testing.T) {
 		x := require.New(t)
 
-		v, err := auth.MTLS().Handle(verified(certOf("acme/admin")))
+		v, err := auth.MTLS().Handle(verified(certOf("anna")))
 		x.NoError(err)
 		x.Equal(auth.MethodMTLS, v.Method)
-		x.True(proto.Equal(go_app.HolderBySlug("admin", go_app.TenantByAlias("acme")), v.Ref))
+		x.Equal("anna", v.Actor.Subject)
 	})
 
 	t.Run("a URI is preferred over the common name", func(t *testing.T) {
 		x := require.New(t)
 
-		v, err := auth.MTLS().Handle(verified(certOf("hooli/erlich", "spiffe://example.com/acme/admin")))
+		v, err := auth.MTLS().Handle(verified(certOf("bill", "spiffe://example.com/ns/prod/sa/anna")))
 		x.NoError(err)
-		x.True(proto.Equal(go_app.HolderBySlug("admin", go_app.TenantByAlias("acme")), v.Ref))
+		x.Equal("ns/prod/sa/anna", v.Actor.Subject)
 	})
 
 	// The one that matters: what the peer sent is not what this server
@@ -105,7 +104,7 @@ func TestMTLS(t *testing.T) {
 	t.Run("a certificate nobody verified says nothing", func(t *testing.T) {
 		x := require.New(t)
 
-		_, err := auth.MTLS().Handle(presented(certOf("acme/admin")))
+		_, err := auth.MTLS().Handle(presented(certOf("anna")))
 		x.ErrorIs(err, auth.ErrNoCredential)
 	})
 
@@ -123,22 +122,25 @@ func TestMTLS(t *testing.T) {
 		x.ErrorIs(err, auth.ErrNoCredential)
 	})
 
-	t.Run("a name that is not one is wrong rather than absent", func(t *testing.T) {
+	// There is no such thing as a name that is not one. A subject is whatever
+	// the issuer calls somebody, and nothing here reads it -- which is why the
+	// check that used to be here is gone rather than moved.
+	t.Run("whatever the certificate says is who they are", func(t *testing.T) {
 		x := require.New(t)
 
-		_, err := auth.MTLS().Handle(verified(certOf("Acme Corporation, Inc.")))
-		x.Error(err)
-		x.NotErrorIs(err, auth.ErrNoCredential)
+		v, err := auth.MTLS().Handle(verified(certOf("Acme Corporation, Inc.")))
+		x.NoError(err)
+		x.Equal("Acme Corporation, Inc.", v.Actor.Subject)
 	})
 }
 
 func TestBearer(t *testing.T) {
-	ref := go_app.HolderBySlug("admin", go_app.TenantByAlias("acme"))
+	anna := frame.Actor{Subject: "anna"}
 
 	store := func(t *testing.T) *auth.MemTokenStore {
 		t.Helper()
 		s := auth.NewMemTokenStore()
-		s.Add("s3cret", ref, frame.Whole(), time.Time{})
+		s.Add("s3cret", anna, frame.Whole(), time.Time{})
 		return s
 	}
 
@@ -148,7 +150,7 @@ func TestBearer(t *testing.T) {
 		v, err := auth.Bearer(store(t)).Handle(incoming("Bearer s3cret"))
 		x.NoError(err)
 		x.Equal(auth.MethodBearer, v.Method)
-		x.True(proto.Equal(ref, v.Ref))
+		x.Equal(anna, v.Actor)
 	})
 
 	t.Run("the token is never in the answer", func(t *testing.T) {
@@ -171,7 +173,7 @@ func TestBearer(t *testing.T) {
 		x.ErrorIs(err, auth.ErrNoCredential)
 
 		// A scheme this handler does not read is also nothing said.
-		_, err = auth.Bearer(store(t)).Handle(incoming("Plain acme/admin"))
+		_, err = auth.Bearer(store(t)).Handle(incoming("Plain anna"))
 		x.ErrorIs(err, auth.ErrNoCredential)
 	})
 
@@ -191,7 +193,7 @@ func TestBearer(t *testing.T) {
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s := auth.NewMemTokenStore()
 		s.Now = func() time.Time { return at }
-		s.Add("s3cret", ref, frame.Whole(), at.Add(time.Hour))
+		s.Add("s3cret", anna, frame.Whole(), at.Add(time.Hour))
 
 		_, err := auth.Bearer(s).Handle(incoming("Bearer s3cret"))
 		x.NoError(err)
@@ -209,7 +211,7 @@ func TestBearer(t *testing.T) {
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s := auth.NewMemTokenStore()
 		s.Now = func() time.Time { return at.Add(time.Hour) }
-		s.Add("was-real", ref, frame.Whole(), at)
+		s.Add("was-real", anna, frame.Whole(), at)
 
 		_, expired := auth.Bearer(s).Handle(incoming("Bearer was-real"))
 		_, unknown := auth.Bearer(s).Handle(incoming("Bearer never-was"))
@@ -223,15 +225,15 @@ func TestBearer(t *testing.T) {
 	t.Run("only unavailable is passed on", func(t *testing.T) {
 		x := require.New(t)
 
-		chatty := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
-			return nil, frame.Grant{}, fmt.Errorf("row 41 of tokens: revoked by admin on tuesday")
+		chatty := auth.TokenStoreFunc(func(context.Context, string) (frame.Actor, frame.Grant, error) {
+			return frame.Anonymous, frame.Grant{}, fmt.Errorf("row 41 of tokens: revoked by admin on tuesday")
 		})
 		_, err := auth.Bearer(chatty).Handle(incoming("Bearer s3cret"))
 		x.ErrorIs(err, auth.ErrUnknownToken)
 		x.NotContains(err.Error(), "tuesday")
 
-		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
-			return nil, frame.Grant{}, fmt.Errorf("dial tcp: %w", auth.ErrUnavailable)
+		down := auth.TokenStoreFunc(func(context.Context, string) (frame.Actor, frame.Grant, error) {
+			return frame.Anonymous, frame.Grant{}, fmt.Errorf("dial tcp: %w", auth.ErrUnavailable)
 		})
 		_, err = auth.Bearer(down).Handle(incoming("Bearer s3cret"))
 		x.ErrorIs(err, auth.ErrUnavailable)
@@ -252,8 +254,8 @@ func TestBearer(t *testing.T) {
 	t.Run("a store that cannot answer says so", func(t *testing.T) {
 		x := require.New(t)
 
-		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
-			return nil, frame.Grant{}, auth.ErrUnavailable
+		down := auth.TokenStoreFunc(func(context.Context, string) (frame.Actor, frame.Grant, error) {
+			return frame.Anonymous, frame.Grant{}, auth.ErrUnavailable
 		})
 
 		_, err := auth.Bearer(down).Handle(incoming("Bearer s3cret"))
@@ -263,8 +265,8 @@ func TestBearer(t *testing.T) {
 }
 
 func TestSeq(t *testing.T) {
-	ref := go_app.HolderBySlug("admin", go_app.TenantByAlias("acme"))
-	cert := certOf("hooli/erlich")
+	anna := frame.Actor{Subject: "anna"}
+	cert := certOf("bill")
 
 	// The stack the configuration builds for `methods: [bearer, mtls]`, on a
 	// connection that has a certificate.
@@ -281,7 +283,7 @@ func TestSeq(t *testing.T) {
 	}
 
 	good := auth.NewMemTokenStore()
-	good.Add("s3cret", ref, frame.Whole(), time.Time{})
+	good.Add("s3cret", anna, frame.Whole(), time.Time{})
 
 	t.Run("the token answers when there is one", func(t *testing.T) {
 		x := require.New(t)
@@ -289,7 +291,7 @@ func TestSeq(t *testing.T) {
 		v, err := fallback(good).Handle(with("Bearer s3cret"))
 		x.NoError(err)
 		x.Equal(auth.MethodBearer, v.Method)
-		x.True(proto.Equal(ref, v.Ref))
+		x.Equal(anna, v.Actor)
 	})
 
 	t.Run("the certificate answers when there is not", func(t *testing.T) {
@@ -298,7 +300,7 @@ func TestSeq(t *testing.T) {
 		v, err := fallback(good).Handle(with(""))
 		x.NoError(err)
 		x.Equal(auth.MethodMTLS, v.Method)
-		x.True(proto.Equal(go_app.HolderBySlug("erlich", go_app.TenantByAlias("hooli")), v.Ref))
+		x.Equal("bill", v.Actor.Subject)
 	})
 
 	// The point of the whole arrangement: a bad token must not quietly become
@@ -314,8 +316,8 @@ func TestSeq(t *testing.T) {
 	t.Run("a store that is down does not fall through either", func(t *testing.T) {
 		x := require.New(t)
 
-		down := auth.TokenStoreFunc(func(context.Context, string) (*go_app.HolderRef, frame.Grant, error) {
-			return nil, frame.Grant{}, auth.ErrUnavailable
+		down := auth.TokenStoreFunc(func(context.Context, string) (frame.Actor, frame.Grant, error) {
+			return frame.Anonymous, frame.Grant{}, auth.ErrUnavailable
 		})
 
 		_, err := fallback(down).Handle(with("Bearer s3cret"))
@@ -332,22 +334,4 @@ func TestSeq(t *testing.T) {
 		_, err = auth.Seq().Handle(incoming("Bearer s3cret"))
 		x.ErrorIs(err, auth.ErrNoCredential)
 	})
-}
-
-func TestRefRoundTrip(t *testing.T) {
-	x := require.New(t)
-
-	v := go_app.Holder_builder{
-		Alias:  "admin",
-		Tenant: go_app.Tenant_builder{Alias: "acme"}.Build(),
-	}.Build()
-
-	ref, err := auth.ParseRef(auth.RefOf(v))
-	x.NoError(err)
-	x.True(proto.Equal(go_app.HolderBySlug("admin", go_app.TenantByAlias("acme")), ref))
-
-	for _, s := range []string{"", "/", "acme/", "/admin", "not a name"} {
-		_, err := auth.ParseRef(s)
-		x.Error(err, "%q", s)
-	}
 }

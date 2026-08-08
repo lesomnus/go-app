@@ -1,11 +1,15 @@
 // Package auth says who a caller is.
 //
-// It is two steps, kept apart because they change for different reasons. A
-// [Handler] reads whatever the transport carries - a header, a certificate, a
-// token - and says who the caller claims to be. A [Resolver] looks that claim
-// up and answers with the Holder it belongs to, or with nothing. What the
-// second one hands back is what the request is served as, and it comes from
-// the database rather than from the caller.
+// A [Handler] reads whatever the transport carries - a header, a certificate, a
+// token - and says who the caller is. What it answers with is what the request
+// is served as.
+//
+// There is no second step and no user table. This app has no users, it has
+// Coffees, so who somebody is comes from **outside**: a token's subject, a
+// certificate's name, a header in development. The one credential that has to
+// be exchanged for a name is the token, and [TokenStore] is where that
+// exchange is injected -- an issuer, an introspection endpoint, a table
+// somebody else owns.
 //
 // Three handlers are written here, and they differ in one thing: where the
 // name comes from.
@@ -23,17 +27,25 @@
 // It must not be reachable by anyone who is not already trusted to say the
 // truth; see the note in README.md on where that boundary is.
 //
+// # Nobody is somebody
+//
+// A request that carries no credential is **not refused here**. It is served as
+// [frame.Anonymous], which is a caller like any other, and what an anonymous
+// caller may do is `server/gate`'s to say. That is what keeps this app from
+// having a request with no frame in it -- see the note at the top of
+// `server/frame`.
+//
 // # What a credential says, and what it does not
 //
 // Every handler here answers the same question -- who is this. What a caller
 // may then do is `server/gate`'s, and this package has nothing to say about it.
 //
 // What a credential *can* say is that it should be able to do less than the
-// Holder it names. A token meaning "john, but only for reading" needs somewhere
-// to put the "only", and that is [frame.Grant]: a set of Tenants and a set of
-// methods, carried on the frame beside the actor and intersected with whatever
-// the gate decides. It is an attenuation and never a widening -- a token that
-// says "every tenant" held by somebody who may see one still sees one.
+// subject it names. A token meaning "john, but only for reading" needs
+// somewhere to put the "only", and that is [frame.Grant]: a set of methods,
+// carried on the frame beside the actor and met with whatever the gate decides.
+// It is an attenuation and never a widening -- a token that names a call its
+// subject may not make still may not make it.
 //
 // Only [Bearer] can carry one, because only a token has anywhere to put it. A
 // header and a certificate name somebody and stop, so [Plain] and [MTLS]
@@ -50,7 +62,6 @@ import (
 	"errors"
 	"io"
 
-	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/frame"
 )
 
@@ -76,27 +87,29 @@ var ErrNoCredential = io.EOF
 // answering a question nobody asked, possibly as somebody else.
 var ErrUnavailable = errors.New("auth: cannot say whether the credential is good")
 
-// Identity is who a caller claims to be, before anything has been looked up.
-// A Holder is named either by its id or by its alias within a Tenant, which is
-// the same way anything else names one.
+// Identity is who a caller is, and how that was found out.
 type Identity struct {
-	// Method is what the claim was read from, for the log and for nothing
+	// Method is what the credential was read from, for the log and for nothing
 	// else. A rule that turns on the way somebody authenticated is a rule that
 	// will be wrong one day.
 	Method string
 
-	Ref *go_app.HolderRef
+	// Actor is who they are. A handler that read a credential and could not
+	// name anybody reports an error rather than answering [frame.Anonymous]:
+	// nobody-in-particular is what a request with *no* credential is, and a
+	// credential that named nobody is a bad one.
+	Actor frame.Actor
 
-	// Grant is what this credential allows, which is at most what the Holder
+	// Grant is what this credential allows, which is at most what the subject
 	// it names allows. A handler that reads a credential with nowhere to carry
 	// an attenuation answers [frame.Whole]; see [frame.Grant].
 	Grant frame.Grant
 }
 
-// Handler reads a claim out of the context a call is served with.
+// Handler reads a credential out of the context a call is served with.
 type Handler interface {
-	// Handle returns who the caller claims to be. It wraps
-	// [ErrNoCredential] if the request carries nothing it can read.
+	// Handle returns who the caller is. It wraps [ErrNoCredential] if the
+	// request carries nothing it can read.
 	Handle(ctx context.Context) (Identity, error)
 }
 
@@ -129,21 +142,6 @@ func Seq(hs ...Handler) Handler {
 
 		return Identity{}, ErrNoCredential
 	})
-}
-
-// Resolver turns a claim into the Holder it is about.
-type Resolver interface {
-	// Resolve returns the Holder the identity names, or an error wrapping
-	// [ErrNoCredential] if there is no such Holder. A caller that names
-	// somebody who does not exist is no better off than one that named
-	// nobody.
-	Resolve(ctx context.Context, id Identity) (*go_app.Holder, error)
-}
-
-type ResolverFunc func(ctx context.Context, id Identity) (*go_app.Holder, error)
-
-func (f ResolverFunc) Resolve(ctx context.Context, id Identity) (*go_app.Holder, error) {
-	return f(ctx, id)
 }
 
 // Provider puts a credential into the context of an outgoing call, which is

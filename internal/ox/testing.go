@@ -67,8 +67,8 @@ func T(run func(ctx context.Context, x *X, c *Client)) func(t *testing.T) {
 		c := NewClient(t, s)
 		defer c.Close()
 
-		// As whoever administers the deployment, which is the one caller that
-		// is there before a test arranges anything.
-		run(c.AsRoot(t.Context()), NewX(t), c)
+		// As somebody, since a test is usually not about being nobody. One
+		// that is says so with [Client.AsNobody].
+		run(c.As(t.Context(), "somebody"), NewX(t), c)
 	}
 }

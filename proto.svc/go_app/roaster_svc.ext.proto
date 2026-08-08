@@ -1,0 +1,53 @@
+edition = "2023";
+
+service RoasterService {
+  // List the Roasters that match any of the given filters, a page at a time.
+  rpc List(RoasterListRequest) returns (RoasterListResponse);
+
+  // Watch the Roasters, as they are now and as they change. See
+  // `CoffeeService.Watch`, which this is in every way.
+  rpc Watch(RoasterWatchRequest) returns (stream RoasterWatchResponse);
+}
+
+message RoasterFilter {
+  RoasterRef ref = 1;
+}
+
+message RoasterListRequest {
+  // Bounded because the work is; see `CoffeeListRequest.filters`.
+  repeated RoasterFilter filters = 1;
+
+  // How many to answer with, and where to carry on from; see
+  // `CoffeeListRequest`.
+  int32 size = 2;
+  string after = 3;
+}
+message RoasterListResponse {
+  repeated Roaster items = 1;
+
+  // What to ask for next, and empty when this was the last of them.
+  string next = 2;
+}
+
+message RoasterWatchRequest {
+  // Which Roasters to watch, in the same words `List` takes them.
+  repeated RoasterFilter filters = 1;
+}
+message RoasterWatchResponse {
+  repeated RoasterWatchItem items = 1;
+}
+
+message RoasterWatchItem {
+  // Which Roaster. Always said, since one that is gone still has to be named.
+  bytes id = 1;
+
+  // The Roaster as it is now, and absent when there is no longer one to see.
+  // See `CoffeeWatchItem.value`.
+  //
+  // A Roaster is erased for real rather than softly, so absence here is the
+  // only thing there could ever have been to say about one that is gone.
+  Roaster value = 2;
+
+  // The RPC that changed it. See `CoffeeWatchItem.action`.
+  string action = 3;
+}

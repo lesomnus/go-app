@@ -18,8 +18,8 @@ import (
 // is done twice: compiling is cheap and reading a plan is the only way a rule
 // in front can be about what the document actually does.
 var (
-	tenantEntity = ormpatch.MustEntityOf(go_app.File_go_app_tenant_proto, "Tenant")
-	holderEntity = ormpatch.MustEntityOf(go_app.File_go_app_holder_proto, "Holder")
+	roasterEntity = ormpatch.MustEntityOf(go_app.File_go_app_roaster_proto, "Roaster")
+	coffeeEntity  = ormpatch.MustEntityOf(go_app.File_go_app_coffee_proto, "Coffee")
 )
 
 // checkAlias refuses a patch document that writes an alias in a spelling other

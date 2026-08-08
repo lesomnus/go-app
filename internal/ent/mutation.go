@@ -12,10 +12,9 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/lesomnus/go-app/internal/ent/audit"
-	"github.com/lesomnus/go-app/internal/ent/holder"
+	"github.com/lesomnus/go-app/internal/ent/coffee"
 	"github.com/lesomnus/go-app/internal/ent/predicate"
-	"github.com/lesomnus/go-app/internal/ent/tenant"
+	"github.com/lesomnus/go-app/internal/ent/roaster"
 )
 
 const (
@@ -27,41 +26,41 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAudit  = "Audit"
-	TypeHolder = "Holder"
-	TypeTenant = "Tenant"
+	TypeCoffee  = "Coffee"
+	TypeRoaster = "Roaster"
 )
 
-// AuditMutation represents an operation that mutates the Audit nodes in the graph.
-type AuditMutation struct {
+// CoffeeMutation represents an operation that mutates the Coffee nodes in the graph.
+type CoffeeMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	tenant_id     *uuid.UUID
-	actor_id      *uuid.UUID
-	trace_id      *[]byte
-	action        *string
-	object_id     *uuid.UUID
-	patch         *[]byte
-	date_created  *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Audit, error)
-	predicates    []predicate.Audit
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	alias          *string
+	name           *string
+	desc           *string
+	labels         *map[string]string
+	date_erased    *time.Time
+	date_created   *time.Time
+	clearedFields  map[string]struct{}
+	roaster        *uuid.UUID
+	clearedroaster bool
+	done           bool
+	oldValue       func(context.Context) (*Coffee, error)
+	predicates     []predicate.Coffee
 }
 
-var _ ent.Mutation = (*AuditMutation)(nil)
+var _ ent.Mutation = (*CoffeeMutation)(nil)
 
-// auditOption allows management of the mutation configuration using functional options.
-type auditOption func(*AuditMutation)
+// coffeeOption allows management of the mutation configuration using functional options.
+type coffeeOption func(*CoffeeMutation)
 
-// newAuditMutation creates new mutation for the Audit entity.
-func newAuditMutation(c config, op Op, opts ...auditOption) *AuditMutation {
-	m := &AuditMutation{
+// newCoffeeMutation creates new mutation for the Coffee entity.
+func newCoffeeMutation(c config, op Op, opts ...coffeeOption) *CoffeeMutation {
+	m := &CoffeeMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeAudit,
+		typ:           TypeCoffee,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -70,20 +69,20 @@ func newAuditMutation(c config, op Op, opts ...auditOption) *AuditMutation {
 	return m
 }
 
-// withAuditID sets the ID field of the mutation.
-func withAuditID(id uuid.UUID) auditOption {
-	return func(m *AuditMutation) {
+// withCoffeeID sets the ID field of the mutation.
+func withCoffeeID(id uuid.UUID) coffeeOption {
+	return func(m *CoffeeMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *Audit
+			value *Coffee
 		)
-		m.oldValue = func(ctx context.Context) (*Audit, error) {
+		m.oldValue = func(ctx context.Context) (*Coffee, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().Audit.Get(ctx, id)
+					value, err = m.Client().Coffee.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -92,10 +91,10 @@ func withAuditID(id uuid.UUID) auditOption {
 	}
 }
 
-// withAudit sets the old Audit of the mutation.
-func withAudit(node *Audit) auditOption {
-	return func(m *AuditMutation) {
-		m.oldValue = func(context.Context) (*Audit, error) {
+// withCoffee sets the old Coffee of the mutation.
+func withCoffee(node *Coffee) coffeeOption {
+	return func(m *CoffeeMutation) {
+		m.oldValue = func(context.Context) (*Coffee, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -104,7 +103,7 @@ func withAudit(node *Audit) auditOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m AuditMutation) Client() *Client {
+func (m CoffeeMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -112,7 +111,7 @@ func (m AuditMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m AuditMutation) Tx() (*Tx, error) {
+func (m CoffeeMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -122,14 +121,14 @@ func (m AuditMutation) Tx() (*Tx, error) {
 }
 
 // SetID sets the value of the id field. Note that this
-// operation is only accepted on creation of Audit entities.
-func (m *AuditMutation) SetID(id uuid.UUID) {
+// operation is only accepted on creation of Coffee entities.
+func (m *CoffeeMutation) SetID(id uuid.UUID) {
 	m.id = &id
 }
 
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *AuditMutation) ID() (id uuid.UUID, exists bool) {
+func (m *CoffeeMutation) ID() (id uuid.UUID, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -140,7 +139,7 @@ func (m *AuditMutation) ID() (id uuid.UUID, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *AuditMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+func (m *CoffeeMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
@@ -149,698 +148,19 @@ func (m *AuditMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().Audit.Query().Where(m.predicates...).IDs(ctx)
-	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
-	}
-}
-
-// SetTenantID sets the "tenant_id" field.
-func (m *AuditMutation) SetTenantID(u uuid.UUID) {
-	m.tenant_id = &u
-}
-
-// TenantID returns the value of the "tenant_id" field in the mutation.
-func (m *AuditMutation) TenantID() (r uuid.UUID, exists bool) {
-	v := m.tenant_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldTenantID returns the old "tenant_id" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTenantID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
-	}
-	return oldValue.TenantID, nil
-}
-
-// ResetTenantID resets all changes to the "tenant_id" field.
-func (m *AuditMutation) ResetTenantID() {
-	m.tenant_id = nil
-}
-
-// SetActorID sets the "actor_id" field.
-func (m *AuditMutation) SetActorID(u uuid.UUID) {
-	m.actor_id = &u
-}
-
-// ActorID returns the value of the "actor_id" field in the mutation.
-func (m *AuditMutation) ActorID() (r uuid.UUID, exists bool) {
-	v := m.actor_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldActorID returns the old "actor_id" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldActorID(ctx context.Context) (v uuid.UUID, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldActorID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldActorID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldActorID: %w", err)
-	}
-	return oldValue.ActorID, nil
-}
-
-// ResetActorID resets all changes to the "actor_id" field.
-func (m *AuditMutation) ResetActorID() {
-	m.actor_id = nil
-}
-
-// SetTraceID sets the "trace_id" field.
-func (m *AuditMutation) SetTraceID(b []byte) {
-	m.trace_id = &b
-}
-
-// TraceID returns the value of the "trace_id" field in the mutation.
-func (m *AuditMutation) TraceID() (r []byte, exists bool) {
-	v := m.trace_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldTraceID returns the old "trace_id" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldTraceID(ctx context.Context) (v []byte, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTraceID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTraceID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTraceID: %w", err)
-	}
-	return oldValue.TraceID, nil
-}
-
-// ResetTraceID resets all changes to the "trace_id" field.
-func (m *AuditMutation) ResetTraceID() {
-	m.trace_id = nil
-}
-
-// SetAction sets the "action" field.
-func (m *AuditMutation) SetAction(s string) {
-	m.action = &s
-}
-
-// Action returns the value of the "action" field in the mutation.
-func (m *AuditMutation) Action() (r string, exists bool) {
-	v := m.action
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldAction returns the old "action" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldAction(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldAction is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldAction requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldAction: %w", err)
-	}
-	return oldValue.Action, nil
-}
-
-// ResetAction resets all changes to the "action" field.
-func (m *AuditMutation) ResetAction() {
-	m.action = nil
-}
-
-// SetObjectID sets the "object_id" field.
-func (m *AuditMutation) SetObjectID(u uuid.UUID) {
-	m.object_id = &u
-}
-
-// ObjectID returns the value of the "object_id" field in the mutation.
-func (m *AuditMutation) ObjectID() (r uuid.UUID, exists bool) {
-	v := m.object_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldObjectID returns the old "object_id" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldObjectID(ctx context.Context) (v uuid.UUID, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldObjectID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldObjectID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldObjectID: %w", err)
-	}
-	return oldValue.ObjectID, nil
-}
-
-// ResetObjectID resets all changes to the "object_id" field.
-func (m *AuditMutation) ResetObjectID() {
-	m.object_id = nil
-}
-
-// SetPatch sets the "patch" field.
-func (m *AuditMutation) SetPatch(b []byte) {
-	m.patch = &b
-}
-
-// Patch returns the value of the "patch" field in the mutation.
-func (m *AuditMutation) Patch() (r []byte, exists bool) {
-	v := m.patch
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPatch returns the old "patch" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldPatch(ctx context.Context) (v []byte, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPatch is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPatch requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPatch: %w", err)
-	}
-	return oldValue.Patch, nil
-}
-
-// ResetPatch resets all changes to the "patch" field.
-func (m *AuditMutation) ResetPatch() {
-	m.patch = nil
-}
-
-// SetDateCreated sets the "date_created" field.
-func (m *AuditMutation) SetDateCreated(t time.Time) {
-	m.date_created = &t
-}
-
-// DateCreated returns the value of the "date_created" field in the mutation.
-func (m *AuditMutation) DateCreated() (r time.Time, exists bool) {
-	v := m.date_created
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldDateCreated returns the old "date_created" field's value of the Audit entity.
-// If the Audit object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AuditMutation) OldDateCreated(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldDateCreated is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldDateCreated requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDateCreated: %w", err)
-	}
-	return oldValue.DateCreated, nil
-}
-
-// ClearDateCreated clears the value of the "date_created" field.
-func (m *AuditMutation) ClearDateCreated() {
-	m.date_created = nil
-	m.clearedFields[audit.FieldDateCreated] = struct{}{}
-}
-
-// DateCreatedCleared returns if the "date_created" field was cleared in this mutation.
-func (m *AuditMutation) DateCreatedCleared() bool {
-	_, ok := m.clearedFields[audit.FieldDateCreated]
-	return ok
-}
-
-// ResetDateCreated resets all changes to the "date_created" field.
-func (m *AuditMutation) ResetDateCreated() {
-	m.date_created = nil
-	delete(m.clearedFields, audit.FieldDateCreated)
-}
-
-// Where appends a list predicates to the AuditMutation builder.
-func (m *AuditMutation) Where(ps ...predicate.Audit) {
-	m.predicates = append(m.predicates, ps...)
-}
-
-// WhereP appends storage-level predicates to the AuditMutation builder. Using this method,
-// users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *AuditMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.Audit, len(ps))
-	for i := range ps {
-		p[i] = ps[i]
-	}
-	m.Where(p...)
-}
-
-// Op returns the operation name.
-func (m *AuditMutation) Op() Op {
-	return m.op
-}
-
-// SetOp allows setting the mutation operation.
-func (m *AuditMutation) SetOp(op Op) {
-	m.op = op
-}
-
-// Type returns the node type of this mutation (Audit).
-func (m *AuditMutation) Type() string {
-	return m.typ
-}
-
-// Fields returns all fields that were changed during this mutation. Note that in
-// order to get all numeric fields that were incremented/decremented, call
-// AddedFields().
-func (m *AuditMutation) Fields() []string {
-	fields := make([]string, 0, 7)
-	if m.tenant_id != nil {
-		fields = append(fields, audit.FieldTenantID)
-	}
-	if m.actor_id != nil {
-		fields = append(fields, audit.FieldActorID)
-	}
-	if m.trace_id != nil {
-		fields = append(fields, audit.FieldTraceID)
-	}
-	if m.action != nil {
-		fields = append(fields, audit.FieldAction)
-	}
-	if m.object_id != nil {
-		fields = append(fields, audit.FieldObjectID)
-	}
-	if m.patch != nil {
-		fields = append(fields, audit.FieldPatch)
-	}
-	if m.date_created != nil {
-		fields = append(fields, audit.FieldDateCreated)
-	}
-	return fields
-}
-
-// Field returns the value of a field with the given name. The second boolean
-// return value indicates that this field was not set, or was not defined in the
-// schema.
-func (m *AuditMutation) Field(name string) (ent.Value, bool) {
-	switch name {
-	case audit.FieldTenantID:
-		return m.TenantID()
-	case audit.FieldActorID:
-		return m.ActorID()
-	case audit.FieldTraceID:
-		return m.TraceID()
-	case audit.FieldAction:
-		return m.Action()
-	case audit.FieldObjectID:
-		return m.ObjectID()
-	case audit.FieldPatch:
-		return m.Patch()
-	case audit.FieldDateCreated:
-		return m.DateCreated()
-	}
-	return nil, false
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *AuditMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case audit.FieldTenantID:
-		return m.OldTenantID(ctx)
-	case audit.FieldActorID:
-		return m.OldActorID(ctx)
-	case audit.FieldTraceID:
-		return m.OldTraceID(ctx)
-	case audit.FieldAction:
-		return m.OldAction(ctx)
-	case audit.FieldObjectID:
-		return m.OldObjectID(ctx)
-	case audit.FieldPatch:
-		return m.OldPatch(ctx)
-	case audit.FieldDateCreated:
-		return m.OldDateCreated(ctx)
-	}
-	return nil, fmt.Errorf("unknown Audit field %s", name)
-}
-
-// SetField sets the value of a field with the given name. It returns an error if
-// the field is not defined in the schema, or if the type mismatched the field
-// type.
-func (m *AuditMutation) SetField(name string, value ent.Value) error {
-	switch name {
-	case audit.FieldTenantID:
-		v, ok := value.(uuid.UUID)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetTenantID(v)
-		return nil
-	case audit.FieldActorID:
-		v, ok := value.(uuid.UUID)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetActorID(v)
-		return nil
-	case audit.FieldTraceID:
-		v, ok := value.([]byte)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetTraceID(v)
-		return nil
-	case audit.FieldAction:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetAction(v)
-		return nil
-	case audit.FieldObjectID:
-		v, ok := value.(uuid.UUID)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetObjectID(v)
-		return nil
-	case audit.FieldPatch:
-		v, ok := value.([]byte)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPatch(v)
-		return nil
-	case audit.FieldDateCreated:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetDateCreated(v)
-		return nil
-	}
-	return fmt.Errorf("unknown Audit field %s", name)
-}
-
-// AddedFields returns all numeric fields that were incremented/decremented during
-// this mutation.
-func (m *AuditMutation) AddedFields() []string {
-	return nil
-}
-
-// AddedField returns the numeric value that was incremented/decremented on a field
-// with the given name. The second boolean return value indicates that this field
-// was not set, or was not defined in the schema.
-func (m *AuditMutation) AddedField(name string) (ent.Value, bool) {
-	return nil, false
-}
-
-// AddField adds the value to the field with the given name. It returns an error if
-// the field is not defined in the schema, or if the type mismatched the field
-// type.
-func (m *AuditMutation) AddField(name string, value ent.Value) error {
-	switch name {
-	}
-	return fmt.Errorf("unknown Audit numeric field %s", name)
-}
-
-// ClearedFields returns all nullable fields that were cleared during this
-// mutation.
-func (m *AuditMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(audit.FieldDateCreated) {
-		fields = append(fields, audit.FieldDateCreated)
-	}
-	return fields
-}
-
-// FieldCleared returns a boolean indicating if a field with the given name was
-// cleared in this mutation.
-func (m *AuditMutation) FieldCleared(name string) bool {
-	_, ok := m.clearedFields[name]
-	return ok
-}
-
-// ClearField clears the value of the field with the given name. It returns an
-// error if the field is not defined in the schema.
-func (m *AuditMutation) ClearField(name string) error {
-	switch name {
-	case audit.FieldDateCreated:
-		m.ClearDateCreated()
-		return nil
-	}
-	return fmt.Errorf("unknown Audit nullable field %s", name)
-}
-
-// ResetField resets all changes in the mutation for the field with the given name.
-// It returns an error if the field is not defined in the schema.
-func (m *AuditMutation) ResetField(name string) error {
-	switch name {
-	case audit.FieldTenantID:
-		m.ResetTenantID()
-		return nil
-	case audit.FieldActorID:
-		m.ResetActorID()
-		return nil
-	case audit.FieldTraceID:
-		m.ResetTraceID()
-		return nil
-	case audit.FieldAction:
-		m.ResetAction()
-		return nil
-	case audit.FieldObjectID:
-		m.ResetObjectID()
-		return nil
-	case audit.FieldPatch:
-		m.ResetPatch()
-		return nil
-	case audit.FieldDateCreated:
-		m.ResetDateCreated()
-		return nil
-	}
-	return fmt.Errorf("unknown Audit field %s", name)
-}
-
-// AddedEdges returns all edge names that were set/added in this mutation.
-func (m *AuditMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
-	return edges
-}
-
-// AddedIDs returns all IDs (to other nodes) that were added for the given edge
-// name in this mutation.
-func (m *AuditMutation) AddedIDs(name string) []ent.Value {
-	return nil
-}
-
-// RemovedEdges returns all edge names that were removed in this mutation.
-func (m *AuditMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
-	return edges
-}
-
-// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
-// the given name in this mutation.
-func (m *AuditMutation) RemovedIDs(name string) []ent.Value {
-	return nil
-}
-
-// ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *AuditMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
-	return edges
-}
-
-// EdgeCleared returns a boolean which indicates if the edge with the given name
-// was cleared in this mutation.
-func (m *AuditMutation) EdgeCleared(name string) bool {
-	return false
-}
-
-// ClearEdge clears the value of the edge with the given name. It returns an error
-// if that edge is not defined in the schema.
-func (m *AuditMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown Audit unique edge %s", name)
-}
-
-// ResetEdge resets all changes to the edge with the given name in this mutation.
-// It returns an error if the edge is not defined in the schema.
-func (m *AuditMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown Audit edge %s", name)
-}
-
-// HolderMutation represents an operation that mutates the Holder nodes in the graph.
-type HolderMutation struct {
-	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	alias         *string
-	name          *string
-	desc          *string
-	labels        *map[string]string
-	date_erased   *time.Time
-	date_created  *time.Time
-	clearedFields map[string]struct{}
-	tenant        *uuid.UUID
-	clearedtenant bool
-	done          bool
-	oldValue      func(context.Context) (*Holder, error)
-	predicates    []predicate.Holder
-}
-
-var _ ent.Mutation = (*HolderMutation)(nil)
-
-// holderOption allows management of the mutation configuration using functional options.
-type holderOption func(*HolderMutation)
-
-// newHolderMutation creates new mutation for the Holder entity.
-func newHolderMutation(c config, op Op, opts ...holderOption) *HolderMutation {
-	m := &HolderMutation{
-		config:        c,
-		op:            op,
-		typ:           TypeHolder,
-		clearedFields: make(map[string]struct{}),
-	}
-	for _, opt := range opts {
-		opt(m)
-	}
-	return m
-}
-
-// withHolderID sets the ID field of the mutation.
-func withHolderID(id uuid.UUID) holderOption {
-	return func(m *HolderMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *Holder
-		)
-		m.oldValue = func(ctx context.Context) (*Holder, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().Holder.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withHolder sets the old Holder of the mutation.
-func withHolder(node *Holder) holderOption {
-	return func(m *HolderMutation) {
-		m.oldValue = func(context.Context) (*Holder, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m HolderMutation) Client() *Client {
-	client := &Client{config: m.config}
-	client.init()
-	return client
-}
-
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m HolderMutation) Tx() (*Tx, error) {
-	if _, ok := m.driver.(*txDriver); !ok {
-		return nil, errors.New("ent: mutation is not running in a transaction")
-	}
-	tx := &Tx{config: m.config}
-	tx.init()
-	return tx, nil
-}
-
-// SetID sets the value of the id field. Note that this
-// operation is only accepted on creation of Holder entities.
-func (m *HolderMutation) SetID(id uuid.UUID) {
-	m.id = &id
-}
-
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *HolderMutation) ID() (id uuid.UUID, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
-}
-
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
-func (m *HolderMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
-	switch {
-	case m.op.Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
-			return []uuid.UUID{id}, nil
-		}
-		fallthrough
-	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().Holder.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().Coffee.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
 // SetAlias sets the "alias" field.
-func (m *HolderMutation) SetAlias(s string) {
+func (m *CoffeeMutation) SetAlias(s string) {
 	m.alias = &s
 }
 
 // Alias returns the value of the "alias" field in the mutation.
-func (m *HolderMutation) Alias() (r string, exists bool) {
+func (m *CoffeeMutation) Alias() (r string, exists bool) {
 	v := m.alias
 	if v == nil {
 		return
@@ -848,10 +168,10 @@ func (m *HolderMutation) Alias() (r string, exists bool) {
 	return *v, true
 }
 
-// OldAlias returns the old "alias" field's value of the Holder entity.
-// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// OldAlias returns the old "alias" field's value of the Coffee entity.
+// If the Coffee object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *HolderMutation) OldAlias(ctx context.Context) (v string, err error) {
+func (m *CoffeeMutation) OldAlias(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAlias is only allowed on UpdateOne operations")
 	}
@@ -866,17 +186,17 @@ func (m *HolderMutation) OldAlias(ctx context.Context) (v string, err error) {
 }
 
 // ResetAlias resets all changes to the "alias" field.
-func (m *HolderMutation) ResetAlias() {
+func (m *CoffeeMutation) ResetAlias() {
 	m.alias = nil
 }
 
 // SetName sets the "name" field.
-func (m *HolderMutation) SetName(s string) {
+func (m *CoffeeMutation) SetName(s string) {
 	m.name = &s
 }
 
 // Name returns the value of the "name" field in the mutation.
-func (m *HolderMutation) Name() (r string, exists bool) {
+func (m *CoffeeMutation) Name() (r string, exists bool) {
 	v := m.name
 	if v == nil {
 		return
@@ -884,10 +204,10 @@ func (m *HolderMutation) Name() (r string, exists bool) {
 	return *v, true
 }
 
-// OldName returns the old "name" field's value of the Holder entity.
-// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// OldName returns the old "name" field's value of the Coffee entity.
+// If the Coffee object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *HolderMutation) OldName(ctx context.Context) (v string, err error) {
+func (m *CoffeeMutation) OldName(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldName is only allowed on UpdateOne operations")
 	}
@@ -902,17 +222,17 @@ func (m *HolderMutation) OldName(ctx context.Context) (v string, err error) {
 }
 
 // ResetName resets all changes to the "name" field.
-func (m *HolderMutation) ResetName() {
+func (m *CoffeeMutation) ResetName() {
 	m.name = nil
 }
 
 // SetDesc sets the "desc" field.
-func (m *HolderMutation) SetDesc(s string) {
+func (m *CoffeeMutation) SetDesc(s string) {
 	m.desc = &s
 }
 
 // Desc returns the value of the "desc" field in the mutation.
-func (m *HolderMutation) Desc() (r string, exists bool) {
+func (m *CoffeeMutation) Desc() (r string, exists bool) {
 	v := m.desc
 	if v == nil {
 		return
@@ -920,10 +240,10 @@ func (m *HolderMutation) Desc() (r string, exists bool) {
 	return *v, true
 }
 
-// OldDesc returns the old "desc" field's value of the Holder entity.
-// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// OldDesc returns the old "desc" field's value of the Coffee entity.
+// If the Coffee object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *HolderMutation) OldDesc(ctx context.Context) (v string, err error) {
+func (m *CoffeeMutation) OldDesc(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldDesc is only allowed on UpdateOne operations")
 	}
@@ -938,17 +258,17 @@ func (m *HolderMutation) OldDesc(ctx context.Context) (v string, err error) {
 }
 
 // ResetDesc resets all changes to the "desc" field.
-func (m *HolderMutation) ResetDesc() {
+func (m *CoffeeMutation) ResetDesc() {
 	m.desc = nil
 }
 
 // SetLabels sets the "labels" field.
-func (m *HolderMutation) SetLabels(value map[string]string) {
+func (m *CoffeeMutation) SetLabels(value map[string]string) {
 	m.labels = &value
 }
 
 // Labels returns the value of the "labels" field in the mutation.
-func (m *HolderMutation) Labels() (r map[string]string, exists bool) {
+func (m *CoffeeMutation) Labels() (r map[string]string, exists bool) {
 	v := m.labels
 	if v == nil {
 		return
@@ -956,10 +276,10 @@ func (m *HolderMutation) Labels() (r map[string]string, exists bool) {
 	return *v, true
 }
 
-// OldLabels returns the old "labels" field's value of the Holder entity.
-// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// OldLabels returns the old "labels" field's value of the Coffee entity.
+// If the Coffee object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *HolderMutation) OldLabels(ctx context.Context) (v map[string]string, err error) {
+func (m *CoffeeMutation) OldLabels(ctx context.Context) (v map[string]string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldLabels is only allowed on UpdateOne operations")
 	}
@@ -974,30 +294,30 @@ func (m *HolderMutation) OldLabels(ctx context.Context) (v map[string]string, er
 }
 
 // ClearLabels clears the value of the "labels" field.
-func (m *HolderMutation) ClearLabels() {
+func (m *CoffeeMutation) ClearLabels() {
 	m.labels = nil
-	m.clearedFields[holder.FieldLabels] = struct{}{}
+	m.clearedFields[coffee.FieldLabels] = struct{}{}
 }
 
 // LabelsCleared returns if the "labels" field was cleared in this mutation.
-func (m *HolderMutation) LabelsCleared() bool {
-	_, ok := m.clearedFields[holder.FieldLabels]
+func (m *CoffeeMutation) LabelsCleared() bool {
+	_, ok := m.clearedFields[coffee.FieldLabels]
 	return ok
 }
 
 // ResetLabels resets all changes to the "labels" field.
-func (m *HolderMutation) ResetLabels() {
+func (m *CoffeeMutation) ResetLabels() {
 	m.labels = nil
-	delete(m.clearedFields, holder.FieldLabels)
+	delete(m.clearedFields, coffee.FieldLabels)
 }
 
 // SetDateErased sets the "date_erased" field.
-func (m *HolderMutation) SetDateErased(t time.Time) {
+func (m *CoffeeMutation) SetDateErased(t time.Time) {
 	m.date_erased = &t
 }
 
 // DateErased returns the value of the "date_erased" field in the mutation.
-func (m *HolderMutation) DateErased() (r time.Time, exists bool) {
+func (m *CoffeeMutation) DateErased() (r time.Time, exists bool) {
 	v := m.date_erased
 	if v == nil {
 		return
@@ -1005,10 +325,10 @@ func (m *HolderMutation) DateErased() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldDateErased returns the old "date_erased" field's value of the Holder entity.
-// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// OldDateErased returns the old "date_erased" field's value of the Coffee entity.
+// If the Coffee object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *HolderMutation) OldDateErased(ctx context.Context) (v *time.Time, err error) {
+func (m *CoffeeMutation) OldDateErased(ctx context.Context) (v *time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldDateErased is only allowed on UpdateOne operations")
 	}
@@ -1023,30 +343,30 @@ func (m *HolderMutation) OldDateErased(ctx context.Context) (v *time.Time, err e
 }
 
 // ClearDateErased clears the value of the "date_erased" field.
-func (m *HolderMutation) ClearDateErased() {
+func (m *CoffeeMutation) ClearDateErased() {
 	m.date_erased = nil
-	m.clearedFields[holder.FieldDateErased] = struct{}{}
+	m.clearedFields[coffee.FieldDateErased] = struct{}{}
 }
 
 // DateErasedCleared returns if the "date_erased" field was cleared in this mutation.
-func (m *HolderMutation) DateErasedCleared() bool {
-	_, ok := m.clearedFields[holder.FieldDateErased]
+func (m *CoffeeMutation) DateErasedCleared() bool {
+	_, ok := m.clearedFields[coffee.FieldDateErased]
 	return ok
 }
 
 // ResetDateErased resets all changes to the "date_erased" field.
-func (m *HolderMutation) ResetDateErased() {
+func (m *CoffeeMutation) ResetDateErased() {
 	m.date_erased = nil
-	delete(m.clearedFields, holder.FieldDateErased)
+	delete(m.clearedFields, coffee.FieldDateErased)
 }
 
 // SetDateCreated sets the "date_created" field.
-func (m *HolderMutation) SetDateCreated(t time.Time) {
+func (m *CoffeeMutation) SetDateCreated(t time.Time) {
 	m.date_created = &t
 }
 
 // DateCreated returns the value of the "date_created" field in the mutation.
-func (m *HolderMutation) DateCreated() (r time.Time, exists bool) {
+func (m *CoffeeMutation) DateCreated() (r time.Time, exists bool) {
 	v := m.date_created
 	if v == nil {
 		return
@@ -1054,10 +374,10 @@ func (m *HolderMutation) DateCreated() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldDateCreated returns the old "date_created" field's value of the Holder entity.
-// If the Holder object wasn't provided to the builder, the object is fetched from the database.
+// OldDateCreated returns the old "date_created" field's value of the Coffee entity.
+// If the Coffee object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *HolderMutation) OldDateCreated(ctx context.Context) (v time.Time, err error) {
+func (m *CoffeeMutation) OldDateCreated(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldDateCreated is only allowed on UpdateOne operations")
 	}
@@ -1072,71 +392,71 @@ func (m *HolderMutation) OldDateCreated(ctx context.Context) (v time.Time, err e
 }
 
 // ClearDateCreated clears the value of the "date_created" field.
-func (m *HolderMutation) ClearDateCreated() {
+func (m *CoffeeMutation) ClearDateCreated() {
 	m.date_created = nil
-	m.clearedFields[holder.FieldDateCreated] = struct{}{}
+	m.clearedFields[coffee.FieldDateCreated] = struct{}{}
 }
 
 // DateCreatedCleared returns if the "date_created" field was cleared in this mutation.
-func (m *HolderMutation) DateCreatedCleared() bool {
-	_, ok := m.clearedFields[holder.FieldDateCreated]
+func (m *CoffeeMutation) DateCreatedCleared() bool {
+	_, ok := m.clearedFields[coffee.FieldDateCreated]
 	return ok
 }
 
 // ResetDateCreated resets all changes to the "date_created" field.
-func (m *HolderMutation) ResetDateCreated() {
+func (m *CoffeeMutation) ResetDateCreated() {
 	m.date_created = nil
-	delete(m.clearedFields, holder.FieldDateCreated)
+	delete(m.clearedFields, coffee.FieldDateCreated)
 }
 
-// SetTenantID sets the "tenant" edge to the Tenant entity by id.
-func (m *HolderMutation) SetTenantID(id uuid.UUID) {
-	m.tenant = &id
+// SetRoasterID sets the "roaster" edge to the Roaster entity by id.
+func (m *CoffeeMutation) SetRoasterID(id uuid.UUID) {
+	m.roaster = &id
 }
 
-// ClearTenant clears the "tenant" edge to the Tenant entity.
-func (m *HolderMutation) ClearTenant() {
-	m.clearedtenant = true
+// ClearRoaster clears the "roaster" edge to the Roaster entity.
+func (m *CoffeeMutation) ClearRoaster() {
+	m.clearedroaster = true
 }
 
-// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
-func (m *HolderMutation) TenantCleared() bool {
-	return m.clearedtenant
+// RoasterCleared reports if the "roaster" edge to the Roaster entity was cleared.
+func (m *CoffeeMutation) RoasterCleared() bool {
+	return m.clearedroaster
 }
 
-// TenantID returns the "tenant" edge ID in the mutation.
-func (m *HolderMutation) TenantID() (id uuid.UUID, exists bool) {
-	if m.tenant != nil {
-		return *m.tenant, true
+// RoasterID returns the "roaster" edge ID in the mutation.
+func (m *CoffeeMutation) RoasterID() (id uuid.UUID, exists bool) {
+	if m.roaster != nil {
+		return *m.roaster, true
 	}
 	return
 }
 
-// TenantIDs returns the "tenant" edge IDs in the mutation.
+// RoasterIDs returns the "roaster" edge IDs in the mutation.
 // Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// TenantID instead. It exists only for internal usage by the builders.
-func (m *HolderMutation) TenantIDs() (ids []uuid.UUID) {
-	if id := m.tenant; id != nil {
+// RoasterID instead. It exists only for internal usage by the builders.
+func (m *CoffeeMutation) RoasterIDs() (ids []uuid.UUID) {
+	if id := m.roaster; id != nil {
 		ids = append(ids, *id)
 	}
 	return
 }
 
-// ResetTenant resets all changes to the "tenant" edge.
-func (m *HolderMutation) ResetTenant() {
-	m.tenant = nil
-	m.clearedtenant = false
+// ResetRoaster resets all changes to the "roaster" edge.
+func (m *CoffeeMutation) ResetRoaster() {
+	m.roaster = nil
+	m.clearedroaster = false
 }
 
-// Where appends a list predicates to the HolderMutation builder.
-func (m *HolderMutation) Where(ps ...predicate.Holder) {
+// Where appends a list predicates to the CoffeeMutation builder.
+func (m *CoffeeMutation) Where(ps ...predicate.Coffee) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the HolderMutation builder. Using this method,
+// WhereP appends storage-level predicates to the CoffeeMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *HolderMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.Holder, len(ps))
+func (m *CoffeeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Coffee, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -1144,42 +464,42 @@ func (m *HolderMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *HolderMutation) Op() Op {
+func (m *CoffeeMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *HolderMutation) SetOp(op Op) {
+func (m *CoffeeMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (Holder).
-func (m *HolderMutation) Type() string {
+// Type returns the node type of this mutation (Coffee).
+func (m *CoffeeMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *HolderMutation) Fields() []string {
+func (m *CoffeeMutation) Fields() []string {
 	fields := make([]string, 0, 6)
 	if m.alias != nil {
-		fields = append(fields, holder.FieldAlias)
+		fields = append(fields, coffee.FieldAlias)
 	}
 	if m.name != nil {
-		fields = append(fields, holder.FieldName)
+		fields = append(fields, coffee.FieldName)
 	}
 	if m.desc != nil {
-		fields = append(fields, holder.FieldDesc)
+		fields = append(fields, coffee.FieldDesc)
 	}
 	if m.labels != nil {
-		fields = append(fields, holder.FieldLabels)
+		fields = append(fields, coffee.FieldLabels)
 	}
 	if m.date_erased != nil {
-		fields = append(fields, holder.FieldDateErased)
+		fields = append(fields, coffee.FieldDateErased)
 	}
 	if m.date_created != nil {
-		fields = append(fields, holder.FieldDateCreated)
+		fields = append(fields, coffee.FieldDateCreated)
 	}
 	return fields
 }
@@ -1187,19 +507,19 @@ func (m *HolderMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *HolderMutation) Field(name string) (ent.Value, bool) {
+func (m *CoffeeMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case holder.FieldAlias:
+	case coffee.FieldAlias:
 		return m.Alias()
-	case holder.FieldName:
+	case coffee.FieldName:
 		return m.Name()
-	case holder.FieldDesc:
+	case coffee.FieldDesc:
 		return m.Desc()
-	case holder.FieldLabels:
+	case coffee.FieldLabels:
 		return m.Labels()
-	case holder.FieldDateErased:
+	case coffee.FieldDateErased:
 		return m.DateErased()
-	case holder.FieldDateCreated:
+	case coffee.FieldDateCreated:
 		return m.DateCreated()
 	}
 	return nil, false
@@ -1208,65 +528,65 @@ func (m *HolderMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *HolderMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *CoffeeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case holder.FieldAlias:
+	case coffee.FieldAlias:
 		return m.OldAlias(ctx)
-	case holder.FieldName:
+	case coffee.FieldName:
 		return m.OldName(ctx)
-	case holder.FieldDesc:
+	case coffee.FieldDesc:
 		return m.OldDesc(ctx)
-	case holder.FieldLabels:
+	case coffee.FieldLabels:
 		return m.OldLabels(ctx)
-	case holder.FieldDateErased:
+	case coffee.FieldDateErased:
 		return m.OldDateErased(ctx)
-	case holder.FieldDateCreated:
+	case coffee.FieldDateCreated:
 		return m.OldDateCreated(ctx)
 	}
-	return nil, fmt.Errorf("unknown Holder field %s", name)
+	return nil, fmt.Errorf("unknown Coffee field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *HolderMutation) SetField(name string, value ent.Value) error {
+func (m *CoffeeMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case holder.FieldAlias:
+	case coffee.FieldAlias:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAlias(v)
 		return nil
-	case holder.FieldName:
+	case coffee.FieldName:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
 		return nil
-	case holder.FieldDesc:
+	case coffee.FieldDesc:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDesc(v)
 		return nil
-	case holder.FieldLabels:
+	case coffee.FieldLabels:
 		v, ok := value.(map[string]string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLabels(v)
 		return nil
-	case holder.FieldDateErased:
+	case coffee.FieldDateErased:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDateErased(v)
 		return nil
-	case holder.FieldDateCreated:
+	case coffee.FieldDateCreated:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
@@ -1274,112 +594,112 @@ func (m *HolderMutation) SetField(name string, value ent.Value) error {
 		m.SetDateCreated(v)
 		return nil
 	}
-	return fmt.Errorf("unknown Holder field %s", name)
+	return fmt.Errorf("unknown Coffee field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *HolderMutation) AddedFields() []string {
+func (m *CoffeeMutation) AddedFields() []string {
 	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *HolderMutation) AddedField(name string) (ent.Value, bool) {
+func (m *CoffeeMutation) AddedField(name string) (ent.Value, bool) {
 	return nil, false
 }
 
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *HolderMutation) AddField(name string, value ent.Value) error {
+func (m *CoffeeMutation) AddField(name string, value ent.Value) error {
 	switch name {
 	}
-	return fmt.Errorf("unknown Holder numeric field %s", name)
+	return fmt.Errorf("unknown Coffee numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *HolderMutation) ClearedFields() []string {
+func (m *CoffeeMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(holder.FieldLabels) {
-		fields = append(fields, holder.FieldLabels)
+	if m.FieldCleared(coffee.FieldLabels) {
+		fields = append(fields, coffee.FieldLabels)
 	}
-	if m.FieldCleared(holder.FieldDateErased) {
-		fields = append(fields, holder.FieldDateErased)
+	if m.FieldCleared(coffee.FieldDateErased) {
+		fields = append(fields, coffee.FieldDateErased)
 	}
-	if m.FieldCleared(holder.FieldDateCreated) {
-		fields = append(fields, holder.FieldDateCreated)
+	if m.FieldCleared(coffee.FieldDateCreated) {
+		fields = append(fields, coffee.FieldDateCreated)
 	}
 	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *HolderMutation) FieldCleared(name string) bool {
+func (m *CoffeeMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *HolderMutation) ClearField(name string) error {
+func (m *CoffeeMutation) ClearField(name string) error {
 	switch name {
-	case holder.FieldLabels:
+	case coffee.FieldLabels:
 		m.ClearLabels()
 		return nil
-	case holder.FieldDateErased:
+	case coffee.FieldDateErased:
 		m.ClearDateErased()
 		return nil
-	case holder.FieldDateCreated:
+	case coffee.FieldDateCreated:
 		m.ClearDateCreated()
 		return nil
 	}
-	return fmt.Errorf("unknown Holder nullable field %s", name)
+	return fmt.Errorf("unknown Coffee nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *HolderMutation) ResetField(name string) error {
+func (m *CoffeeMutation) ResetField(name string) error {
 	switch name {
-	case holder.FieldAlias:
+	case coffee.FieldAlias:
 		m.ResetAlias()
 		return nil
-	case holder.FieldName:
+	case coffee.FieldName:
 		m.ResetName()
 		return nil
-	case holder.FieldDesc:
+	case coffee.FieldDesc:
 		m.ResetDesc()
 		return nil
-	case holder.FieldLabels:
+	case coffee.FieldLabels:
 		m.ResetLabels()
 		return nil
-	case holder.FieldDateErased:
+	case coffee.FieldDateErased:
 		m.ResetDateErased()
 		return nil
-	case holder.FieldDateCreated:
+	case coffee.FieldDateCreated:
 		m.ResetDateCreated()
 		return nil
 	}
-	return fmt.Errorf("unknown Holder field %s", name)
+	return fmt.Errorf("unknown Coffee field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *HolderMutation) AddedEdges() []string {
+func (m *CoffeeMutation) AddedEdges() []string {
 	edges := make([]string, 0, 1)
-	if m.tenant != nil {
-		edges = append(edges, holder.EdgeTenant)
+	if m.roaster != nil {
+		edges = append(edges, coffee.EdgeRoaster)
 	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *HolderMutation) AddedIDs(name string) []ent.Value {
+func (m *CoffeeMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case holder.EdgeTenant:
-		if id := m.tenant; id != nil {
+	case coffee.EdgeRoaster:
+		if id := m.roaster; id != nil {
 			return []ent.Value{*id}
 		}
 	}
@@ -1387,60 +707,60 @@ func (m *HolderMutation) AddedIDs(name string) []ent.Value {
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *HolderMutation) RemovedEdges() []string {
+func (m *CoffeeMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 1)
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *HolderMutation) RemovedIDs(name string) []ent.Value {
+func (m *CoffeeMutation) RemovedIDs(name string) []ent.Value {
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *HolderMutation) ClearedEdges() []string {
+func (m *CoffeeMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 1)
-	if m.clearedtenant {
-		edges = append(edges, holder.EdgeTenant)
+	if m.clearedroaster {
+		edges = append(edges, coffee.EdgeRoaster)
 	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *HolderMutation) EdgeCleared(name string) bool {
+func (m *CoffeeMutation) EdgeCleared(name string) bool {
 	switch name {
-	case holder.EdgeTenant:
-		return m.clearedtenant
+	case coffee.EdgeRoaster:
+		return m.clearedroaster
 	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *HolderMutation) ClearEdge(name string) error {
+func (m *CoffeeMutation) ClearEdge(name string) error {
 	switch name {
-	case holder.EdgeTenant:
-		m.ClearTenant()
+	case coffee.EdgeRoaster:
+		m.ClearRoaster()
 		return nil
 	}
-	return fmt.Errorf("unknown Holder unique edge %s", name)
+	return fmt.Errorf("unknown Coffee unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *HolderMutation) ResetEdge(name string) error {
+func (m *CoffeeMutation) ResetEdge(name string) error {
 	switch name {
-	case holder.EdgeTenant:
-		m.ResetTenant()
+	case coffee.EdgeRoaster:
+		m.ResetRoaster()
 		return nil
 	}
-	return fmt.Errorf("unknown Holder edge %s", name)
+	return fmt.Errorf("unknown Coffee edge %s", name)
 }
 
-// TenantMutation represents an operation that mutates the Tenant nodes in the graph.
-type TenantMutation struct {
+// RoasterMutation represents an operation that mutates the Roaster nodes in the graph.
+type RoasterMutation struct {
 	config
 	op            Op
 	typ           string
@@ -1452,21 +772,21 @@ type TenantMutation struct {
 	date_created  *time.Time
 	clearedFields map[string]struct{}
 	done          bool
-	oldValue      func(context.Context) (*Tenant, error)
-	predicates    []predicate.Tenant
+	oldValue      func(context.Context) (*Roaster, error)
+	predicates    []predicate.Roaster
 }
 
-var _ ent.Mutation = (*TenantMutation)(nil)
+var _ ent.Mutation = (*RoasterMutation)(nil)
 
-// tenantOption allows management of the mutation configuration using functional options.
-type tenantOption func(*TenantMutation)
+// roasterOption allows management of the mutation configuration using functional options.
+type roasterOption func(*RoasterMutation)
 
-// newTenantMutation creates new mutation for the Tenant entity.
-func newTenantMutation(c config, op Op, opts ...tenantOption) *TenantMutation {
-	m := &TenantMutation{
+// newRoasterMutation creates new mutation for the Roaster entity.
+func newRoasterMutation(c config, op Op, opts ...roasterOption) *RoasterMutation {
+	m := &RoasterMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeTenant,
+		typ:           TypeRoaster,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -1475,20 +795,20 @@ func newTenantMutation(c config, op Op, opts ...tenantOption) *TenantMutation {
 	return m
 }
 
-// withTenantID sets the ID field of the mutation.
-func withTenantID(id uuid.UUID) tenantOption {
-	return func(m *TenantMutation) {
+// withRoasterID sets the ID field of the mutation.
+func withRoasterID(id uuid.UUID) roasterOption {
+	return func(m *RoasterMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *Tenant
+			value *Roaster
 		)
-		m.oldValue = func(ctx context.Context) (*Tenant, error) {
+		m.oldValue = func(ctx context.Context) (*Roaster, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().Tenant.Get(ctx, id)
+					value, err = m.Client().Roaster.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -1497,10 +817,10 @@ func withTenantID(id uuid.UUID) tenantOption {
 	}
 }
 
-// withTenant sets the old Tenant of the mutation.
-func withTenant(node *Tenant) tenantOption {
-	return func(m *TenantMutation) {
-		m.oldValue = func(context.Context) (*Tenant, error) {
+// withRoaster sets the old Roaster of the mutation.
+func withRoaster(node *Roaster) roasterOption {
+	return func(m *RoasterMutation) {
+		m.oldValue = func(context.Context) (*Roaster, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -1509,7 +829,7 @@ func withTenant(node *Tenant) tenantOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m TenantMutation) Client() *Client {
+func (m RoasterMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -1517,7 +837,7 @@ func (m TenantMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m TenantMutation) Tx() (*Tx, error) {
+func (m RoasterMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -1527,14 +847,14 @@ func (m TenantMutation) Tx() (*Tx, error) {
 }
 
 // SetID sets the value of the id field. Note that this
-// operation is only accepted on creation of Tenant entities.
-func (m *TenantMutation) SetID(id uuid.UUID) {
+// operation is only accepted on creation of Roaster entities.
+func (m *RoasterMutation) SetID(id uuid.UUID) {
 	m.id = &id
 }
 
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *TenantMutation) ID() (id uuid.UUID, exists bool) {
+func (m *RoasterMutation) ID() (id uuid.UUID, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -1545,7 +865,7 @@ func (m *TenantMutation) ID() (id uuid.UUID, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *TenantMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+func (m *RoasterMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
@@ -1554,19 +874,19 @@ func (m *TenantMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().Tenant.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().Roaster.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
 // SetAlias sets the "alias" field.
-func (m *TenantMutation) SetAlias(s string) {
+func (m *RoasterMutation) SetAlias(s string) {
 	m.alias = &s
 }
 
 // Alias returns the value of the "alias" field in the mutation.
-func (m *TenantMutation) Alias() (r string, exists bool) {
+func (m *RoasterMutation) Alias() (r string, exists bool) {
 	v := m.alias
 	if v == nil {
 		return
@@ -1574,10 +894,10 @@ func (m *TenantMutation) Alias() (r string, exists bool) {
 	return *v, true
 }
 
-// OldAlias returns the old "alias" field's value of the Tenant entity.
-// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// OldAlias returns the old "alias" field's value of the Roaster entity.
+// If the Roaster object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TenantMutation) OldAlias(ctx context.Context) (v string, err error) {
+func (m *RoasterMutation) OldAlias(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAlias is only allowed on UpdateOne operations")
 	}
@@ -1592,17 +912,17 @@ func (m *TenantMutation) OldAlias(ctx context.Context) (v string, err error) {
 }
 
 // ResetAlias resets all changes to the "alias" field.
-func (m *TenantMutation) ResetAlias() {
+func (m *RoasterMutation) ResetAlias() {
 	m.alias = nil
 }
 
 // SetName sets the "name" field.
-func (m *TenantMutation) SetName(s string) {
+func (m *RoasterMutation) SetName(s string) {
 	m.name = &s
 }
 
 // Name returns the value of the "name" field in the mutation.
-func (m *TenantMutation) Name() (r string, exists bool) {
+func (m *RoasterMutation) Name() (r string, exists bool) {
 	v := m.name
 	if v == nil {
 		return
@@ -1610,10 +930,10 @@ func (m *TenantMutation) Name() (r string, exists bool) {
 	return *v, true
 }
 
-// OldName returns the old "name" field's value of the Tenant entity.
-// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// OldName returns the old "name" field's value of the Roaster entity.
+// If the Roaster object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TenantMutation) OldName(ctx context.Context) (v string, err error) {
+func (m *RoasterMutation) OldName(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldName is only allowed on UpdateOne operations")
 	}
@@ -1628,17 +948,17 @@ func (m *TenantMutation) OldName(ctx context.Context) (v string, err error) {
 }
 
 // ResetName resets all changes to the "name" field.
-func (m *TenantMutation) ResetName() {
+func (m *RoasterMutation) ResetName() {
 	m.name = nil
 }
 
 // SetDesc sets the "desc" field.
-func (m *TenantMutation) SetDesc(s string) {
+func (m *RoasterMutation) SetDesc(s string) {
 	m.desc = &s
 }
 
 // Desc returns the value of the "desc" field in the mutation.
-func (m *TenantMutation) Desc() (r string, exists bool) {
+func (m *RoasterMutation) Desc() (r string, exists bool) {
 	v := m.desc
 	if v == nil {
 		return
@@ -1646,10 +966,10 @@ func (m *TenantMutation) Desc() (r string, exists bool) {
 	return *v, true
 }
 
-// OldDesc returns the old "desc" field's value of the Tenant entity.
-// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// OldDesc returns the old "desc" field's value of the Roaster entity.
+// If the Roaster object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TenantMutation) OldDesc(ctx context.Context) (v string, err error) {
+func (m *RoasterMutation) OldDesc(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldDesc is only allowed on UpdateOne operations")
 	}
@@ -1664,17 +984,17 @@ func (m *TenantMutation) OldDesc(ctx context.Context) (v string, err error) {
 }
 
 // ResetDesc resets all changes to the "desc" field.
-func (m *TenantMutation) ResetDesc() {
+func (m *RoasterMutation) ResetDesc() {
 	m.desc = nil
 }
 
 // SetLabels sets the "labels" field.
-func (m *TenantMutation) SetLabels(value map[string]string) {
+func (m *RoasterMutation) SetLabels(value map[string]string) {
 	m.labels = &value
 }
 
 // Labels returns the value of the "labels" field in the mutation.
-func (m *TenantMutation) Labels() (r map[string]string, exists bool) {
+func (m *RoasterMutation) Labels() (r map[string]string, exists bool) {
 	v := m.labels
 	if v == nil {
 		return
@@ -1682,10 +1002,10 @@ func (m *TenantMutation) Labels() (r map[string]string, exists bool) {
 	return *v, true
 }
 
-// OldLabels returns the old "labels" field's value of the Tenant entity.
-// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// OldLabels returns the old "labels" field's value of the Roaster entity.
+// If the Roaster object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TenantMutation) OldLabels(ctx context.Context) (v map[string]string, err error) {
+func (m *RoasterMutation) OldLabels(ctx context.Context) (v map[string]string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldLabels is only allowed on UpdateOne operations")
 	}
@@ -1700,30 +1020,30 @@ func (m *TenantMutation) OldLabels(ctx context.Context) (v map[string]string, er
 }
 
 // ClearLabels clears the value of the "labels" field.
-func (m *TenantMutation) ClearLabels() {
+func (m *RoasterMutation) ClearLabels() {
 	m.labels = nil
-	m.clearedFields[tenant.FieldLabels] = struct{}{}
+	m.clearedFields[roaster.FieldLabels] = struct{}{}
 }
 
 // LabelsCleared returns if the "labels" field was cleared in this mutation.
-func (m *TenantMutation) LabelsCleared() bool {
-	_, ok := m.clearedFields[tenant.FieldLabels]
+func (m *RoasterMutation) LabelsCleared() bool {
+	_, ok := m.clearedFields[roaster.FieldLabels]
 	return ok
 }
 
 // ResetLabels resets all changes to the "labels" field.
-func (m *TenantMutation) ResetLabels() {
+func (m *RoasterMutation) ResetLabels() {
 	m.labels = nil
-	delete(m.clearedFields, tenant.FieldLabels)
+	delete(m.clearedFields, roaster.FieldLabels)
 }
 
 // SetDateCreated sets the "date_created" field.
-func (m *TenantMutation) SetDateCreated(t time.Time) {
+func (m *RoasterMutation) SetDateCreated(t time.Time) {
 	m.date_created = &t
 }
 
 // DateCreated returns the value of the "date_created" field in the mutation.
-func (m *TenantMutation) DateCreated() (r time.Time, exists bool) {
+func (m *RoasterMutation) DateCreated() (r time.Time, exists bool) {
 	v := m.date_created
 	if v == nil {
 		return
@@ -1731,10 +1051,10 @@ func (m *TenantMutation) DateCreated() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldDateCreated returns the old "date_created" field's value of the Tenant entity.
-// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// OldDateCreated returns the old "date_created" field's value of the Roaster entity.
+// If the Roaster object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TenantMutation) OldDateCreated(ctx context.Context) (v time.Time, err error) {
+func (m *RoasterMutation) OldDateCreated(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldDateCreated is only allowed on UpdateOne operations")
 	}
@@ -1749,32 +1069,32 @@ func (m *TenantMutation) OldDateCreated(ctx context.Context) (v time.Time, err e
 }
 
 // ClearDateCreated clears the value of the "date_created" field.
-func (m *TenantMutation) ClearDateCreated() {
+func (m *RoasterMutation) ClearDateCreated() {
 	m.date_created = nil
-	m.clearedFields[tenant.FieldDateCreated] = struct{}{}
+	m.clearedFields[roaster.FieldDateCreated] = struct{}{}
 }
 
 // DateCreatedCleared returns if the "date_created" field was cleared in this mutation.
-func (m *TenantMutation) DateCreatedCleared() bool {
-	_, ok := m.clearedFields[tenant.FieldDateCreated]
+func (m *RoasterMutation) DateCreatedCleared() bool {
+	_, ok := m.clearedFields[roaster.FieldDateCreated]
 	return ok
 }
 
 // ResetDateCreated resets all changes to the "date_created" field.
-func (m *TenantMutation) ResetDateCreated() {
+func (m *RoasterMutation) ResetDateCreated() {
 	m.date_created = nil
-	delete(m.clearedFields, tenant.FieldDateCreated)
+	delete(m.clearedFields, roaster.FieldDateCreated)
 }
 
-// Where appends a list predicates to the TenantMutation builder.
-func (m *TenantMutation) Where(ps ...predicate.Tenant) {
+// Where appends a list predicates to the RoasterMutation builder.
+func (m *RoasterMutation) Where(ps ...predicate.Roaster) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the TenantMutation builder. Using this method,
+// WhereP appends storage-level predicates to the RoasterMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *TenantMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.Tenant, len(ps))
+func (m *RoasterMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Roaster, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -1782,39 +1102,39 @@ func (m *TenantMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *TenantMutation) Op() Op {
+func (m *RoasterMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *TenantMutation) SetOp(op Op) {
+func (m *RoasterMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (Tenant).
-func (m *TenantMutation) Type() string {
+// Type returns the node type of this mutation (Roaster).
+func (m *RoasterMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *TenantMutation) Fields() []string {
+func (m *RoasterMutation) Fields() []string {
 	fields := make([]string, 0, 5)
 	if m.alias != nil {
-		fields = append(fields, tenant.FieldAlias)
+		fields = append(fields, roaster.FieldAlias)
 	}
 	if m.name != nil {
-		fields = append(fields, tenant.FieldName)
+		fields = append(fields, roaster.FieldName)
 	}
 	if m.desc != nil {
-		fields = append(fields, tenant.FieldDesc)
+		fields = append(fields, roaster.FieldDesc)
 	}
 	if m.labels != nil {
-		fields = append(fields, tenant.FieldLabels)
+		fields = append(fields, roaster.FieldLabels)
 	}
 	if m.date_created != nil {
-		fields = append(fields, tenant.FieldDateCreated)
+		fields = append(fields, roaster.FieldDateCreated)
 	}
 	return fields
 }
@@ -1822,17 +1142,17 @@ func (m *TenantMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *TenantMutation) Field(name string) (ent.Value, bool) {
+func (m *RoasterMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case tenant.FieldAlias:
+	case roaster.FieldAlias:
 		return m.Alias()
-	case tenant.FieldName:
+	case roaster.FieldName:
 		return m.Name()
-	case tenant.FieldDesc:
+	case roaster.FieldDesc:
 		return m.Desc()
-	case tenant.FieldLabels:
+	case roaster.FieldLabels:
 		return m.Labels()
-	case tenant.FieldDateCreated:
+	case roaster.FieldDateCreated:
 		return m.DateCreated()
 	}
 	return nil, false
@@ -1841,56 +1161,56 @@ func (m *TenantMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *TenantMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *RoasterMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case tenant.FieldAlias:
+	case roaster.FieldAlias:
 		return m.OldAlias(ctx)
-	case tenant.FieldName:
+	case roaster.FieldName:
 		return m.OldName(ctx)
-	case tenant.FieldDesc:
+	case roaster.FieldDesc:
 		return m.OldDesc(ctx)
-	case tenant.FieldLabels:
+	case roaster.FieldLabels:
 		return m.OldLabels(ctx)
-	case tenant.FieldDateCreated:
+	case roaster.FieldDateCreated:
 		return m.OldDateCreated(ctx)
 	}
-	return nil, fmt.Errorf("unknown Tenant field %s", name)
+	return nil, fmt.Errorf("unknown Roaster field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *TenantMutation) SetField(name string, value ent.Value) error {
+func (m *RoasterMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case tenant.FieldAlias:
+	case roaster.FieldAlias:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAlias(v)
 		return nil
-	case tenant.FieldName:
+	case roaster.FieldName:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
 		return nil
-	case tenant.FieldDesc:
+	case roaster.FieldDesc:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDesc(v)
 		return nil
-	case tenant.FieldLabels:
+	case roaster.FieldLabels:
 		v, ok := value.(map[string]string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLabels(v)
 		return nil
-	case tenant.FieldDateCreated:
+	case roaster.FieldDateCreated:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
@@ -1898,132 +1218,132 @@ func (m *TenantMutation) SetField(name string, value ent.Value) error {
 		m.SetDateCreated(v)
 		return nil
 	}
-	return fmt.Errorf("unknown Tenant field %s", name)
+	return fmt.Errorf("unknown Roaster field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *TenantMutation) AddedFields() []string {
+func (m *RoasterMutation) AddedFields() []string {
 	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *TenantMutation) AddedField(name string) (ent.Value, bool) {
+func (m *RoasterMutation) AddedField(name string) (ent.Value, bool) {
 	return nil, false
 }
 
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *TenantMutation) AddField(name string, value ent.Value) error {
+func (m *RoasterMutation) AddField(name string, value ent.Value) error {
 	switch name {
 	}
-	return fmt.Errorf("unknown Tenant numeric field %s", name)
+	return fmt.Errorf("unknown Roaster numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *TenantMutation) ClearedFields() []string {
+func (m *RoasterMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(tenant.FieldLabels) {
-		fields = append(fields, tenant.FieldLabels)
+	if m.FieldCleared(roaster.FieldLabels) {
+		fields = append(fields, roaster.FieldLabels)
 	}
-	if m.FieldCleared(tenant.FieldDateCreated) {
-		fields = append(fields, tenant.FieldDateCreated)
+	if m.FieldCleared(roaster.FieldDateCreated) {
+		fields = append(fields, roaster.FieldDateCreated)
 	}
 	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *TenantMutation) FieldCleared(name string) bool {
+func (m *RoasterMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *TenantMutation) ClearField(name string) error {
+func (m *RoasterMutation) ClearField(name string) error {
 	switch name {
-	case tenant.FieldLabels:
+	case roaster.FieldLabels:
 		m.ClearLabels()
 		return nil
-	case tenant.FieldDateCreated:
+	case roaster.FieldDateCreated:
 		m.ClearDateCreated()
 		return nil
 	}
-	return fmt.Errorf("unknown Tenant nullable field %s", name)
+	return fmt.Errorf("unknown Roaster nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *TenantMutation) ResetField(name string) error {
+func (m *RoasterMutation) ResetField(name string) error {
 	switch name {
-	case tenant.FieldAlias:
+	case roaster.FieldAlias:
 		m.ResetAlias()
 		return nil
-	case tenant.FieldName:
+	case roaster.FieldName:
 		m.ResetName()
 		return nil
-	case tenant.FieldDesc:
+	case roaster.FieldDesc:
 		m.ResetDesc()
 		return nil
-	case tenant.FieldLabels:
+	case roaster.FieldLabels:
 		m.ResetLabels()
 		return nil
-	case tenant.FieldDateCreated:
+	case roaster.FieldDateCreated:
 		m.ResetDateCreated()
 		return nil
 	}
-	return fmt.Errorf("unknown Tenant field %s", name)
+	return fmt.Errorf("unknown Roaster field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *TenantMutation) AddedEdges() []string {
+func (m *RoasterMutation) AddedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *TenantMutation) AddedIDs(name string) []ent.Value {
+func (m *RoasterMutation) AddedIDs(name string) []ent.Value {
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *TenantMutation) RemovedEdges() []string {
+func (m *RoasterMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
+func (m *RoasterMutation) RemovedIDs(name string) []ent.Value {
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *TenantMutation) ClearedEdges() []string {
+func (m *RoasterMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *TenantMutation) EdgeCleared(name string) bool {
+func (m *RoasterMutation) EdgeCleared(name string) bool {
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *TenantMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown Tenant unique edge %s", name)
+func (m *RoasterMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Roaster unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *TenantMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown Tenant edge %s", name)
+func (m *RoasterMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Roaster edge %s", name)
 }

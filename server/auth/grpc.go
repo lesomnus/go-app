@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 
 	"github.com/lesomnus/otx/log"
 	"google.golang.org/grpc"
@@ -15,75 +14,59 @@ import (
 	"github.com/lesomnus/go-app/server/frame"
 )
 
-// Public reports whether a method is served without asking who is calling.
-type Public func(method string) bool
-
-// PublicDefault is what is answered to anyone: whether the server is up, and
-// what it offers. Neither says anything about what is in it.
-func PublicDefault(method string) bool {
-	return strings.HasPrefix(method, "/grpc.health.v1.Health/") ||
-		strings.HasPrefix(method, "/grpc.reflection.")
-}
-
 // Interceptor works out who is calling and puts it in the frame of the
 // request, so that everything behind it can ask rather than work it out again.
+//
+// **A request that carries no credential is not refused.** It is served as
+// [frame.Anonymous], and what an anonymous caller may do is `server/gate`'s to
+// say. So every request behind this has a frame, which is what keeps this app
+// from having the case that has no good answer -- see the note at the top of
+// `server/frame`.
+//
+// A credential that is *there and wrong* is refused, and that is a different
+// thing entirely. Somebody presented something; serving them as nobody would be
+// answering a question they did not ask.
 //
 // A call that already has a frame is left alone. That is a call that did not
 // come in over the wire - one server calling another in the same process - and
 // it was vouched for when it did come in.
-func Interceptor(h Handler, r Resolver, public Public) []grpc.ServerOption {
-	if public == nil {
-		public = func(string) bool { return false }
-	}
-
+func Interceptor(h Handler) []grpc.ServerOption {
 	of := func(ctx context.Context, method string) (context.Context, error) {
 		if _, ok := frame.From(ctx); ok {
 			return ctx, nil
 		}
 
 		id, err := h.Handle(ctx)
-		if err == nil {
-			var actor, err = r.Resolve(ctx, id)
-			if err == nil {
-				// Who called what, for every RPC there is -- the reads that
-				// leave no other trace included. Which RPC is not said here:
-				// `grpcx.Log` puts the service and the method on the logger
-				// every line of a call is written with, so this one carries
-				// them without asking, as does everything a handler writes.
-				log.From(ctx).DebugContext(ctx, "authenticated",
-					slog.String("auth.method", id.Method),
-					slog.String("actor.alias", actor.GetAlias()),
-					slog.String("actor.tenant", actor.GetTenant().GetAlias()),
-				)
-
-				// What the credential allows is checked here, once, and not
-				// by whatever is about to run. It is not a rule about the
-				// caller -- `server/gate` holds those, and this narrows
-				// whatever it decides -- it is the credential saying it was
-				// not made for this, which is a question about the request
-				// and not about the row it is going to touch.
-				if !id.Grant.Allows(method) {
-					return nil, status.Errorf(codes.PermissionDenied,
-						"%s: this credential is not for that", method)
-				}
-
-				return frame.Into(ctx, frame.New(actor, id.Grant)), nil
-			}
-
-			// Fall through: somebody said something and it did not name anyone
-			// who is here, which is a bad credential and not a missing one.
+		if err != nil {
 			if !errors.Is(err, ErrNoCredential) {
-				return nil, err
+				return nil, statusOf(err)
 			}
-		} else if !errors.Is(err, ErrNoCredential) {
-			return nil, statusOf(err)
+
+			// Nobody said anything, which is a caller and not an error.
+			return frame.Into(ctx, frame.Nobody()), nil
 		}
 
-		if public(method) {
-			return ctx, nil
+		// Who called what, for every RPC there is -- the reads that leave no
+		// other trace included. Which RPC is not said here: `grpcx.Log` puts
+		// the service and the method on the logger every line of a call is
+		// written with, so this one carries them without asking, as does
+		// everything a handler writes.
+		log.From(ctx).DebugContext(ctx, "authenticated",
+			slog.String("auth.method", id.Method),
+			slog.String("actor.subject", id.Actor.Subject),
+		)
+
+		// What the credential allows is checked here, once, and not by whatever
+		// is about to run. It is not a rule about the caller -- `server/gate`
+		// holds those, and this narrows whatever it decides -- it is the
+		// credential saying it was not made for this, which is a question about
+		// the request and not about the row it is going to touch.
+		if !id.Grant.Allows(method) {
+			return nil, status.Errorf(codes.PermissionDenied,
+				"%s: this credential is not for that", method)
 		}
 
-		return nil, status.Error(codes.Unauthenticated, "who is asking?")
+		return frame.Into(ctx, frame.New(id.Actor, id.Grant)), nil
 	}
 
 	return []grpc.ServerOption{

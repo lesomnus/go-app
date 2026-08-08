@@ -18,7 +18,6 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/ent"
 	"github.com/lesomnus/go-app/internal/grpcx"
-	"github.com/lesomnus/go-app/server/audit"
 	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
@@ -38,35 +37,20 @@ type Server struct {
 	// runs on, so a server built by hand needs nothing else.
 	Db *ent.Client
 
-	// Root is the Tenant that administers the deployment, which is there
-	// before any test does anything, and Admin is who holds it. A test is
-	// served as Admin unless it says otherwise.
-	Root  *go_app.Tenant
-	Admin *go_app.Holder
-
-	// Sink is the server that answers out of the database, which is what the
-	// authentication looks callers up on.
+	// Sink is the server that answers out of the database, without any of the
+	// rules in front of it.
 	Sink go_app.Server
-
-	// Ungated is the stack without `server/gate` and without the wall it
-	// states, which is what a deployment does its own work through -- putting
-	// up a Tenant, and whatever else is not asked for from inside one.
-	//
-	// It is the whole of what used to be a comparison against a well-known
-	// identifier. A test reaches it with [Client.Ungated], and that it has to
-	// be reached rather than become is the point: the capability is a server
-	// somebody was handed.
-	Ungated go_app.Server
 
 	// Tokens is the bearer store this app is served with, so that a test can
 	// travel as a credential that allows less than its Holder does. Add one
 	// and reach for it with [Client.AsBearer].
 	Tokens *auth.MemTokenStore
 
-	// Policy is what the servers consult about a caller, and is nothing unless
-	// a test says otherwise -- which is what a deployment that injects none
-	// gets. Set it before making the client that should see it.
-	Policy gate.Policy
+	// Gate is what `server/gate` decides with, and is nothing unless a test
+	// says otherwise: a caller who said who they are may do anything, and an
+	// anonymous one may do nothing. Set it before making the client that should
+	// meet it.
+	Gate []gate.Option
 
 	// Limit is how often one caller may call, and is nothing unless a test says
 	// otherwise -- which is also what `go-app.yaml` says unless a deployment
@@ -106,36 +90,11 @@ func NewServer(tb testing.TB) *Server {
 	events := watch.Signal()
 	wat := watch.New(events)
 
-	// The stack the app is served with, whole: the rules that hold everywhere,
-	// the gate that says who may ask for what, and the trail the writes leave
-	// behind them.
-	rec := audit.NewRecorder(audit.WithRecorder(wat.Recorder()))
-
-	// Without the wall, which is what works out who is calling and what puts
-	// the root Tenant there before anybody exists; see cmd/serve.go.
-	sink, err := bare.NewServer(c, bare.WithRecorder(wat.Recorder()), bare.WithRecorder(rec))
+	// The stack the app is served with, whole.
+	sink, err := bare.NewServer(c, bare.WithRecorder(wat.Recorder()))
 	x.NoError(err)
 
-	walled, err := bare.NewServer(c,
-		bare.WithRecorder(wat.Recorder()), bare.WithRecorder(rec),
-		bare.WithScope(gate.Wall()),
-	)
-	x.NoError(err)
-
-	v, err := go_app.Build(walled, core.Build(), audit.Build(), wat.Build(), gate.Build())
-	x.NoError(err)
-
-	// The same stack without the layer that says what a caller may do, on the
-	// server the wall is not installed on.
-	ungated, err := go_app.Build(sink, core.Build(), audit.Build())
-	x.NoError(err)
-
-	// Every deployment has the root Tenant, so every test does too. It is made
-	// around the gate, since there is nobody to be yet.
-	ctx := tb.Context()
-	root, err := core.EnsureRoot(ctx, core.NewServer(sink))
-	x.NoError(err)
-	admin, err := core.Admin(ctx, core.NewServer(sink), root.Ref())
+	v, err := go_app.Build(sink, core.Build(), wat.Build(), gate.Build())
 	x.NoError(err)
 
 	return &Server{
@@ -146,11 +105,8 @@ func NewServer(tb testing.TB) *Server {
 		Events: events,
 		watch:  wat,
 
-		Db:      c,
-		Root:    root,
-		Admin:   admin,
-		Sink:    sink,
-		Ungated: ungated,
+		Db:   c,
+		Sink: sink,
 
 		Server: v,
 	}
@@ -190,13 +146,11 @@ func (s *Server) GrpcOf(v go_app.Server) *grpc.Server {
 	// token does.
 	opts = append(opts, auth.Interceptor(
 		auth.Seq(auth.Bearer(s.Tokens), auth.Plain()),
-		auth.ServerResolver(s.Sink),
-		auth.PublicDefault,
 	)...)
 	// And behind it, in the order the app installs them: how often that caller
 	// may call, what they may see, and what is said about what they changed.
-	opts = append(opts, grpcx.Limit(s.Limit, gate.ByTenant())...)
-	opts = append(opts, gate.Interceptor(s.Policy)...)
+	opts = append(opts, grpcx.Limit(s.Limit, gate.BySubject())...)
+	opts = append(opts, gate.Interceptor(s.Gate...)...)
 	opts = append(opts, s.watch.Interceptor()...)
 	opts = append(opts, grpc.Creds(insecure.NewCredentials()))
 

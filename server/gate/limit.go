@@ -6,41 +6,36 @@ import (
 	"github.com/lesomnus/go-app/server/frame"
 )
 
-// keyTenant is written in front of the identifier so that a key is never empty
-// -- an empty key is how [grpcx.Limit] is told a call is not counted, and a
-// caller who somehow has no Tenant should share a bucket rather than escape
-// one. It is also what makes a key of one kind safe to compose with another.
-const keyTenant = "tenant:"
+// keySubject is written in front of the subject so that a key is never empty --
+// an empty key is how [grpcx.Limit] is told a call is not counted -- and so
+// that a key of one kind is safe to compose with another.
+const keySubject = "subject:"
 
-// ByTenant counts a call against the Tenant the caller is held by, which is
-// what a per-Tenant limit means: the Tenant is who a deployment has a
-// relationship with, and it is the level a share can be given at.
+// keyAnonymous is what every caller nobody vouched for is counted against.
+const keyAnonymous = keySubject + "-"
+
+// BySubject counts a call against whoever the caller is, and counts every
+// anonymous caller against one bucket between them.
 //
-// Not the Holder, and not the credential. Both are things a Tenant makes as
-// many of as it likes, so counting either would be a limit anybody could raise
-// by asking for another one. What a limit per Holder is good for is the
-// opposite problem -- one runaway client inside a Tenant starving the rest of
-// it -- and an app that wants that counts against both, with the Tenant's line
-// above the Holder's.
+// That last part is the whole of what this can honestly do, and it is worth
+// knowing before the number is chosen. An anonymous caller has nothing to be
+// told apart by: an address is the load balancer's, or a company's, and this
+// app is behind at least one of those. So a limit here protects the app from
+// anonymous traffic *in total* and does nothing about one anonymous caller
+// among many -- which is the layer in front's to do, where the addresses are
+// real.
 //
-// A call nobody vouched for is not counted. Health and reflection are what
-// reach a handler without a frame here, and a flood of calls that never
-// authenticate is not something this can see anyway; see the README, "How much
-// one caller may ask for".
-//
-// The method is ignored, so every RPC comes out of one bucket. An app that
-// wants a `List` to be scarcer than a `Get` puts the method in the key and
-// gives the limiter a rate per key, which is the same mechanism with a finer
-// key rather than a second one.
-func ByTenant() func(ctx context.Context, method string) string {
+// A call nobody vouched for at all -- the app calling itself -- is not counted.
+func BySubject() func(ctx context.Context, method string) string {
 	return func(ctx context.Context, _ string) string {
 		f, ok := frame.From(ctx)
 		if !ok {
 			return ""
 		}
+		if f.Actor.IsAnonymous() {
+			return keyAnonymous
+		}
 
-		// The raw identifier: it is what the row is keyed by, it is already in
-		// hand, and nothing reads this but the map it is a key of.
-		return keyTenant + string(f.Tenant().GetId())
+		return keySubject + f.Actor.Subject
 	}
 }

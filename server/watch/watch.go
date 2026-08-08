@@ -50,7 +50,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/frame"
 )
@@ -64,9 +63,9 @@ var use = z.NewUse[*changes]()
 // produced it. **Read it; do not write to it.** A subscriber that needs to keep
 // one keeps a copy.
 type Event struct {
-	// Actor is who made the call, and is nil for a call nobody vouched for --
-	// the deployment writing to itself before it serves anything.
-	Actor *go_app.Holder
+	// Actor is who made the call, and is [frame.Anonymous] both for a caller
+	// nobody vouched for and for a call that never came in over the wire.
+	Actor frame.Actor
 
 	// Method is the RPC gRPC dispatched, which is what the caller asked for.
 	// What each write actually did is in [Event.Changes].
@@ -80,8 +79,8 @@ type Event struct {
 
 	// Changes is every write the call made, in the order it made them, as the
 	// servers that made them saw them. A call writes more than one row often
-	// enough to be the normal case -- adding a Tenant writes the admin Holder
-	// that comes with it -- and only the first of them is the response.
+	// enough to be the normal case -- erasing a Roaster takes its Coffees with
+	// it -- and only the first of them is the response.
 	//
 	// The row itself is not read back. It is a query per write, inside the
 	// transaction that is trying to commit, for something the caller usually
@@ -193,9 +192,7 @@ func (w *Watch) publish(ctx context.Context, req, res any, method string, cs []b
 		Response: message(res),
 		Changes:  cs,
 	}
-	if f, ok := frame.From(ctx); ok {
-		v.Actor = f.Actor
-	}
+	v.Actor = frame.Of(ctx)
 
 	// Detached from cancellation. The write already happened, and a caller who
 	// hung up is not a reason for it to go unannounced -- which is the same

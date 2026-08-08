@@ -9,37 +9,8 @@ import (
 )
 
 var (
-	// AuditColumns holds the columns for the "audit" table.
-	AuditColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID, Unique: true},
-		{Name: "tenant_id", Type: field.TypeUUID},
-		{Name: "actor_id", Type: field.TypeUUID},
-		{Name: "trace_id", Type: field.TypeBytes},
-		{Name: "action", Type: field.TypeString},
-		{Name: "object_id", Type: field.TypeUUID},
-		{Name: "patch", Type: field.TypeBytes},
-		{Name: "date_created", Type: field.TypeTime, Nullable: true},
-	}
-	// AuditTable holds the schema information for the "audit" table.
-	AuditTable = &schema.Table{
-		Name:       "audit",
-		Columns:    AuditColumns,
-		PrimaryKey: []*schema.Column{AuditColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "audit_object_id",
-				Unique:  false,
-				Columns: []*schema.Column{AuditColumns[5]},
-			},
-			{
-				Name:    "audit_tenant_id_date_created",
-				Unique:  false,
-				Columns: []*schema.Column{AuditColumns[1], AuditColumns[7]},
-			},
-		},
-	}
-	// HolderColumns holds the columns for the "holder" table.
-	HolderColumns = []*schema.Column{
+	// CoffeeColumns holds the columns for the "coffee" table.
+	CoffeeColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID, Unique: true},
 		{Name: "alias", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
@@ -47,34 +18,34 @@ var (
 		{Name: "labels", Type: field.TypeJSON, Nullable: true},
 		{Name: "date_erased", Type: field.TypeTime, Nullable: true},
 		{Name: "date_created", Type: field.TypeTime, Nullable: true},
-		{Name: "holder_tenant", Type: field.TypeUUID},
+		{Name: "coffee_roaster", Type: field.TypeUUID},
 	}
-	// HolderTable holds the schema information for the "holder" table.
-	HolderTable = &schema.Table{
-		Name:       "holder",
-		Columns:    HolderColumns,
-		PrimaryKey: []*schema.Column{HolderColumns[0]},
+	// CoffeeTable holds the schema information for the "coffee" table.
+	CoffeeTable = &schema.Table{
+		Name:       "coffee",
+		Columns:    CoffeeColumns,
+		PrimaryKey: []*schema.Column{CoffeeColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "holder_tenant_tenant",
-				Columns:    []*schema.Column{HolderColumns[7]},
-				RefColumns: []*schema.Column{TenantColumns[0]},
+				Symbol:     "coffee_roaster_roaster",
+				Columns:    []*schema.Column{CoffeeColumns[7]},
+				RefColumns: []*schema.Column{RoasterColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "holder_alias_holder_tenant",
+				Name:    "coffee_alias_coffee_roaster",
 				Unique:  true,
-				Columns: []*schema.Column{HolderColumns[1], HolderColumns[7]},
+				Columns: []*schema.Column{CoffeeColumns[1], CoffeeColumns[7]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "date_erased IS NULL",
 				},
 			},
 		},
 	}
-	// TenantColumns holds the columns for the "tenant" table.
-	TenantColumns = []*schema.Column{
+	// RoasterColumns holds the columns for the "roaster" table.
+	RoasterColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID, Unique: true},
 		{Name: "alias", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString},
@@ -82,29 +53,25 @@ var (
 		{Name: "labels", Type: field.TypeJSON, Nullable: true},
 		{Name: "date_created", Type: field.TypeTime, Nullable: true},
 	}
-	// TenantTable holds the schema information for the "tenant" table.
-	TenantTable = &schema.Table{
-		Name:       "tenant",
-		Columns:    TenantColumns,
-		PrimaryKey: []*schema.Column{TenantColumns[0]},
+	// RoasterTable holds the schema information for the "roaster" table.
+	RoasterTable = &schema.Table{
+		Name:       "roaster",
+		Columns:    RoasterColumns,
+		PrimaryKey: []*schema.Column{RoasterColumns[0]},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		AuditTable,
-		HolderTable,
-		TenantTable,
+		CoffeeTable,
+		RoasterTable,
 	}
 )
 
 func init() {
-	AuditTable.Annotation = &entsql.Annotation{
-		Table: "audit",
+	CoffeeTable.ForeignKeys[0].RefTable = RoasterTable
+	CoffeeTable.Annotation = &entsql.Annotation{
+		Table: "coffee",
 	}
-	HolderTable.ForeignKeys[0].RefTable = TenantTable
-	HolderTable.Annotation = &entsql.Annotation{
-		Table: "holder",
-	}
-	TenantTable.Annotation = &entsql.Annotation{
-		Table: "tenant",
+	RoasterTable.Annotation = &entsql.Annotation{
+		Table: "roaster",
 	}
 }

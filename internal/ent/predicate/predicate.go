@@ -6,11 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Audit is the predicate function for audit builders.
-type Audit func(*sql.Selector)
+// Coffee is the predicate function for coffee builders.
+type Coffee func(*sql.Selector)
 
-// Holder is the predicate function for holder builders.
-type Holder func(*sql.Selector)
-
-// Tenant is the predicate function for tenant builders.
-type Tenant func(*sql.Selector)
+// Roaster is the predicate function for roaster builders.
+type Roaster func(*sql.Selector)

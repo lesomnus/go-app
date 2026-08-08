@@ -1,0 +1,46 @@
+edition = "2023";
+
+package go_app;
+
+import "google/protobuf/timestamp.proto";
+import "orm.proto";
+
+option features.field_presence = IMPLICIT;
+option go_package = "github.com/lesomnus/go-app";
+
+// Roaster is somebody who roasts coffee, and is here to be the thing a Coffee
+// belongs to.
+//
+// The pair exists because one entity on its own demonstrates nothing about
+// references. An edge, a name that is unique *within* something else, the key
+// resolution that points an edge at a row, and a unique index over two columns
+// are every one of them things that need a second entity to be shown at all.
+message Roaster {
+  bytes id = 1 [(orm.field) = {
+    type: TYPE_UUID
+    key: true
+    default: ""
+  }];
+
+  // The name it is known by, unique across every Roaster there is.
+  string alias = 2 [(orm.field) = {unique: true}];
+
+  string name = 3;
+  string desc = 4;
+
+  map<string, string> labels = 5;
+
+  // Start data field from with the number 8.
+  // string data = 8;
+
+  google.protobuf.Timestamp date_created = 15 [(orm.field) = {
+    immutable: true
+    default: ""
+  }];
+
+  // Erased for real, and the Coffees go with it; see
+  // `core.RoasterServiceServer.Erase`. Nothing keeps a Roaster's identifier
+  // once it is gone, which is the whole of why the other one is erased softly
+  // and this one is not.
+  option (orm.message) = {rpc: {crud: true}};
+}

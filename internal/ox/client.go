@@ -16,7 +16,6 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/auth"
 	"github.com/lesomnus/go-app/server/bare"
-	"github.com/lesomnus/go-app/server/core"
 )
 
 // bufSize is the buffer of the in-memory listener; large enough that a message
@@ -36,8 +35,7 @@ type Client struct {
 	grpc *grpc.Server
 	wg   sync.WaitGroup
 
-	bare    *Client
-	ungated *Client
+	bare *Client
 }
 
 func NewClient(tb testing.TB, s *Server) *Client {
@@ -92,40 +90,16 @@ func (c *Client) Bare() go_app.Client {
 	s, ok := go_app.Find[bare.Server](c.Server.Server)
 	require.True(c.tb, ok, "the stack has no bare server")
 
-	// Without the wall. It is stated by `server/gate` and enforced from inside
-	// this server, so it is one of the rules in front even though it does not
-	// run there -- and this client is for arranging a state the rules would
-	// refuse. A test that wants to see the wall travels the ordinary client.
+	// Nothing narrows what it reads. This app installs no scope, so this is
+	// what the served one does too -- it is here so that an app which grows
+	// one still has a client that can arrange a state the rules would refuse.
 	s.Scope = bare.Unscoped{}
 
 	c.bare = newClient(c.tb, c.Server, c.Server.GrpcOf(s))
 	return c.bare
 }
 
-// Ungated returns a client of the stack without `server/gate` and without the
-// wall, which is how a deployment does what is not asked for from inside a
-// Tenant -- and how a test arranges the Tenants it is about.
-//
-// It is the whole of what a superuser would have been. There is no caller the
-// wall does not apply to; there is a server it is not on, and something had to
-// be handed it.
-//
-// Unlike [Client.Bare] the rules of `server/core` are still in front, so what is
-// made here is made the way the app makes it.
-func (c *Client) Ungated() go_app.Client {
-	if c.ungated != nil {
-		return c.ungated
-	}
-
-	c.ungated = newClient(c.tb, c.Server, c.Server.GrpcOf(c.Server.Ungated))
-	return c.ungated
-}
-
 func (c *Client) Close() error {
-	if c.ungated != nil {
-		c.ungated.Close()
-		c.ungated = nil
-	}
 	if c.bare != nil {
 		c.bare.Close()
 		c.bare = nil
@@ -137,21 +111,21 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// AsHolder says the call is from the given Holder, the way a caller of the app
-// says it. Every call made with the context it returns is served as them.
-func (c *Client) AsHolder(ctx context.Context, v *go_app.Holder) context.Context {
-	return auth.PlainProvider(auth.PlainOf(v)).Provide(ctx)
+// As says the call is from the given subject, the way a caller of the app says
+// it. Every call made with the context it returns is served as them.
+func (c *Client) As(ctx context.Context, subject string) context.Context {
+	return auth.PlainProvider(subject).Provide(ctx)
 }
 
 // AsBearer says the call comes with the given token, which is how a test
-// travels as a credential that allows less than its Holder does. Put one in
+// travels as a credential that allows less than its subject does. Put one in
 // [Server.Tokens] first.
 func (c *Client) AsBearer(ctx context.Context, token string) context.Context {
 	return auth.BearerProvider(token).Provide(ctx)
 }
 
-// AsNobody says nothing about who is calling, which is what a caller that has
-// not authenticated looks like.
+// AsNobody says nothing about who is calling, which is what an anonymous caller
+// looks like. It is a caller like any other; see `server/frame`.
 func (c *Client) AsNobody(ctx context.Context) context.Context {
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
@@ -164,45 +138,25 @@ func (c *Client) AsNobody(ctx context.Context) context.Context {
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// AsRoot says the call is from the admin of the first Tenant, which is what a
-// test is unless it says otherwise. It is not a privileged caller -- there is
-// no such thing here -- it is a Holder of one Tenant like any other.
-func (c *Client) AsRoot(ctx context.Context) context.Context {
-	return c.AsHolder(ctx, c.Server.Admin)
-}
-
-// AsAdminOf says the call is from the Holder that administers the given Tenant,
-// which is the caller most tests want: somebody inside the Tenant they are
-// about, travelling the gated stack like anybody else.
-func (c *Client) AsAdminOf(ctx context.Context, x *X, tenant *go_app.Tenant) context.Context {
+// CreateRoaster adds a Roaster, failing the test if it cannot.
+func (c *Client) CreateRoaster(ctx context.Context, x *X, alias string) *go_app.Roaster {
 	x.TB().Helper()
 
-	v, err := core.Admin(ctx, core.NewServer(c.Server.Sink), tenant.Ref())
-	x.NoError(err)
-
-	return c.AsHolder(ctx, v)
-}
-
-// CreateTenant adds a Tenant, failing the test if it cannot.
-func (c *Client) CreateTenant(ctx context.Context, x *X, alias string) *go_app.Tenant {
-	x.TB().Helper()
-
-	// Through the ungated stack, because putting up a Tenant is not something
-	// asked for from inside one -- there is no caller that may.
-	v, err := c.Ungated().Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: alias}.Build())
+	v, err := c.Roaster().Add(ctx, go_app.RoasterAddRequest_builder{Alias: alias}.Build())
 	x.NoError(err)
 
 	return v
 }
 
-// CreateHolder adds a Holder of the given Tenant, failing the test if it cannot.
-func (c *Client) CreateHolder(ctx context.Context, x *X, tenant *go_app.TenantRef, alias string) *go_app.Holder {
+// CreateCoffee adds a Coffee of the given Roaster, failing the test if it
+// cannot.
+func (c *Client) CreateCoffee(ctx context.Context, x *X, roaster *go_app.RoasterRef, alias string) *go_app.Coffee {
 	x.TB().Helper()
 
-	// Through the ungated stack, like [Client.CreateTenant]: a test arranges
-	// the Tenants it is about from outside them, and then travels the ordinary
-	// client as somebody inside one.
-	v, err := c.Ungated().Holder().Add(ctx, go_app.HolderAddRequest_builder{Tenant: tenant, Alias: alias}.Build())
+	v, err := c.Coffee().Add(ctx, go_app.CoffeeAddRequest_builder{
+		Roaster: roaster,
+		Alias:   alias,
+	}.Build())
 	x.NoError(err)
 
 	return v

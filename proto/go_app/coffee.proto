@@ -1,0 +1,80 @@
+edition = "2023";
+
+package go_app;
+
+import "go_app/roaster.proto";
+import "google/protobuf/timestamp.proto";
+import "orm.proto";
+
+option features.field_presence = IMPLICIT;
+option go_package = "github.com/lesomnus/go-app";
+
+// Coffee is what this app is about, and is deliberately a thing rather than a
+// person: a template whose one entity is called `User` has already decided that
+// the app is about accounts, and most apps are not.
+message Coffee {
+  bytes id = 1 [(orm.field) = {
+    type: TYPE_UUID
+    key: true
+    default: ""
+  }];
+
+  // Who roasted it. Immutable, because a Coffee moving from one Roaster to
+  // another is not a thing that happens -- and because an immutable edge is
+  // what most edges are, and so the one worth showing.
+  Roaster roaster = 2 [(orm.edge) = {immutable: true}];
+
+  // The name it is known by, unique *within its Roaster*. That is the `slug`
+  // index below, and it is the shape almost every name has in an app that has
+  // more than one table.
+  string alias = 3;
+
+  string name = 4;
+  string desc = 5;
+
+  map<string, string> labels = 6;
+
+  // Start data field from with the number 8.
+  // string data = 8;
+
+  // When this Coffee was erased, and null for as long as it is here.
+  //
+  // It is erased softly, and the reason is the identifier. A row that is gone
+  // for real leaves its identifier free to be answered by something else one
+  // day, and anything that kept one -- a link somebody saved, a row in another
+  // system, an event that was published -- would then be pointing at a coffee
+  // nobody meant. Stamping keeps the identifier taken for good.
+  //
+  // What follows is what soft erasure always follows with: an erased Coffee
+  // cannot be read and cannot be changed, because every read is narrowed by
+  // this column. The `slug` index below covers only the rows that are still
+  // here, so the *alias* comes free again -- an identifier is forever and a
+  // name is not. That is a choice either way (`includes_erased`), and it is
+  // usually the one wanted.
+  google.protobuf.Timestamp date_erased = 14 [(orm.field) = {erased: {}}];
+
+  google.protobuf.Timestamp date_created = 15 [(orm.field) = {
+    immutable: true
+    default: ""
+  }];
+
+  option (orm.message) = {
+    rpc: {crud: true}
+    indexes: [
+      {
+        name: "slug"
+        refs: [
+          {
+            name: "alias"
+            number: 3
+          },
+          {
+            name: "roaster"
+            number: 2
+          }
+        ]
+        unique: true
+      }
+    ]
+  };
+}

@@ -19,6 +19,13 @@ server:
   # everywhere in this file.
   allow_reflection: true
   #
+  # Lets a caller who said nothing about who they are make the reads this app
+  # generates -- Get, List and Watch -- and nothing else. It is a list of what
+  # is *allowed*: an RPC written by hand is closed until somebody opens it,
+  # which is the right way round, since `Rename` is a write and is not called
+  # `Patch`. A caller who says who they are is not affected either way.
+  # allow_anonymous_reads: true
+  #
   # Serves `Patch` and `Apply`, the two RPCs every generated service has that
   # can write anything the schema holds. It should stay off: they are how the
   # servers write, not how a caller asks. An app that wants a caller to be able
@@ -26,11 +33,12 @@ server:
   # of these. See the README, "The general write is not an API".
   # allow_general_writes: true
   #
-  # How often one caller may call, counted against the Tenant they are held by
-  # -- not the Holder and not the credential, since a Tenant makes as many of
-  # those as it likes. Off unless a rate is written down, and off is what this
-  # file says: a number picked by a template is a number nobody measured, and
-  # what it would refuse is real traffic on the day the app is busiest.
+  # How often one caller may call, counted against whoever they are -- and
+  # every anonymous caller against one bucket between them, since an anonymous
+  # caller has nothing to be told apart by. Off unless a rate is written down,
+  # and off is what this file says: a number picked by a template is a number
+  # nobody measured, and what it would refuse is real traffic on the day the
+  # app is busiest.
   #
   # It is counted in this process. Three replicas are three buckets, so a rate
   # of 20 is 60 to whoever a load balancer spreads around. That is fine for
@@ -87,7 +95,7 @@ auth:
   # whoever the certificate says.
   #
   #   plain    believe what the caller writes:
-  #              authorization: Plain <tenant-alias>/<holder-alias>
+  #              authorization: Plain <subject>
   #            Nothing is checked, so this is for development and for a server
   #            nobody untrusted can reach. It is said out loud at startup.
   #
@@ -103,32 +111,31 @@ auth:
   #            The only one that has to ask something, which is why it is the
   #            only one that can answer Unavailable.
   #
-  # Nothing here at all serves only what is public.
+  # Nothing here at all means every caller is anonymous, which is a caller like
+  # any other -- what one may do is `server.allow_anonymous_reads`, above.
   methods: [plain]
   # methods: [bearer, mtls]
 
   # The sample token store, and a sample is all it is: these are secrets, and a
   # secret in a configuration file is a secret in a backup and in a terminal
-  # history. A real one is a table or an issuer. See server/auth/token.go.
+  # history. A real one is an issuer -- a JWT this app verifies, an
+  # introspection endpoint, a table somebody else owns -- and `auth.TokenStore`
+  # is where one is injected. See server/auth/token.go.
   # bearer:
   #   ttl: 24h
-  #   holders:
-  #     acme/admin:
+  #   subjects:
+  #     # The subject is opaque: whatever the issuer calls somebody. Nothing in
+  #     # this app reads it.
+  #     anna:
   #       token: "a-secret-nobody-else-knows"
   #
-  #     # A token may allow less than the Holder it names, and never more. Say
-  #     # nothing and it allows whatever they do; say either of these and it is
-  #     # narrowed to it. This is the shape of a GitHub fine-grained token: a
-  #     # set of resources and a set of things that may be done to them.
-  #     acme/ci:
+  #     # A token may allow less than its subject may, and never more. Say
+  #     # nothing and it allows whatever they do.
+  #     ci:
   #       token: "a-different-secret"
-  #       # By identifier, because a configuration file is read before anything
-  #       # is connected and there is nothing to resolve an alias against. A
-  #       # real store is a table, where the identifier is there anyway.
-  #       tenants: ["018f2c...-....-....-....-............"]
   #       actions:
-  #         - /go_app.HolderService/Get
-  #         - /go_app.HolderService/List
+  #         - /go_app.CoffeeService/Get
+  #         - /go_app.CoffeeService/List
 
 # Database used by the gRPC services (used by the `serve` subcommand).
 db:

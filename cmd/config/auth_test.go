@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/lesomnus/go-app/cmd/config"
-	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/server/auth"
 )
 
@@ -28,7 +27,7 @@ func TestAuthMethods(t *testing.T) {
 		c := config.AuthConfig{
 			Methods: []string{"bearer", "plain"},
 			Bearer: config.BearerConfig{
-				Holders: map[string]config.TokenConfig{"acme/admin": {Token: "s3cret"}},
+				Subjects: map[string]config.TokenConfig{"anna": {Token: "s3cret"}},
 			},
 		}
 
@@ -41,7 +40,7 @@ func TestAuthMethods(t *testing.T) {
 		x.Equal(auth.MethodBearer, v.Method)
 
 		// The next method when there is not.
-		v, err = h.Handle(incoming("Plain hooli/erlich"))
+		v, err = h.Handle(incoming("Plain bill"))
 		x.NoError(err)
 		x.Equal(auth.MethodPlain, v.Method)
 
@@ -50,13 +49,13 @@ func TestAuthMethods(t *testing.T) {
 		x.ErrorIs(err, auth.ErrUnknownToken)
 	})
 
-	t.Run("nothing configured serves only what is public", func(t *testing.T) {
+	t.Run("nothing configured leaves every caller anonymous", func(t *testing.T) {
 		x := require.New(t)
 
 		h, err := config.AuthConfig{}.Handler()
 		x.NoError(err)
 
-		_, err = h.Handle(incoming("Plain acme/admin"))
+		_, err = h.Handle(incoming("Plain anna"))
 		x.ErrorIs(err, auth.ErrNoCredential)
 	})
 
@@ -76,18 +75,19 @@ func TestAuthMethods(t *testing.T) {
 }
 
 func TestBearerConfig(t *testing.T) {
-	ref := go_app.HolderBySlug("admin", go_app.TenantByAlias("acme"))
-
-	t.Run("a holder that is not a name is refused at startup", func(t *testing.T) {
+	t.Run("a token without one, or for nobody, is refused at startup", func(t *testing.T) {
 		x := require.New(t)
 
+		// A subject is opaque -- whatever the issuer calls somebody -- so there
+		// is nothing to refuse about one except its being absent, which is what
+		// anonymous is and so is not something a credential may say.
 		_, err := config.BearerConfig{
-			Holders: map[string]config.TokenConfig{"Acme Corporation": {Token: "s3cret"}},
+			Subjects: map[string]config.TokenConfig{"": {Token: "s3cret"}},
 		}.Store(time.Now())
-		x.Error(err)
+		x.ErrorContains(err, "nobody")
 
 		_, err = config.BearerConfig{
-			Holders: map[string]config.TokenConfig{"acme/admin": {Token: ""}},
+			Subjects: map[string]config.TokenConfig{"anna": {Token: ""}},
 		}.Store(time.Now())
 		x.ErrorContains(err, "no token")
 	})
@@ -97,8 +97,8 @@ func TestBearerConfig(t *testing.T) {
 
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s, err := config.BearerConfig{
-			Holders: map[string]config.TokenConfig{"acme/admin": {Token: "s3cret"}},
-			TTL:     time.Hour,
+			Subjects: map[string]config.TokenConfig{"anna": {Token: "s3cret"}},
+			TTL:      time.Hour,
 		}.Store(at)
 		x.NoError(err)
 
@@ -108,7 +108,7 @@ func TestBearerConfig(t *testing.T) {
 		mem.Now = func() time.Time { return at.Add(30 * time.Minute) }
 		v, _, err := mem.Lookup(t.Context(), "s3cret")
 		x.NoError(err)
-		x.Equal(ref.GetSlug().GetAlias(), v.GetSlug().GetAlias())
+		x.Equal("anna", v.Subject)
 
 		mem.Now = func() time.Time { return at.Add(2 * time.Hour) }
 		_, _, err = mem.Lookup(t.Context(), "s3cret")
@@ -120,7 +120,7 @@ func TestBearerConfig(t *testing.T) {
 
 		at := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
 		s, err := config.BearerConfig{
-			Holders: map[string]config.TokenConfig{"acme/admin": {Token: "s3cret"}},
+			Subjects: map[string]config.TokenConfig{"anna": {Token: "s3cret"}},
 		}.Store(at)
 		x.NoError(err)
 

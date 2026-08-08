@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"crypto/x509"
-	"fmt"
 
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -17,8 +16,8 @@ const MethodMTLS = "mtls"
 // MTLS reads who the caller is from the certificate the connection was made
 // with.
 //
-//	URI SAN     spiffe://example.com/acme/admin   -> acme/admin
-//	Common Name acme/admin
+//	URI SAN     spiffe://example.com/ns/prod/sa/roaster
+//	Common Name roaster
 //
 // It checks nothing, and that is right: by the time a request arrives, the TLS
 // layer has already verified the chain against the certificate authorities the
@@ -53,17 +52,14 @@ func MTLS() Handler {
 			return Identity{}, ErrNoCredential
 		}
 
-		ref, err := ParseRef(v)
-		if err != nil {
-			// It did say a name, and the name is not one. That is wrong rather
-			// than absent, and it stops the search.
-			return Identity{}, fmt.Errorf("%s: %w", MethodMTLS, err)
-		}
-
-		// A certificate has nowhere to carry an attenuation, so it
-		// narrows nothing and says so rather than leaving the zero
-		// Grant, which allows nothing at all.
-		return Identity{Method: MethodMTLS, Ref: ref, Grant: frame.Whole()}, nil
+		// A certificate has nowhere to carry an attenuation, so it narrows
+		// nothing and says so rather than leaving the zero Grant, which allows
+		// nothing at all.
+		return Identity{
+			Method: MethodMTLS,
+			Actor:  frame.Actor{Subject: v},
+			Grant:  frame.Whole(),
+		}, nil
 	})
 }
 

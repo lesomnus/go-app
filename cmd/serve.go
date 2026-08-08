@@ -14,7 +14,6 @@ import (
 	go_app "github.com/lesomnus/go-app/go_app"
 	"github.com/lesomnus/go-app/internal/grpcx"
 	"github.com/lesomnus/go-app/internal/httpx"
-	"github.com/lesomnus/go-app/server/audit"
 	"github.com/lesomnus/go-app/server/bare"
 	"github.com/lesomnus/go-app/server/core"
 	"github.com/lesomnus/go-app/server/gate"
@@ -103,34 +102,13 @@ func NewCmdServe() *xli.Command {
 			events := watch.Signal()
 			wat := watch.New(events)
 
-			// The server that talks to the database, twice: once as it is, and
-			// once with the wall on it.
+			// The server that talks to the database.
 			//
-			// Two things are said to it rather than to the stack, and for the
-			// same reason -- both are about the statement that runs. The trail
-			// is kept by the servers that do the writing, since every RPC that
-			// changes anything has to report itself from inside the
-			// transaction that changes it (`server/audit`). The wall is stated
-			// by the layer that holds the rules and enforced in the query,
-			// since narrowing what a caller may see is a predicate and a
-			// predicate belongs in the WHERE (`server/gate`).
-			rec := audit.NewRecorder(audit.WithRecorder(wat.Recorder()))
-
-			// `sink` has no wall, and the two things below are why. Working out
-			// who is calling happens before there is anybody to be walled by,
-			// and the root Tenant is put there before anybody exists at all.
-			// Going around the wall is a wiring decision that should be
-			// readable in one place rather than a rule that quietly opens up
-			// whenever nobody is asking.
-			sink, err := bare.NewServer(db.Client, bare.WithRecorder(wat.Recorder()), bare.WithRecorder(rec))
-			if err != nil {
-				return z.Err(err, "build the server that talks to the database")
-			}
-
-			walled, err := bare.NewServer(db.Client,
-				bare.WithRecorder(wat.Recorder()), bare.WithRecorder(rec),
-				bare.WithScope(gate.Wall()),
-			)
+			// What a write reports is said to it rather than to the stack, and
+			// for a reason worth knowing: every RPC that changes anything has
+			// to report itself from inside the transaction that changes it,
+			// and only the server that runs the statement is inside one.
+			sink, err := bare.NewServer(db.Client, bare.WithRecorder(wat.Recorder()))
 			if err != nil {
 				return z.Err(err, "build the server that talks to the database")
 			}
@@ -138,7 +116,7 @@ func NewCmdServe() *xli.Command {
 			// Watch is behind the gate, so a caller who may not ask has already
 			// been refused, and in front of core, so the list it reads is the
 			// hand-written one with its filters and its paging.
-			s, err := go_app.Build(walled, core.Build(), audit.Build(), wat.Build(), gate.Build())
+			s, err := go_app.Build(sink, core.Build(), wat.Build(), gate.Build())
 			if err != nil {
 				return z.Err(err, "build server")
 			}
@@ -153,13 +131,7 @@ func NewCmdServe() *xli.Command {
 				spin.All(ctx, s)
 			}()
 
-			// Before anything is served, and around the gate rather than
-			// through it: there is nobody to be yet.
-			if _, err := core.EnsureRoot(ctx, core.NewServer(sink)); err != nil {
-				return z.Err(err, "ensure the root tenant")
-			}
-
-			auth_opts, err := c.Auth.GrpcOptions(sink)
+			auth_opts, err := c.Auth.GrpcOptions()
 			if err != nil {
 				return z.Err(err, "build authentication")
 			}
@@ -172,12 +144,12 @@ func NewCmdServe() *xli.Command {
 			// since a caller over their line should not be able to ask for the
 			// work of deciding what they may see. Nothing unless
 			// `server.limit.rate` says so.
-			opts = append(opts, grpcx.Limit(c.Server.Limiter(), gate.ByTenant())...)
-			// Behind the authentication, since it reads who the caller is, and
-			// this is where a deployment injects what it consults about them.
-			// Nothing is injected here, so the wall is what this app has always
-			// shown; see `gate.Policy`.
-			opts = append(opts, gate.Interceptor(nil)...)
+			opts = append(opts, grpcx.Limit(c.Server.Limiter(), gate.BySubject())...)
+			// Behind the authentication, since it reads who the caller is. What
+			// an anonymous caller may do is said here and nowhere else; a
+			// deployment that has more to say injects a `gate.Policy`, and
+			// nothing is injected here.
+			opts = append(opts, gate.Interceptor(c.Server.GateOptions()...)...)
 			// Outside the handler and inside everything that could refuse the
 			// call, so that what is published is what was served.
 			opts = append(opts, wat.Interceptor()...)

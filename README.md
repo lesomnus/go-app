@@ -157,7 +157,7 @@ database blinked should not stop the server, and one that has been failing for
 an hour is a thing nobody notices. A deployment that would rather fall over says
 so by having its loop do it.
 
-**Nothing in this app spins.** The obvious candidate — sweeping Holders that
+**Nothing in this app spins.** The obvious candidate — sweeping Coffees that
 were erased long enough ago — is a retention policy, and picking a number is the
 deployment's, not the template's.
 
@@ -172,20 +172,15 @@ stacked on top of each other:
 - `server/core` holds the rules that apply wherever the app runs. It validates
   and completes the requests it cares about and hands them over to the next
   server. It is also where a service that is not CRUD, and so is not generated,
-  is written by hand; `HolderService.List` is the example. `Server.Db()` reaches
+  is written by hand; `CoffeeService.List` is the example. `Server.Db()` reaches
   the client of the generated server behind it, so a middleware does not have
   to carry a database of its own.
-- `server/audit` keeps the trail of what was changed and by whom. The layer
-  itself only refuses the RPCs that would write the trail by hand; the writing
-  is done from inside the generated servers. See
-  [What was changed, and by whom](#what-was-changed-and-by-whom).
 - `server/watch` is the other end of the same hook: it publishes what a call
   changed, once the call has answered. It is not a layer at all. See
   [Telling somebody what changed](#telling-somebody-what-changed).
 - `server/gate` says what the caller of a request may do with it. It is the
-  outermost one, so nothing behind it has to ask again — though not everything
-  it says is *enforced* there: the Tenant wall is stated in `gate` and enforced
-  as a predicate inside the innermost server. See [docs/AUTH.md](docs/AUTH.md).
+  outermost one, and it overrides nothing: what it decides is decided once, in
+  an interceptor, before the handler. See [docs/AUTH.md](docs/AUTH.md).
 
 What they share is not written here: `go_app` is generated with `Overlay` to
 implement only the services of interest, `Build` to stack them, and `Iter`,
@@ -213,12 +208,12 @@ A `var _ enttx.Binder[go_app.Server] = Server{}` in each layer turns forgetting
 it into a compile error.
 
 ```go
-// server/audit/audit.go
+// server/watch/server.go
 type Server struct {
 	go_app.Overlay
 }
 
-func (s Server) Audit() go_app.AuditServiceServer { ... }
+func (s Server) Coffee() go_app.CoffeeServiceServer { ... }
 
 // The innermost server writes SQL of its own for Apply, so it asks the client
 // which SQL that is; a dialect nothing was written for is refused here rather
@@ -226,11 +221,11 @@ func (s Server) Audit() go_app.AuditServiceServer { ... }
 // `Dialect()` on it (`internal/ent/orm.g.go`) -- ent keeps its driver to
 // itself, and a caller made to repeat what it said when it opened the
 // connection can say something else the second time.
-sink, err := bare.NewServer(db, bare.WithRecorder(audit.NewRecorder()))
+sink, err := bare.NewServer(db, bare.WithRecorder(watch.New(events).Recorder()))
 
 // Stack it in front of the others; the last one handles the request first.
 // Building fails if a server cannot make itself out of what it was given.
-s, err := go_app.Build(sink, core.Build(), audit.Build(), gate.Build())
+s, err := go_app.Build(sink, core.Build(), wat.Build(), gate.Build())
 ```
 
 A middleware that has something to say about `Patch` usually has the same thing
@@ -248,27 +243,27 @@ Between them they can write anything the schema holds — `Patch` takes a field
 per property, `Apply` takes a document that can address one map entry or assert
 a value before writing it. That is what makes them useful to a server and wrong
 as an API. What a caller may change, and under what conditions, is not something
-a general write can be told: there is no request field for "may this Holder be
+a general write can be told: there is no request field for "may this Coffee be
 renamed right now", because there is no request — there is a bag of fields, or a
 document.
 
 So an app writes the RPC it means, and implements it with the general write:
 
 ```proto
-// proto.svc/go_app/holder_svc.ext.proto
-service HolderService {
-  rpc Rename(HolderRenameRequest) returns (Holder);
+// proto.svc/go_app/coffee_svc.ext.proto
+service CoffeeService {
+  rpc Rename(CoffeeRenameRequest) returns (Coffee);
 }
 
-message HolderRenameRequest {
-  HolderRef ref  = 1;
+message CoffeeRenameRequest {
+  CoffeeRef ref  = 1;
   string    name = 2;
 }
 ```
 
 ```go
-// server/core/holder.go
-func (s HolderServiceServer) Rename(ctx context.Context, req *go_app.HolderRenameRequest) (*go_app.Holder, error) {
+// server/core/coffee.go
+func (s CoffeeServiceServer) Rename(ctx context.Context, req *go_app.CoffeeRenameRequest) (*go_app.Coffee, error) {
     // What a rename will and will not take, said here because here is what
     // knows -- and whatever renaming means besides writing the column.
     name, err := ParseName(req.GetName())
@@ -276,9 +271,9 @@ func (s HolderServiceServer) Rename(ctx context.Context, req *go_app.HolderRenam
         return nil, err
     }
 
-    return s.HolderServiceServer.Apply(ctx, go_app.HolderApplyRequest_builder{
+    return s.CoffeeServiceServer.Apply(ctx, go_app.CoffeeApplyRequest_builder{
         Ref:   req.GetRef(),
-        Patch: patch.MustNew("go_app.Holder",
+        Patch: patch.MustNew("go_app.Coffee",
             patch.Target(patch.Name("name")).Assign(patch.Str(name)),
         ),
     }.Build())
@@ -290,10 +285,10 @@ Three things come out of that shape:
 - **The validation has somewhere to live.** `Rename` is a function, so what it
   will and will not take is said in it, beside the rest of what renaming means.
   See [What a request must say](#what-a-request-must-say).
-- **The trail says `Rename`.** The write reports itself as `Apply`, but the
-  action stored is the method gRPC dispatched — so "who renamed this" answers
-  with the thing the caller asked for rather than the leg of it that wrote. See
-  [What was changed, and by whom](#what-was-changed-and-by-whom).
+- **What is published says `Rename`.** The write reports itself as `Apply`, and
+  the event carries the method gRPC dispatched — so a watcher is told `Rename`
+  rather than the leg of it that wrote. See
+  [Telling somebody what changed](#telling-somebody-what-changed).
 - **`Rename` still works.** The closing is a transport rule
   (`internal/grpcx.Closed`) and not a layer of the stack, so everything behind
   it goes on calling `Apply` normally. Closing them in a server would have
@@ -303,47 +298,46 @@ The tests of this repository are the exception, and knowingly: `internal/ox`
 serves the general writes, because they are what this repository has to
 demonstrate. An app made from this template tests the RPCs it wrote instead.
 
-### Erasing a Holder, and erasing a Tenant
+### Erasing a Coffee, and erasing a Roaster
 
-A **Holder is erased softly**. `Erase` stamps `date_erased` and the row stays;
-every read is narrowed by that column, so the Holder is gone from `Get`, from
-`List`, from `Patch` and `Apply`, and — because `server/auth` looks a Holder up
-to work out who is calling — from authentication. The alias comes free, because
-the unique index covers only the rows that are still there.
+A **Coffee is erased softly**. `Erase` stamps `date_erased` and the row stays;
+every read is narrowed by that column, so the Coffee is gone from `Get`, from
+`List`, from `Patch` and `Apply`. There is no `Restore`, and that is the point:
+this is not a recycle bin.
 
-The reason is the trail. Every row of it names the Holder that did something,
-and a deleted Holder leaves that identifier answering to nothing: the trail goes
-on saying who while nobody can find out who. Stamping means the answer outlives
-the person leaving, which is most of what a trail is kept for.
+The reason is the **identifier**. A row that is gone for real leaves its
+identifier free for something else one day, and anything that kept one — a link
+somebody saved, a row in another system, an event that was published — would
+then point at a coffee nobody meant. Stamping keeps it taken for good.
 
-A **Tenant is erased for real**, and it takes its Holders with it — including
-the ones that were only stamped. That is not a second opinion about soft
-deletion; it is what erasing a Tenant already meant, and it is now something
-`server/core` has to say out loud, because **soft deletion does not cascade**. A
-stamped Holder keeps its row, and the row keeps a foreign key to its Tenant, so
-without the cascade a Tenant that ever had a Holder could never be erased at
-all, however many of them had been "erased" first.
+A **Roaster is erased for real**, and it takes its Coffees with it — including
+the ones that were stamped, in one transaction. That is not a policy about
+deletion; it is what erasing a Roaster already meant, and it is now something
+`core` has to *say*, because **soft deletion does not cascade**: a stamped
+Coffee keeps its row, and the row keeps a foreign key to its Roaster, so without
+the cascade a Roaster that ever had a Coffee could never be erased at all.
 
-That is the thing to take from this if you are adding an entity that erases
-softly: the row surviving is the point, and it survives for the foreign keys
-too. Whatever owns it has to decide what happens to it.
+Two things fall out of the schema rather than out of any code:
 
-Two smaller edges, both worth knowing before you copy this:
+- **The name comes free again.** The unique index on the slug covers only the
+  rows that are still there (`WHERE date_erased IS NULL`), so the alias an
+  erased Coffee held can be used again — an identifier is forever and a name is
+  not. `includes_erased` is how the other choice is made.
+- **Either spelling of `unique` frees its value.** `Roaster.alias` is `unique`
+  on the field and `Coffee`'s slug is an `indexes` entry; for a soft-erasing
+  entity the generator promotes the field to an index of its own, so the two
+  spellings mean the same thing.
 
-- **Either spelling of `unique` frees its value.** `Tenant.alias` is `unique` on
-  the field and `Holder`'s slug is an `indexes` entry, and for a soft-erasing
-  entity the generator writes both as partial indexes — the field one loses
-  `.Unique()` and gains an index of its own. The `Ref` does not change shape for
-  it, so a caller cannot tell.
-- **Nothing can read an erased row through these servers**, and there is no
-  option asking for one. Restoring something, or looking at what was erased, is
-  written by hand against `core.Server.Db()` — like every other RPC nothing
-  generates.
+**Partial indexes are SQLite and PostgreSQL only.** MySQL has none, and ent
+writes the annotation out for it rather than refusing — so the index would come
+up covering every row and a freed name would stay taken with nothing to say so.
+The generated `NewServer` refuses a dialect this backend writes no SQL for, and
+that set is exactly the two that have partial indexes.
 
 ### Reading a list
 
 Nothing generates a `List`. What a list filters by is the app's, and there is no
-general answer to it — `HolderService.List` filters by a `Ref` because that is
+general answer to it — `CoffeeService.List` filters by a `Ref` because that is
 the plainest thing that works, and it **is meant to be rewritten**.
 
 The paging is not like that. It looks the same for every entity and it is the
@@ -352,9 +346,9 @@ half that is easy to get wrong, so it is borrowed from
 rather than written out:
 
 ```go
-vs, _ := c.Holder().List(ctx, go_app.HolderListRequest_builder{Size: z.Ptr(int32(20))}.Build())
+vs, _ := c.Coffee().List(ctx, go_app.CoffeeListRequest_builder{Size: z.Ptr(int32(20))}.Build())
 for vs.GetNext() != "" {
-    vs, _ = c.Holder().List(ctx, go_app.HolderListRequest_builder{
+    vs, _ = c.Coffee().List(ctx, go_app.CoffeeListRequest_builder{
         Size:  z.Ptr(int32(20)),
         After: z.Ptr(vs.GetNext()),
     }.Build())
@@ -378,7 +372,7 @@ for vs.GetNext() != "" {
 
 A cursor is opaque and it is not secret: a caller who takes one apart asks for
 rows starting somewhere else, which is a question they could have asked anyway
-and which the same wall answers.
+and which the same read answers.
 
 ### What a request must say
 
@@ -387,7 +381,7 @@ constraints in the messages — no `buf.validate`, no validating interceptor. A
 request is checked by the code that is about to act on it.
 
 ```go
-// server/core/holder.go
+// server/core/coffee.go
 if len(fs) > FilterLimit {
     return nil, status.Errorf(codes.InvalidArgument,
         "filters: %d of them, and %d is the most one list carries", len(fs), FilterLimit)
@@ -408,7 +402,7 @@ mixing the two makes it harder to know where to look:
   A filter count past the cap is refused, because dropping half the filters
   would answer a question nobody asked. A declaration has only the one verb.
 - **Most of it is already covered by the code that reads the value.**
-  `HolderPick` refuses a reference that names nothing and says which part was
+  `CoffeePick` refuses a reference that names nothing and says which part was
   wrong; `uuid.FromBytes` refuses sixteen bytes that are not sixteen bytes.
   Declaring `required` and `len: 16` over the top would be a second copy of
   the same rule, drifting.
@@ -424,115 +418,57 @@ there is already a place to say what it will and will not take.
 
 ## Who is calling
 
-Every request is from somebody, and two questions are asked about them. They are
-kept apart because they change for different reasons, and the whole chain — from
-the header a caller sent to the `WHERE` clause it becomes — is written up in
+Every request is from somebody, and **that includes the ones that are from
+nobody**. A caller who presents no credential is served as `frame.Anonymous`,
+which is a caller like any other rather than the absence of one, so there is no
+such thing here as a request with no frame. The whole chain — from the header a
+caller sent to what they may do with it — is written up in
 **[docs/AUTH.md](docs/AUTH.md)**.
 
 The short of it:
 
 | | | |
 | --- | --- | --- |
-| **Who is this?** | `server/auth` | A `Handler` reads a claim, a `Resolver` looks it up. What comes back is a Holder read from the database, not one the caller described. `plain`, `mtls` and `bearer` differ in one thing: where the name comes from. |
-| **...and what did the credential allow?** | `frame.Grant` | A token may allow *less* than the Holder it names — a set of Tenants and a set of methods, the shape of a GitHub fine-grained token. Never more. |
-| **What may they see?** | `gate.Policy`, or the wall | Worked out once, in an interceptor, and carried on the frame. A deployment injects a policy or it does not; unset is the Tenant wall this app has always had. `server/gate/roles` is a reference implementation, and nothing wires it in. |
-| **Which rows, exactly?** | `gate.Wall()` | A predicate in every query the generated servers build. Narrowing is not refusing: a row out of the wall is a row the query does not match, so it is `NotFound`. |
+| **Who is this?** | `server/auth` | A `Handler` reads a credential and says who it is. `plain`, `mtls` and `bearer` differ in one thing: where the name comes from. Nothing is looked up in this app's database — **it has no users**, so who somebody is comes from outside. |
+| **...and what did the credential allow?** | `frame.Grant` | A token may allow *less* than the subject it names — a set of methods. Never more. |
+| **What may they do?** | `server/gate` | Decided once, in an interceptor, before the handler. |
 
-All three answers ride on `server/frame`, worked out once each and read by
-everything after rather than computed again. Their zero values allow nothing and
-see nothing, so a frame that forgets one fails closed.
+**`auth.TokenStore` is the seam an issuer is injected at.** A header and a
+certificate carry a name; a token carries nothing, so somebody has to be asked,
+and that somebody is a JWT this app verifies, an introspection endpoint, or a
+table somebody else owns. What is bundled here is a map, and it is a sample of
+the shape.
 
-**A Tenant is a wall**, and that is the only rule `server/gate` holds:
+`server/gate` holds **one rule of its own**:
 
-- Nothing of another Tenant is visible — `NotFound`, since that it exists is
-  itself something not to say.
-- A Tenant is put up and taken down by the deployment, which is not something
-  that happens from inside one — so both are `Unimplemented`, to everybody.
-- **There is no caller the wall is not about.** What the deployment does for
-  itself, it does through a server the wall was never installed on; that
-  capability is an instance somebody was handed rather than a row somebody is.
+> an anonymous caller may make the calls that were named, and no others.
 
-Every Tenant comes with the Holder that administers it, `admin`, because a
-Tenant nobody holds is a Tenant nobody can do anything with.
+`server.allow_anonymous_reads` names the reads this app generates — `Get`,
+`List`, `Watch` — which is the catalogue shape: anybody may read it, and only a
+caller who said who they are may change it. It is a list of what is *allowed*
+and not a list of what is not, and the difference is the day somebody writes
+`Rename`: that is a write, it is not spelled `Patch`, and the other way round
+would have opened it to everybody with nothing anywhere to say so.
 
-It is a sample. An app with more to say about who may do what says it in
-`server/gate`, or injects a `gate.Policy` and says it somewhere else entirely.
+Everything finer is a deployment's, and `gate.Policy` is where it is injected —
+unset by default, and `server/gate/roles` is a reference implementation that
+nothing wires in. This app is a resource server: it reads credentials and
+enforces what it is told, and it does not define roles or decide who holds them.
 
-## What was changed, and by whom
+**There is no wall here.** Nothing narrows what a caller may *see* — every row
+is everybody's to read. An app whose rows belong to somebody says so as a
+predicate in the query rather than as a rule per RPC, which is what `bare.Scope`
+is the hook for; this branch installs none. See the `kind/server` branch, whose
+whole subject is that.
 
-Every request that changes anything writes a row of the trail: who did it, which
-RPC they did it with, which row it was about, and — when the RPC carried one —
-the patch document that was applied.
+## Telling somebody what changed
 
-**Nothing lists the RPCs.** A trail kept by a layer in front would be an
-override per RPC per entity, and one more of them every time the schema grows.
-Worse, it could not be complete: `Patch` and `Apply` are two RPCs and one write,
-and they become one *inside* `server/bare`, below anything that can be stacked
-on top — `Patch` turns its request into a document and calls the same unexported
-path `Apply` does. A layer above sees two shapes and has to convert one of them
-itself, and still cannot tell a document that wrote something from one that only
-asserted.
-
-So the trail is kept where the write happens. `protoc-gen-orm-ent` emits a
-`Recorder` into `server/bare`, and the generated servers call it from inside the
-transaction that makes the write:
-
-```go
-type Change struct {
-	// The whole of what happened: the service names the entity, and the method
-	// is always one of the four, so it says which kind of thing and what was
-	// done to it. Nothing beside it repeats either half.
-	Method string          // "/go_app.HolderService/Apply"
-
-	Key   any              // the row, by its key -- never by the alias the request named it with
-	Patch *patchpb.Patch   // what Patch became, or what Apply carried; nil for the rest
-}
-
-type Recorder interface {
-	Record(ctx context.Context, s Server, c Change) error
-}
-```
-
-Three things follow from *where* it is, and they are the whole design:
-
-- **It is one write.** The row and the record of it are in the same
-  transaction, so they hold or fall together. `server/audit.Recorder` writes
-  through the `Server` it is handed, which runs on that transaction — and which
-  does not record, so a trail cannot audit itself into a loop.
-- **It records what was stored.** `server/core` normalizes on the way down; a
-  trail in front of it would say the caller wrote `" Johnny "` into a row that
-  holds `johnny`.
-- **It records only what happened.** A document made of nothing but `test`
-  asserts something and writes nothing, and is not on the trail. Neither is an
-  erase that erased nothing, nor a request the gate refused.
-
-What is stored as the `action` is `Change.Method`, which is what the *caller*
-asked for — the RPC gRPC dispatched. A write also says which generated server
-made it (`Change.By`), and that is deliberately not what goes here: adding a
-Tenant writes the admin Holder that comes with it, and that write is a
-`HolderService/Add` although nobody asked for a Holder. An RPC written by hand
-that ends in a `Patch` is on the trail under its own name for the same reason —
-"who renamed this" has to answer with `Rename`. What the request did to which
-row is `object_id`'s to say, and a write nobody called over the wire — the
-deployment writing to itself at startup — has only the one name, so `Method` is
-`By` there.
-
-The row is named by its identifier and not by its kind, because an identifier is
-unique across every table: whatever answers to it is what the row was about. The
-cost is real and worth knowing — a row erased later leaves an identifier nothing
-answers to, and nothing says what it used to be. Which is why a Holder is
-[erased softly](#erasing-a-holder-and-erasing-a-tenant): the trail names one on
-every row it writes, and a Holder who left should not turn the answer to "who
-did this" into an identifier and a shrug.
-
-### Telling somebody what changed
-
-`server/watch` hangs off the same `bare.Recorder` hook the trail does, and wants
-the opposite thing from that moment. A trail row has to hold or fall **with** the
-write, so it is written inside the transaction. An event has to be published only
-if the write **survived**, so nothing is published there at all: the recorder
-remembers, and an interceptor publishes once the handler has answered without an
-error — by which time every transaction the call opened is committed or gone.
+`server/watch` hangs off `bare.Recorder`, the hook the generated servers call
+from **inside** the transaction that makes a write — and it wants the opposite of
+what that moment offers. An event has to be published only if the write
+**survived**, so nothing is published there at all: the recorder remembers, and
+an interceptor publishes once the handler has answered without an error, by which
+time every transaction the call opened is committed or gone with it.
 
 ```go
 events := watch.Signal()
@@ -546,8 +482,8 @@ c, stop := events.Subscribe(64)   // whoever is listening
 
 One event per call that changed something, carrying who, the RPC they asked for,
 the request, the response, and every write the call made — which is more than the
-response says, since adding a Tenant writes the admin Holder that comes with it.
-A read publishes nothing.
+response says, since erasing a Roaster takes its Coffees with it. A read
+publishes nothing.
 
 It is a [hard signal](https://github.com/lesomnus/signals): a subscriber that is
 not keeping up has its channel **closed**. That is the only one of the three
@@ -565,7 +501,7 @@ must not be lost is written in the transaction, as a row somebody else picks up.
 
 What a client gets is **the row as it is now**, never a description of what
 changed. That is what makes a stream that missed something still correct: the
-next item about a Holder carries the whole of it, so a client converges instead
+next item about a Coffee carries the whole of it, so a client converges instead
 of replaying. It is why nothing here keeps a version, a cursor or a backlog.
 
 ```
@@ -577,20 +513,21 @@ per event:  Get(id)          the row as it is now, and the filters tested on it
 Three things fall out of that order:
 
 - **A client does not List and then Watch and race the two.** Subscribing first
-  means the only thing that can go wrong is a Holder arriving twice — in the
+  means the only thing that can go wrong is a Coffee arriving twice — in the
   snapshot and again as a change — and a duplicate is harmless when the payload
   is state.
-- **The wall stays in one place.** The row is read back *through the servers
-  behind this one*, with the context of the caller who asked, so it is walled by
-  the same predicate as every other read. Nothing in `server/watch` knows what a
-  Tenant is. The filters are the caller's own and are tested in Go, which is a
-  different kind of thing: a filter that is wrong shows somebody a row of theirs
-  they asked not to see, and a wall that is wrong shows them somebody else's.
-- **A removal is said by absence.** `HolderWatchItem.value` is unset when the
-  Holder is no longer one this caller may see, and there is deliberately no way
-  to tell "erased" from "no longer yours" — a stream that distinguished them
-  would be reporting rows that stopped being the caller's. It is only ever said
-  about a Holder the stream has already carried.
+- **Whatever narrows a read stays in one place.** The row is read back *through
+  the servers behind this one*, with the context of the caller who asked, so it
+  is narrowed by the same predicate as every other read — today the soft delete,
+  and whatever else an app installs in `bare.Scope`. Nothing in `server/watch`
+  knows what any of it means. The filters are the caller's own and are tested in
+  Go, which is a different kind of thing: nothing that must not be got wrong
+  depends on them.
+- **A removal is said by absence.** `CoffeeWatchItem.value` is unset when the
+  Coffee is no longer one this caller may see, and there is deliberately no way
+  to tell "erased" from "no longer visible" — a stream that distinguished them
+  would be reporting rows that stopped being readable. It is only ever said
+  about a Coffee the stream has already carried.
 
 `action` is the RPC the caller of *that* change asked for, so an RPC written by
 hand is here under its own name; what it means is that RPC's documentation to
@@ -602,70 +539,7 @@ A stream that falls more than `watch.Backlog` behind is cut off with
 `ResourceExhausted`. Asking again is the recovery: a fresh stream begins with
 everything that matches now.
 
-`TenantService.Watch` is the same in every way. **`AuditService.Watch` is not**,
-and every difference comes from one fact: a trail row is written once, never
-changed and never erased. So it sends no first message — there is nothing to
-converge on, and what happened before is what `List` is for — and it answers
-with rows rather than the wrapper, since a row does not stop being a row and
-there is no removal to say by absence.
-
-Serving it needed one small door: the trail is deliberately not on the trail, so
-its own writes are the one thing nothing is told about. `audit.WithRecorder`
-opens that to something that only wants to *hear*, and comes with the rule that
-whatever is given must not write through the server it is handed.
-
-**The trail is the actor's, not the object's.** A row is stamped with the Tenant
-the caller was held by, and nothing moves it afterwards. Two things follow, and
-both are on purpose:
-
-- A thing transferred to another Tenant **leaves its whole trail behind**.
-  Receiving something does not come with the right to read what its previous
-  owner did inside their own walls.
-- A Tenant **does not see what was done to its own rows from outside it**. A
-  caller from elsewhere writing into acme leaves a row that is theirs to read,
-  not acme's.
-
-Closing the second half means recording the Tenant of the *object* too, at the
-time of the write, and that is deliberately not done. The recorder is told about
-a write after it has happened, and for a `Tenant` — which is erased for real —
-an `Erase` has by then taken away the row it would have read. Making it
-available means either eagerly loading every edge of every entity on every
-`Erase`, in a generator that serves more than this app, or recording before the
-write is known to have happened.
-
-Soft erasure changes that for `Holder` and not for the rest, which is the answer
-rather than a way around it. An erased Holder is still a row, so the recorder
-*could* read it — and a column that is right for the entities that erase softly
-and empty for the ones that do not is the same wrong shape as one that is right
-for three RPCs and missing for the fourth. It would read as "no Tenant" where it
-means "not recorded here".
-
-What it costs, and only while a recorder is configured: `Add` and `Erase` open a
-transaction they did not need before, and `Erase` reads the row before writing
-to it — a request may name a row by its alias, and an alias is not what a trail
-is read back with.
-
-The trail is read with `AuditService.List`, filtered by the identifier of the
-thing it is about, newest first, and a page at a time — a trail is the list most
-likely to outgrow one answer, and reading further back is what
-[a cursor](#reading-a-list) is for. It is walled the way everything else is: a
-row belongs to the Tenant the caller was held by. Writing one is `Unimplemented`
-to everybody — the RPCs exist because the entity is a CRUD one and a test is far
-plainer for having them, but a trail a deployment can edit is evidence of
-nothing.
-
-```go
-vs, _ := c.Audit().List(ctx, go_app.AuditListRequest_builder{
-	Filters: []*go_app.AuditFilter{
-		go_app.AuditFilter_builder{ObjectId: v.GetId()}.Build(),
-	},
-}.Build())
-```
-
-Reads leave no row — a trail that grew by one every time somebody looked at
-something would be a traffic log. Who called what, for *every* RPC, is a line in
-the log instead: `server/auth` writes one as it works out who is calling, and it
-carries the same trace as the `served` line that follows it.
+`RoasterService.Watch` is the same in every way.
 
 ## Testing
 
@@ -675,30 +549,32 @@ listener, so the test travels the same gRPC stack the app is served with
 without opening a port or leaving anything behind.
 
 ```go
-func TestTenantAdd(t *testing.T) {
+func TestRoasterAdd(t *testing.T) {
 	t.Run("alias is normalized", ox.T(func(ctx context.Context, x *ox.X, c *ox.Client) {
-		v, err := c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: " Acme "}.Build())
+		v, err := c.Roaster().Add(ctx, go_app.RoasterAddRequest_builder{Alias: " Beans "}.Build())
 		x.NoError(err)
-		x.Equal("acme", v.GetAlias())
+		x.Equal("beans", v.GetAlias())
 
 		// `x` asserts like `require` does, and knows about gRPC.
-		_, err = c.Tenant().Add(ctx, go_app.TenantAddRequest_builder{Alias: "acme"}.Build())
+		_, err = c.Roaster().Add(ctx, go_app.RoasterAddRequest_builder{Alias: "beans"}.Build())
 		x.ErrCode(codes.AlreadyExists, err)
 	}))
 }
 ```
 
-A test is served as the admin of the first Tenant — a Holder like any other, not
-a privileged one. `c.Ungated()` is a client of the stack without the wall, which
-is how a test arranges the Tenants it is about; `c.AsAdminOf(ctx, x, tenant)`
-travels as somebody inside one. `c.AsHolder(ctx, v)`
-says it is somebody else, and `c.AsNobody(ctx)` says nothing at all. Those go
-through the same authentication the app is served with, so what a test travels
-is what a caller travels.
+A test is served as somebody — `c.As(ctx, "anna")` is anybody in particular, and
+`c.AsNobody(ctx)` is the anonymous caller, which is a caller like any other.
+`c.AsBearer(ctx, token)` travels as a credential that allows less than its
+subject does. All of them go through the same authentication the app is served
+with, so what a test travels is what a caller travels.
 
 `c.Bare()` is a second client, of the innermost server, that skips the rules of
 the servers in front of it; it is how a test arranges a state the app itself
-would refuse to create. See `server/core/tenant_test.go` for the examples.
+would refuse to create.
+
+`c.Server.Gate` and `c.Server.Policy` are what `server/gate` decides with, and
+`c.Server.Events` is what a watcher would be listening to. Set them before
+making the client that should meet them; see `server/gate/gate_test.go`.
 
 The test is served with the same options the app is (`internal/grpcx`), and
 whatever the server logs is attached to the test that ran it, so a recovered
@@ -718,8 +594,8 @@ by default, so it runs without anything else around:
 ```sh
 $ go run . serve --db-migrate
 > |........| 19:08:03.037 ○ 000000 000000 serving grpc - addr=[::]:50051 tls=false auth=[plain]
-> |........| 19:08:07.451 ○ 98de37 73b3a4 ›» 127.0.0.1......... 0008B go_app.TenantService/Get
-> |........| 19:08:07.455 ○ 98de37 73b3a4 «‹ .OK 001.18ms 0008B 0081B go_app.TenantService/Get
+> |........| 19:08:07.451 ○ 98de37 73b3a4 ›» 127.0.0.1......... 0008B go_app.RoasterService/Get
+> |........| 19:08:07.455 ○ 98de37 73b3a4 «‹ .OK 001.18ms 0008B 0081B go_app.RoasterService/Get
 ```
 
 `--db-migrate` runs ent's auto migration on startup, which is handy in
@@ -770,9 +646,12 @@ defaulted because a wrong one costs a call, and a rate cannot — a number a
 template picked is a number nobody measured, and what it refuses is real traffic
 on the day the app is busiest.
 
-**Counted against the Tenant** (`gate.ByTenant`), not the Holder and not the
-credential. A Tenant makes as many of those as it likes, so counting either
-would be a limit anybody could raise by asking for another one. The limit is
+**Counted against the subject** (`gate.BySubject`), and **every anonymous caller
+against one bucket between them**. That last part is the whole of what this can
+honestly do: an anonymous caller has nothing to be told apart by, since an
+address is the load balancer's or a company's. So a limit here protects the app
+from anonymous traffic *in total* and does nothing about one anonymous caller
+among many — which is the layer in front's to do, where the addresses are real. The limit is
 installed behind the authentication, since the key is about who is calling, and
 in front of `gate.Interceptor`, since consulting a policy is work a caller past
 their line should not be able to ask for.
@@ -819,7 +698,7 @@ fast path is untouched and everything that cannot speak it comes here.
 
 | | |
 | --- | --- |
-| **grpc-web** | `server.http.allow_grpc_web` — gRPC reframed so a browser can send it: the trailers ride in the body. Translated and handed to the **same** `grpc.Server`, so a browser meets the same interceptors, the same authentication and the same wall. That translation does go the slow way, which is the right place for it: a browser is not the throughput. |
+| **grpc-web** | `server.http.allow_grpc_web` — gRPC reframed so a browser can send it: the trailers ride in the body. Translated and handed to the **same** `grpc.Server`, so a browser meets the same interceptors, the same authentication and the same rules. That translation does go the slow way, which is the right place for it: a browser is not the throughput. |
 | `/healthz` | Out of the same `health.Server` the gRPC health service answers from, so the two probes can never disagree. `/healthz/liveness` is the other question. |
 | **pprof** | `server.http.allow_pprof`, off unless asked. Note that importing `net/http/pprof` at all registers it on `http.DefaultServeMux` — which is why nothing in this app ever serves that mux, and why there is a test that says so. |
 | your own | `httpx.Options.Mux` is where a deployment puts whatever else it serves. |
@@ -950,12 +829,12 @@ its own, so that works from inside it as well.
 $ ./scripts/gen-go.sh && ./scripts/gen-ent.sh
 
 # 2. Write the difference as a migration. Flags come before the name.
-$ go run . migrate plan --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" add_holder_email
-> written: 20260801175803_add_holder_email.sql
+$ go run . migrate plan --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" add_coffee_email
+> written: 20260801175803_add_coffee_email.sql
 > read them before they are applied to anything.
 
 # 3. Read what was written, then commit it with the schema change.
-$ cat migrations/20260801175803_add_holder_email.sql
+$ cat migrations/20260801175803_add_coffee_email.sql
 ```
 
 `db.dev_dsn` in the configuration file says the same thing as `--dev`. Either
@@ -996,7 +875,7 @@ already there:
 
 ```
 $ go run . migrate apply
-> error: apply: execute: ... ERROR: relation "tenant" already exists (SQLSTATE 42P07)
+> error: apply: execute: ... ERROR: relation "roaster" already exists (SQLSTATE 42P07)
 ```
 
 It records that failure as well, so the database has to be dropped anyway.
@@ -1016,10 +895,10 @@ database.
 ```sh
 # What would run, and nothing else.
 $ go run . migrate apply --dry-run
-> pending: 20260801175803_add_holder_email.sql
+> pending: 20260801175803_add_coffee_email.sql
 
 $ go run . migrate apply
-> applied: 20260801175803_add_holder_email.sql
+> applied: 20260801175803_add_coffee_email.sql
 ```
 
 Which migrations a database has run is recorded in the database itself, in the

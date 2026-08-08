@@ -1,84 +1,52 @@
 package frame
 
-import (
-	"slices"
+import "slices"
 
-	"github.com/google/uuid"
-)
-
-// Grant is what a credential allows, which is at most what the Holder it names
+// Grant is what a credential allows, which is at most what the Actor it names
 // allows.
 //
 // It is an attenuation and never a widening: a credential cannot let its bearer
-// do what the Holder could not. Whatever decides what the Holder may do -- the
-// wall, and whatever a deployment puts above it -- runs as it always did, and
-// this narrows the answer afterwards. A token that says "every tenant" held by
-// somebody who may see one still sees one.
+// do what the subject could not. Whatever decides what the subject may do --
+// `server/gate`, and whatever a deployment injects into it -- runs as it always
+// did, and this narrows the answer afterwards.
 //
-// Two axes, each narrowed or not, which is the shape of a GitHub fine-grained
-// token: a set of resources and a set of things that may be done to them. It is
-// deliberately not a map of one to the other -- "write here, read there" -- and
-// GitHub does not do that either. A permission set that varies per resource is
-// a policy, and a policy is not something a credential should be carrying
-// around.
+// One axis, because a credential has one honest thing to say: which of the
+// calls its subject may make it is for. A permission set that varied per
+// resource would be a policy, and a policy is not something a credential should
+// be carrying around; GitHub's fine-grained tokens do not do it either.
 //
 // **The zero value allows nothing.** A store that answers with a Grant it
 // forgot to fill in hands out a credential that can do nothing, which somebody
 // notices immediately; the other way round it hands out one that can do
 // everything, which nobody notices at all.
 type Grant struct {
-	anyTenant bool
-	anyAction bool
-
-	tenants []uuid.UUID
+	any     bool
 	actions []string
 }
 
-// Whole is a credential that narrows nothing: it allows whatever the Holder it
+// Whole is a credential that narrows nothing: it allows whatever the subject it
 // names allows. A header and a certificate are always this, since neither has
 // anywhere to carry an attenuation.
 func Whole() Grant {
-	return Grant{anyTenant: true, anyAction: true}
-}
-
-// In narrows a Grant to the given Tenants. Naming none allows none, which is
-// what a credential that was given an empty list asked for.
-func (g Grant) In(vs ...uuid.UUID) Grant {
-	g.anyTenant = false
-	g.tenants = slices.Clip(slices.Clone(vs))
-
-	return g
+	return Grant{any: true}
 }
 
 // To narrows a Grant to the given methods, by the name gRPC knows them by --
-// "/go_app.HolderService/Get". Naming none allows none.
-func (g Grant) To(vs ...string) Grant {
-	g.anyAction = false
-	g.actions = slices.Clip(slices.Clone(vs))
-
-	return g
+// "/go_app.CoffeeService/Get". Naming none allows none.
+func To(vs ...string) Grant {
+	return Grant{actions: slices.Clip(slices.Clone(vs))}
 }
 
 // IsWhole reports whether this narrows nothing at all.
-func (g Grant) IsWhole() bool {
-	return g.anyTenant && g.anyAction
-}
+func (g Grant) IsWhole() bool { return g.any }
 
-// AnyTenant reports whether this narrows no Tenant, in which case
-// [Grant.TenantIds] says nothing.
-func (g Grant) AnyTenant() bool {
-	return g.anyTenant
-}
-
-// TenantIds is what this narrows to.
-func (g Grant) TenantIds() []uuid.UUID {
-	return g.tenants
-}
+// Actions is what this narrows to, and says nothing when [Grant.IsWhole].
+func (g Grant) Actions() []string { return g.actions }
 
 // Allows reports whether the given method is one this credential may be used
 // for.
 func (g Grant) Allows(method string) bool {
-	if g.anyAction {
+	if g.any {
 		return true
 	}
 

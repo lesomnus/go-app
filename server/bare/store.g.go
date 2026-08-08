@@ -234,9 +234,8 @@ func record(ctx context.Context, rec Recorder, db *ent.Client, c Change) error {
 // Embed [Unscoped] to write out only the entities there is something to
 // say about.
 type Scope interface {
-	AuditScope(ctx context.Context) (predicate.Audit, error)
-	TenantScope(ctx context.Context) (predicate.Tenant, error)
-	HolderScope(ctx context.Context) (predicate.Holder, error)
+	RoasterScope(ctx context.Context) (predicate.Roaster, error)
+	CoffeeScope(ctx context.Context) (predicate.Coffee, error)
 }
 
 // Unscoped is a [Scope] that narrows nothing. Embed it and write out the
@@ -251,13 +250,10 @@ type Unscoped struct{}
 
 var _ Scope = Unscoped{}
 
-func (Unscoped) AuditScope(_ context.Context) (predicate.Audit, error) {
+func (Unscoped) RoasterScope(_ context.Context) (predicate.Roaster, error) {
 	return nil, nil
 }
-func (Unscoped) TenantScope(_ context.Context) (predicate.Tenant, error) {
-	return nil, nil
-}
-func (Unscoped) HolderScope(_ context.Context) (predicate.Holder, error) {
+func (Unscoped) CoffeeScope(_ context.Context) (predicate.Coffee, error) {
 	return nil, nil
 }
 
@@ -270,7 +266,7 @@ func (Unscoped) HolderScope(_ context.Context) (predicate.Holder, error) {
 // is rendered for that dialect, not just what this server writes.
 //
 // That set is also what a soft erasure needs, so this is the whole
-// check. Holder frees the names it held when a row
+// check. Coffee frees the names it held when a row
 // is erased, which is a unique index covering only the rows that are
 // still there -- a partial index, and the dialects above are the ones
 // that have one. MySQL does not, and ent writes the annotation out for
@@ -306,6 +302,5 @@ func (s Server) WithDriver(drv dialect.Driver) (go_app.Server, error) {
 	return s, nil
 }
 
-func (s Server) Audit() go_app.AuditServiceServer   { return AuditServiceServer{Store: s.Store} }
-func (s Server) Tenant() go_app.TenantServiceServer { return TenantServiceServer{Store: s.Store} }
-func (s Server) Holder() go_app.HolderServiceServer { return HolderServiceServer{Store: s.Store} }
+func (s Server) Roaster() go_app.RoasterServiceServer { return RoasterServiceServer{Store: s.Store} }
+func (s Server) Coffee() go_app.CoffeeServiceServer   { return CoffeeServiceServer{Store: s.Store} }

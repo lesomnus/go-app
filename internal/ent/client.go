@@ -16,9 +16,8 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/lesomnus/go-app/internal/ent/audit"
-	"github.com/lesomnus/go-app/internal/ent/holder"
-	"github.com/lesomnus/go-app/internal/ent/tenant"
+	"github.com/lesomnus/go-app/internal/ent/coffee"
+	"github.com/lesomnus/go-app/internal/ent/roaster"
 )
 
 // Client is the client that holds all ent builders.
@@ -26,12 +25,10 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
-	// Audit is the client for interacting with the Audit builders.
-	Audit *AuditClient
-	// Holder is the client for interacting with the Holder builders.
-	Holder *HolderClient
-	// Tenant is the client for interacting with the Tenant builders.
-	Tenant *TenantClient
+	// Coffee is the client for interacting with the Coffee builders.
+	Coffee *CoffeeClient
+	// Roaster is the client for interacting with the Roaster builders.
+	Roaster *RoasterClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -43,9 +40,8 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
-	c.Audit = NewAuditClient(c.config)
-	c.Holder = NewHolderClient(c.config)
-	c.Tenant = NewTenantClient(c.config)
+	c.Coffee = NewCoffeeClient(c.config)
+	c.Roaster = NewRoasterClient(c.config)
 }
 
 type (
@@ -136,11 +132,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Audit:  NewAuditClient(cfg),
-		Holder: NewHolderClient(cfg),
-		Tenant: NewTenantClient(cfg),
+		ctx:     ctx,
+		config:  cfg,
+		Coffee:  NewCoffeeClient(cfg),
+		Roaster: NewRoasterClient(cfg),
 	}, nil
 }
 
@@ -158,18 +153,17 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Audit:  NewAuditClient(cfg),
-		Holder: NewHolderClient(cfg),
-		Tenant: NewTenantClient(cfg),
+		ctx:     ctx,
+		config:  cfg,
+		Coffee:  NewCoffeeClient(cfg),
+		Roaster: NewRoasterClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Audit.
+//		Coffee.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -191,134 +185,130 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Audit.Use(hooks...)
-	c.Holder.Use(hooks...)
-	c.Tenant.Use(hooks...)
+	c.Coffee.Use(hooks...)
+	c.Roaster.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Audit.Intercept(interceptors...)
-	c.Holder.Intercept(interceptors...)
-	c.Tenant.Intercept(interceptors...)
+	c.Coffee.Intercept(interceptors...)
+	c.Roaster.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
-	case *AuditMutation:
-		return c.Audit.mutate(ctx, m)
-	case *HolderMutation:
-		return c.Holder.mutate(ctx, m)
-	case *TenantMutation:
-		return c.Tenant.mutate(ctx, m)
+	case *CoffeeMutation:
+		return c.Coffee.mutate(ctx, m)
+	case *RoasterMutation:
+		return c.Roaster.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
 }
 
-// AuditClient is a client for the Audit schema.
-type AuditClient struct {
+// CoffeeClient is a client for the Coffee schema.
+type CoffeeClient struct {
 	config
 }
 
-// NewAuditClient returns a client for the Audit from the given config.
-func NewAuditClient(c config) *AuditClient {
-	return &AuditClient{config: c}
+// NewCoffeeClient returns a client for the Coffee from the given config.
+func NewCoffeeClient(c config) *CoffeeClient {
+	return &CoffeeClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `audit.Hooks(f(g(h())))`.
-func (c *AuditClient) Use(hooks ...Hook) {
-	c.hooks.Audit = append(c.hooks.Audit, hooks...)
+// A call to `Use(f, g, h)` equals to `coffee.Hooks(f(g(h())))`.
+func (c *CoffeeClient) Use(hooks ...Hook) {
+	c.hooks.Coffee = append(c.hooks.Coffee, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `audit.Intercept(f(g(h())))`.
-func (c *AuditClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Audit = append(c.inters.Audit, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `coffee.Intercept(f(g(h())))`.
+func (c *CoffeeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Coffee = append(c.inters.Coffee, interceptors...)
 }
 
-// Create returns a builder for creating a Audit entity.
-func (c *AuditClient) Create() *AuditCreate {
-	mutation := newAuditMutation(c.config, OpCreate)
-	return &AuditCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a Coffee entity.
+func (c *CoffeeClient) Create() *CoffeeCreate {
+	mutation := newCoffeeMutation(c.config, OpCreate)
+	return &CoffeeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of Audit entities.
-func (c *AuditClient) CreateBulk(builders ...*AuditCreate) *AuditCreateBulk {
-	return &AuditCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of Coffee entities.
+func (c *CoffeeClient) CreateBulk(builders ...*CoffeeCreate) *CoffeeCreateBulk {
+	return &CoffeeCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *AuditClient) MapCreateBulk(slice any, setFunc func(*AuditCreate, int)) *AuditCreateBulk {
+func (c *CoffeeClient) MapCreateBulk(slice any, setFunc func(*CoffeeCreate, int)) *CoffeeCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &AuditCreateBulk{err: fmt.Errorf("calling to AuditClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &CoffeeCreateBulk{err: fmt.Errorf("calling to CoffeeClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*AuditCreate, rv.Len())
+	builders := make([]*CoffeeCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &AuditCreateBulk{config: c.config, builders: builders}
+	return &CoffeeCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for Audit.
-func (c *AuditClient) Update() *AuditUpdate {
-	mutation := newAuditMutation(c.config, OpUpdate)
-	return &AuditUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for Coffee.
+func (c *CoffeeClient) Update() *CoffeeUpdate {
+	mutation := newCoffeeMutation(c.config, OpUpdate)
+	return &CoffeeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *AuditClient) UpdateOne(_m *Audit) *AuditUpdateOne {
-	mutation := newAuditMutation(c.config, OpUpdateOne, withAudit(_m))
-	return &AuditUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *CoffeeClient) UpdateOne(_m *Coffee) *CoffeeUpdateOne {
+	mutation := newCoffeeMutation(c.config, OpUpdateOne, withCoffee(_m))
+	return &CoffeeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *AuditClient) UpdateOneID(id uuid.UUID) *AuditUpdateOne {
-	mutation := newAuditMutation(c.config, OpUpdateOne, withAuditID(id))
-	return &AuditUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *CoffeeClient) UpdateOneID(id uuid.UUID) *CoffeeUpdateOne {
+	mutation := newCoffeeMutation(c.config, OpUpdateOne, withCoffeeID(id))
+	return &CoffeeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for Audit.
-func (c *AuditClient) Delete() *AuditDelete {
-	mutation := newAuditMutation(c.config, OpDelete)
-	return &AuditDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for Coffee.
+func (c *CoffeeClient) Delete() *CoffeeDelete {
+	mutation := newCoffeeMutation(c.config, OpDelete)
+	return &CoffeeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *AuditClient) DeleteOne(_m *Audit) *AuditDeleteOne {
+func (c *CoffeeClient) DeleteOne(_m *Coffee) *CoffeeDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *AuditClient) DeleteOneID(id uuid.UUID) *AuditDeleteOne {
-	builder := c.Delete().Where(audit.ID(id))
+func (c *CoffeeClient) DeleteOneID(id uuid.UUID) *CoffeeDeleteOne {
+	builder := c.Delete().Where(coffee.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &AuditDeleteOne{builder}
+	return &CoffeeDeleteOne{builder}
 }
 
-// Query returns a query builder for Audit.
-func (c *AuditClient) Query() *AuditQuery {
-	return &AuditQuery{
+// Query returns a query builder for Coffee.
+func (c *CoffeeClient) Query() *CoffeeQuery {
+	return &CoffeeQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeAudit},
+		ctx:    &QueryContext{Type: TypeCoffee},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a Audit entity by its id.
-func (c *AuditClient) Get(ctx context.Context, id uuid.UUID) (*Audit, error) {
-	return c.Query().Where(audit.ID(id)).Only(ctx)
+// Get returns a Coffee entity by its id.
+func (c *CoffeeClient) Get(ctx context.Context, id uuid.UUID) (*Coffee, error) {
+	return c.Query().Where(coffee.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *AuditClient) GetX(ctx context.Context, id uuid.UUID) *Audit {
+func (c *CoffeeClient) GetX(ctx context.Context, id uuid.UUID) *Coffee {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -326,148 +316,15 @@ func (c *AuditClient) GetX(ctx context.Context, id uuid.UUID) *Audit {
 	return obj
 }
 
-// Hooks returns the client hooks.
-func (c *AuditClient) Hooks() []Hook {
-	return c.hooks.Audit
-}
-
-// Interceptors returns the client interceptors.
-func (c *AuditClient) Interceptors() []Interceptor {
-	return c.inters.Audit
-}
-
-func (c *AuditClient) mutate(ctx context.Context, m *AuditMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&AuditCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&AuditUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&AuditUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&AuditDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown Audit mutation op: %q", m.Op())
-	}
-}
-
-// HolderClient is a client for the Holder schema.
-type HolderClient struct {
-	config
-}
-
-// NewHolderClient returns a client for the Holder from the given config.
-func NewHolderClient(c config) *HolderClient {
-	return &HolderClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `holder.Hooks(f(g(h())))`.
-func (c *HolderClient) Use(hooks ...Hook) {
-	c.hooks.Holder = append(c.hooks.Holder, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `holder.Intercept(f(g(h())))`.
-func (c *HolderClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Holder = append(c.inters.Holder, interceptors...)
-}
-
-// Create returns a builder for creating a Holder entity.
-func (c *HolderClient) Create() *HolderCreate {
-	mutation := newHolderMutation(c.config, OpCreate)
-	return &HolderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of Holder entities.
-func (c *HolderClient) CreateBulk(builders ...*HolderCreate) *HolderCreateBulk {
-	return &HolderCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *HolderClient) MapCreateBulk(slice any, setFunc func(*HolderCreate, int)) *HolderCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &HolderCreateBulk{err: fmt.Errorf("calling to HolderClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*HolderCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &HolderCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for Holder.
-func (c *HolderClient) Update() *HolderUpdate {
-	mutation := newHolderMutation(c.config, OpUpdate)
-	return &HolderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *HolderClient) UpdateOne(_m *Holder) *HolderUpdateOne {
-	mutation := newHolderMutation(c.config, OpUpdateOne, withHolder(_m))
-	return &HolderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *HolderClient) UpdateOneID(id uuid.UUID) *HolderUpdateOne {
-	mutation := newHolderMutation(c.config, OpUpdateOne, withHolderID(id))
-	return &HolderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for Holder.
-func (c *HolderClient) Delete() *HolderDelete {
-	mutation := newHolderMutation(c.config, OpDelete)
-	return &HolderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *HolderClient) DeleteOne(_m *Holder) *HolderDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *HolderClient) DeleteOneID(id uuid.UUID) *HolderDeleteOne {
-	builder := c.Delete().Where(holder.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &HolderDeleteOne{builder}
-}
-
-// Query returns a query builder for Holder.
-func (c *HolderClient) Query() *HolderQuery {
-	return &HolderQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeHolder},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a Holder entity by its id.
-func (c *HolderClient) Get(ctx context.Context, id uuid.UUID) (*Holder, error) {
-	return c.Query().Where(holder.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *HolderClient) GetX(ctx context.Context, id uuid.UUID) *Holder {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryTenant queries the tenant edge of a Holder.
-func (c *HolderClient) QueryTenant(_m *Holder) *TenantQuery {
-	query := (&TenantClient{config: c.config}).Query()
+// QueryRoaster queries the roaster edge of a Coffee.
+func (c *CoffeeClient) QueryRoaster(_m *Coffee) *RoasterQuery {
+	query := (&RoasterClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(holder.Table, holder.FieldID, id),
-			sqlgraph.To(tenant.Table, tenant.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, holder.TenantTable, holder.TenantColumn),
+			sqlgraph.From(coffee.Table, coffee.FieldID, id),
+			sqlgraph.To(roaster.Table, roaster.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, coffee.RoasterTable, coffee.RoasterColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -476,131 +333,131 @@ func (c *HolderClient) QueryTenant(_m *Holder) *TenantQuery {
 }
 
 // Hooks returns the client hooks.
-func (c *HolderClient) Hooks() []Hook {
-	return c.hooks.Holder
+func (c *CoffeeClient) Hooks() []Hook {
+	return c.hooks.Coffee
 }
 
 // Interceptors returns the client interceptors.
-func (c *HolderClient) Interceptors() []Interceptor {
-	return c.inters.Holder
+func (c *CoffeeClient) Interceptors() []Interceptor {
+	return c.inters.Coffee
 }
 
-func (c *HolderClient) mutate(ctx context.Context, m *HolderMutation) (Value, error) {
+func (c *CoffeeClient) mutate(ctx context.Context, m *CoffeeMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&HolderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CoffeeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&HolderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CoffeeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&HolderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&CoffeeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&HolderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&CoffeeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown Holder mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown Coffee mutation op: %q", m.Op())
 	}
 }
 
-// TenantClient is a client for the Tenant schema.
-type TenantClient struct {
+// RoasterClient is a client for the Roaster schema.
+type RoasterClient struct {
 	config
 }
 
-// NewTenantClient returns a client for the Tenant from the given config.
-func NewTenantClient(c config) *TenantClient {
-	return &TenantClient{config: c}
+// NewRoasterClient returns a client for the Roaster from the given config.
+func NewRoasterClient(c config) *RoasterClient {
+	return &RoasterClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `tenant.Hooks(f(g(h())))`.
-func (c *TenantClient) Use(hooks ...Hook) {
-	c.hooks.Tenant = append(c.hooks.Tenant, hooks...)
+// A call to `Use(f, g, h)` equals to `roaster.Hooks(f(g(h())))`.
+func (c *RoasterClient) Use(hooks ...Hook) {
+	c.hooks.Roaster = append(c.hooks.Roaster, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `tenant.Intercept(f(g(h())))`.
-func (c *TenantClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Tenant = append(c.inters.Tenant, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `roaster.Intercept(f(g(h())))`.
+func (c *RoasterClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Roaster = append(c.inters.Roaster, interceptors...)
 }
 
-// Create returns a builder for creating a Tenant entity.
-func (c *TenantClient) Create() *TenantCreate {
-	mutation := newTenantMutation(c.config, OpCreate)
-	return &TenantCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a Roaster entity.
+func (c *RoasterClient) Create() *RoasterCreate {
+	mutation := newRoasterMutation(c.config, OpCreate)
+	return &RoasterCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of Tenant entities.
-func (c *TenantClient) CreateBulk(builders ...*TenantCreate) *TenantCreateBulk {
-	return &TenantCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of Roaster entities.
+func (c *RoasterClient) CreateBulk(builders ...*RoasterCreate) *RoasterCreateBulk {
+	return &RoasterCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *TenantClient) MapCreateBulk(slice any, setFunc func(*TenantCreate, int)) *TenantCreateBulk {
+func (c *RoasterClient) MapCreateBulk(slice any, setFunc func(*RoasterCreate, int)) *RoasterCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &TenantCreateBulk{err: fmt.Errorf("calling to TenantClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &RoasterCreateBulk{err: fmt.Errorf("calling to RoasterClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*TenantCreate, rv.Len())
+	builders := make([]*RoasterCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &TenantCreateBulk{config: c.config, builders: builders}
+	return &RoasterCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for Tenant.
-func (c *TenantClient) Update() *TenantUpdate {
-	mutation := newTenantMutation(c.config, OpUpdate)
-	return &TenantUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for Roaster.
+func (c *RoasterClient) Update() *RoasterUpdate {
+	mutation := newRoasterMutation(c.config, OpUpdate)
+	return &RoasterUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *TenantClient) UpdateOne(_m *Tenant) *TenantUpdateOne {
-	mutation := newTenantMutation(c.config, OpUpdateOne, withTenant(_m))
-	return &TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *RoasterClient) UpdateOne(_m *Roaster) *RoasterUpdateOne {
+	mutation := newRoasterMutation(c.config, OpUpdateOne, withRoaster(_m))
+	return &RoasterUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *TenantClient) UpdateOneID(id uuid.UUID) *TenantUpdateOne {
-	mutation := newTenantMutation(c.config, OpUpdateOne, withTenantID(id))
-	return &TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *RoasterClient) UpdateOneID(id uuid.UUID) *RoasterUpdateOne {
+	mutation := newRoasterMutation(c.config, OpUpdateOne, withRoasterID(id))
+	return &RoasterUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for Tenant.
-func (c *TenantClient) Delete() *TenantDelete {
-	mutation := newTenantMutation(c.config, OpDelete)
-	return &TenantDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for Roaster.
+func (c *RoasterClient) Delete() *RoasterDelete {
+	mutation := newRoasterMutation(c.config, OpDelete)
+	return &RoasterDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *TenantClient) DeleteOne(_m *Tenant) *TenantDeleteOne {
+func (c *RoasterClient) DeleteOne(_m *Roaster) *RoasterDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *TenantClient) DeleteOneID(id uuid.UUID) *TenantDeleteOne {
-	builder := c.Delete().Where(tenant.ID(id))
+func (c *RoasterClient) DeleteOneID(id uuid.UUID) *RoasterDeleteOne {
+	builder := c.Delete().Where(roaster.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &TenantDeleteOne{builder}
+	return &RoasterDeleteOne{builder}
 }
 
-// Query returns a query builder for Tenant.
-func (c *TenantClient) Query() *TenantQuery {
-	return &TenantQuery{
+// Query returns a query builder for Roaster.
+func (c *RoasterClient) Query() *RoasterQuery {
+	return &RoasterQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeTenant},
+		ctx:    &QueryContext{Type: TypeRoaster},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a Tenant entity by its id.
-func (c *TenantClient) Get(ctx context.Context, id uuid.UUID) (*Tenant, error) {
-	return c.Query().Where(tenant.ID(id)).Only(ctx)
+// Get returns a Roaster entity by its id.
+func (c *RoasterClient) Get(ctx context.Context, id uuid.UUID) (*Roaster, error) {
+	return c.Query().Where(roaster.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *TenantClient) GetX(ctx context.Context, id uuid.UUID) *Tenant {
+func (c *RoasterClient) GetX(ctx context.Context, id uuid.UUID) *Roaster {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -609,36 +466,36 @@ func (c *TenantClient) GetX(ctx context.Context, id uuid.UUID) *Tenant {
 }
 
 // Hooks returns the client hooks.
-func (c *TenantClient) Hooks() []Hook {
-	return c.hooks.Tenant
+func (c *RoasterClient) Hooks() []Hook {
+	return c.hooks.Roaster
 }
 
 // Interceptors returns the client interceptors.
-func (c *TenantClient) Interceptors() []Interceptor {
-	return c.inters.Tenant
+func (c *RoasterClient) Interceptors() []Interceptor {
+	return c.inters.Roaster
 }
 
-func (c *TenantClient) mutate(ctx context.Context, m *TenantMutation) (Value, error) {
+func (c *RoasterClient) mutate(ctx context.Context, m *RoasterMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&TenantCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&RoasterCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&TenantUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&RoasterUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&RoasterUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&TenantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&RoasterDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown Tenant mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown Roaster mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Audit, Holder, Tenant []ent.Hook
+		Coffee, Roaster []ent.Hook
 	}
 	inters struct {
-		Audit, Holder, Tenant []ent.Interceptor
+		Coffee, Roaster []ent.Interceptor
 	}
 )

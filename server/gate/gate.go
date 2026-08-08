@@ -1,31 +1,30 @@
 // Package gate decides what the caller of a request may do with it.
 //
 // Who the caller is was settled before this: `server/auth` put it in the frame
-// of the request. What is left is whether that caller may see or change the
-// thing being asked about, and here that is one rule - a Tenant is a wall, and
-// what is inside it is not visible from outside.
+// of the request, and **every request has one** -- a caller nobody vouched for
+// is [frame.Anonymous] rather than nobody at all. What is left is what they may
+// do, and this app has one rule of its own about that:
 //
-// Most of that rule is stated here and enforced elsewhere. Narrowing what a
-// caller may see is a predicate, and a predicate belongs in the query, so it is
-// [Wall] and it is installed on the innermost server. What is left in the
-// layers of this package is what is not a predicate: whether a Tenant may be
-// put up or taken down, and which Tenant a Holder may be added to, both of
-// which are about a row that does not exist yet.
+//	an anonymous caller may make the calls that were named, and no others.
 //
-// It is a sample. An app with more to say about who may do what says it here,
-// in front of the rules that hold wherever it runs.
+// A closed list of what is allowed rather than an open list of what is not, and
+// the difference is what happens the day somebody writes an RPC. `Rename` is a
+// write; a rule that let anonymous callers make anything that is not spelled
+// `Add`, `Erase`, `Patch` or `Apply` would have opened it, quietly, to
+// everybody. Nothing written down is nothing allowed.
+//
+// Everything finer than that is a deployment's, and [Policy] is where it is
+// injected. This app is a resource server: it reads credentials and enforces
+// what it is told, and it does not define roles or decide who holds them. See
+// `server/gate/roles` for what one implementation looks like -- nothing wires
+// it in.
 package gate
 
 import (
-	"context"
-
 	"entgo.io/ent/dialect"
 	"github.com/protobuf-orm/protoc-gen-orm-ent/runtime/enttx"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	go_app "github.com/lesomnus/go-app/go_app"
-	"github.com/lesomnus/go-app/server/frame"
 )
 
 var _ go_app.Server = Server{}
@@ -35,6 +34,17 @@ var _ go_app.Server = Server{}
 // what makes forgetting it a compile error instead.
 var _ enttx.Binder[go_app.Server] = Server{}
 
+// Server is the layer, and it overrides nothing.
+//
+// That is worth a sentence rather than a shrug. What this package decides is
+// decided **once, in front**, by [Interceptor] -- before the handler, out of
+// the frame and the method, with nothing of the request in it. A layer that
+// asked again per RPC would be the same question answered once per entity,
+// forever, and the copies would drift.
+//
+// It is here so that the stack has a name for where those rules live, and so
+// that an app that grows a rule about a *particular* RPC has the layer to put
+// it in.
 type Server struct {
 	go_app.Overlay
 }
@@ -62,34 +72,4 @@ type builder struct{}
 
 func (builder) Build(next go_app.Server) (go_app.Server, error) {
 	return NewServer(next), nil
-}
-
-// errNotFound is what is answered about something the caller may not see -- that
-// it exists is itself something not to say -- and about something that is not
-// there, which is the point of the two being the same answer.
-//
-// Most of the time nothing here says it: what a caller may not see is a row the
-// query did not match, and the server that ran the query says so. This is for
-// the one place that asks about a row before writing a different one; see
-// [HolderServiceServer.Add].
-func errNotFound(what string) error {
-	return status.Errorf(codes.NotFound, "%s not found", what)
-}
-
-// errForbidden is for what the caller can see but may not do. Saying "no" here
-// gives nothing away that the caller does not already know.
-func errForbidden(what string) error {
-	return status.Errorf(codes.PermissionDenied, "not yours to %s", what)
-}
-
-// actor is who the request is from. A request that got this far without one is
-// a server that was built without anything in front of it that says who is
-// calling, so it is refused rather than served as nobody.
-func actor(ctx context.Context) (*frame.Frame, error) {
-	f, ok := frame.From(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "who is asking?")
-	}
-
-	return f, nil
 }

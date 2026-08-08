@@ -1,0 +1,115 @@
+edition = "2023";
+package go_app;
+
+import "go_app/roaster.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "patch/patch.proto";
+
+option go_package = "github.com/lesomnus/go-app";
+
+service RoasterService {
+  // Add creates a new Roaster
+  rpc Add(RoasterAddRequest) returns (Roaster);
+  // Get retrieves a Roaster
+  rpc Get(RoasterGetRequest) returns (Roaster);
+  // Patch updates an existing Roaster
+  rpc Patch(RoasterPatchRequest) returns (Roaster);
+  // Apply applies a patch document to an existing Roaster
+  rpc Apply(RoasterApplyRequest) returns (Roaster);
+  // Erase deletes a Roaster
+  rpc Erase(RoasterRef) returns (google.protobuf.Empty);
+  // List the Roasters that match any of the given filters, a page at a time.
+  rpc List(RoasterListRequest) returns (RoasterListResponse);
+  // Watch the Roasters, as they are now and as they change. See
+  // `CoffeeService.Watch`, which this is in every way.
+  rpc Watch(RoasterWatchRequest) returns (stream RoasterWatchResponse);
+}
+
+message RoasterAddRequest {
+  bytes id = 1;
+  string alias = 2 [features.field_presence = IMPLICIT];
+  string name = 3 [features.field_presence = IMPLICIT];
+  string desc = 4 [features.field_presence = IMPLICIT];
+  map<string, string> labels = 5;
+  google.protobuf.Timestamp date_created = 15;
+}
+
+message RoasterGetRequest {
+  RoasterRef ref = 1;
+  RoasterSelect select = 2;
+}
+
+message RoasterRef {
+  oneof key {
+    bytes id = 1;
+    string alias = 2;
+  }
+}
+
+message RoasterSelect {
+  bool all = 1;
+  bool alias = 2;
+  bool name = 3;
+  bool desc = 4;
+  bool labels = 5;
+  bool date_created = 15;
+}
+
+message RoasterPatchRequest {
+  RoasterRef ref = 1;
+  string alias = 4;
+  string name = 6;
+  string desc = 8;
+  map<string, string> labels = 10;
+}
+
+message RoasterApplyRequest {
+  RoasterRef ref = 1;
+  patch.Patch patch = 2;
+}
+
+message RoasterListRequest {
+  // Bounded because the work is; see `CoffeeListRequest.filters`.
+  repeated RoasterFilter filters = 1;
+
+  // How many to answer with, and where to carry on from; see
+  // `CoffeeListRequest`.
+  int32 size = 2;
+  string after = 3;
+}
+
+message RoasterListResponse {
+  repeated Roaster items = 1;
+
+  // What to ask for next, and empty when this was the last of them.
+  string next = 2;
+}
+
+message RoasterFilter {
+  RoasterRef ref = 1;
+}
+
+message RoasterWatchRequest {
+  // Which Roasters to watch, in the same words `List` takes them.
+  repeated RoasterFilter filters = 1;
+}
+
+message RoasterWatchResponse {
+  repeated RoasterWatchItem items = 1;
+}
+
+message RoasterWatchItem {
+  // Which Roaster. Always said, since one that is gone still has to be named.
+  bytes id = 1;
+
+  // The Roaster as it is now, and absent when there is no longer one to see.
+  // See `CoffeeWatchItem.value`.
+  //
+  // A Roaster is erased for real rather than softly, so absence here is the
+  // only thing there could ever have been to say about one that is gone.
+  Roaster value = 2;
+
+  // The RPC that changed it. See `CoffeeWatchItem.action`.
+  string action = 3;
+}
