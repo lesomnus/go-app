@@ -12,6 +12,15 @@ generators out of order and reading the resulting mess as a bug.
 Read [docs/EXTENDING.md](../../../docs/EXTENDING.md) before adding anything. It
 is the procedure; this is the short version plus the traps.
 
+**`Roaster` and `Coffee` are a sample.** In an app made from this template they
+are meant to have been replaced, so a task about "the entities" is probably
+about replacing them and not about adding a third — ask which if it is not
+clear. The procedure is
+[Replacing the sample](../../../docs/EXTENDING.md#replacing-the-sample), and the
+part of it that is silently forgotten is the migrations: the bundled SQLite
+configuration never reads `migrations/`, so a stale directory breaks nothing
+until a deployment runs on PostgreSQL.
+
 ## Never edit these — they are generated
 
 ```
@@ -98,6 +107,13 @@ no tenancy and nothing narrowing what a caller may see. `kind/server-x` is the
 multi-tenant version, where rows belong to somebody and `bare.Scope` is
 installed. Do not mix the two: if the task is about tenancy or a wall, say so and
 ask which branch it belongs on.
+
+An app made from the template has none of this — one branch, and `main` is it.
+GitHub's "Use this template" copies the default branch only, so somebody who
+pressed the button and finds no `server/` took `main` by accident. What they
+want is `git reset --hard origin/kind/server` on the copy they were given, or a
+`git clone --branch kind/server --single-branch` of the template; the README of
+`main` says it in full.
 
 ## The tests
 

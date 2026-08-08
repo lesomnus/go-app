@@ -2,25 +2,55 @@
 
 My flavor of "Hello, World!" for Go app.
 
+**This is `kind/server`**: a gRPC service, with no tenancy and nothing narrowing
+what a caller may *see*. `main` is the base with no server in it at all, and
+`kind/server-x` is this with a wall — a Tenant every row belongs to, and a
+predicate in every query.
+
+If you pressed **Use this template**, make sure this is the branch you ended up
+with: that button copies the *default* branch, which is `main`, so a copy with
+no `server/` in it took the base by accident. `main`'s README says how to fix
+it, and the short of it is `git reset --hard origin/kind/server` on the copy you
+were given. *Then delete this paragraph — your app has one branch.*
+
+## What you need
+
+| | which | for |
+| --- | --- | --- |
+| **Go** | whatever `go.mod` says | everything |
+| **[buf](https://buf.build/docs/installation)** | 1.66 | generating anything from `proto/` |
+| **[Node](https://nodejs.org)** | whatever `ui/.nvmrc` says | `ui/` only |
+| **Docker** | any | the image build, and the dev database a migration is planned against |
+
+Nothing has to be *running*. The bundled configuration is SQLite **in memory**,
+so `go run . serve` and `go test ./...` need no database and leave nothing
+behind; Docker comes into it when you build an image or write a migration.
+
 ## Quick Start
 
 ```sh
-# Rename the template to your own: the module path, the proto package and its
-# directories, the binary, the config file and the `GO_APP_` environment prefix.
-# It then generates everything that is generated, again -- see below for why
-# that is not optional.
+# 1. Make it yours: the module path, the proto package and its directories, the
+#    binary, the config file and the `GO_APP_` environment prefix. It then
+#    generates everything that is generated, again -- see below for why that is
+#    not optional.
 $ ./scripts/init.sh github.com/your-name/your-app
 
-# Build and test the app.
-# Build results will be placed in the `/dist` directory.
-$ docker buildx bake build test
+# 2. It already works, and there is nothing to bring up first. If either of
+#    these does not, it is the tooling above and not anything you wrote.
+$ go test ./...
+$ go run . serve                      # ^C when you have seen it listen
 
-# Load apps into the local Docker engine.
+# 3. And it already builds. Results are placed in `/dist`.
+$ docker buildx bake build test
 $ docker buildx bake app --load
 $ docker run --rm ghcr.io/lesomnus/go-app:local greet
 > |........| 19:08:03.037 ○ 000000 000000 use default config
 > Hello, hypnos!
 ```
+
+Then the actual first task, which is **replacing `Roaster` and `Coffee` with
+what your app is about** — they are a sample, and every one of them is meant to
+go. [docs/EXTENDING.md](docs/EXTENDING.md#replacing-the-sample) is the procedure.
 
 `init.sh` regenerates rather than leaving the generated files it just rewrote,
 and that is load-bearing: a compiled protobuf descriptor is a length-prefixed

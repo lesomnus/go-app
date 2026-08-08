@@ -1,9 +1,9 @@
 # Adding things
 
-How to add an entity and how to add an RPC, with what is generated for you and
-what is not.
+How to replace the sample, how to add an entity, and how to add an RPC — with
+what is generated for you and what is not.
 
-Both start in `proto/`. **Nothing in `go_app/`, `internal/ent/` or
+All of it starts in `proto/`. **Nothing in `go_app/`, `internal/ent/` or
 `server/bare/` is written by hand** — those are generated from the protos, and an
 edit there is lost the next time anything is generated.
 
@@ -24,6 +24,145 @@ $ ./scripts/gen-ent.sh                       # 4. the ent runtime for that schem
 
 Run all four when the schema changed. Steps 2–3 are enough when only an
 `*.ext.proto` changed, since the entity itself did not.
+
+## Replacing the sample
+
+`Roaster` and `Coffee` are a demonstration, and every one of them is meant to
+go. This is the first thing a new app does, and it is a different job from
+adding — most of the work is deciding what to keep.
+
+Which way round depends on whether your app has the shape they demonstrate: **a
+thing, and something it belongs to.** If it does, rename them and keep the
+plumbing; if it does not, delete them and write one.
+
+### If the shape fits: rename
+
+Say the app is about `Post`s that belong to an `Author`.
+
+```sh
+# 1. The hand-written files whose *names* carry an entity.
+$ git mv proto/go_app/roaster.proto             proto/go_app/author.proto
+$ git mv proto/go_app/coffee.proto              proto/go_app/post.proto
+$ git mv proto.svc/go_app/roaster_svc.ext.proto proto.svc/go_app/author_svc.ext.proto
+$ git mv proto.svc/go_app/coffee_svc.ext.proto  proto.svc/go_app/post_svc.ext.proto
+$ git mv server/core/roaster.go                 server/core/author.go
+$ git mv server/core/coffee.go                  server/core/post.go
+$ git mv server/watch/roaster.go                server/watch/author.go
+$ git mv server/watch/coffee.go                 server/watch/post.go
+$ git mv server/watch/roaster_test.go           server/watch/author_test.go
+$ git mv server/watch/coffee_test.go            server/watch/post_test.go
+$ git mv ui/src/useCoffees.ts                   ui/src/usePosts.ts
+
+# 2. And the *generated* ones whose names carry an entity. These are the only
+#    generated files you ever delete by hand: the pipeline rewrites a file per
+#    entity but does not remove one for an entity that stopped existing, and a
+#    left-behind `coffee_svc.proto` declares a `PostService` that is now
+#    declared twice.
+$ rm proto/go_app/{roaster,coffee}_svc.proto \
+     proto.svc/go_app/{roaster,coffee}_svc.g.proto
+
+# 3. The words, wherever they are written by hand.
+$ grep -rl -iE 'roaster|coffee' proto proto.svc server internal cmd ui/src go-app.yaml \
+  | grep -vE '^(go_app|internal/ent|server/bare|ui/src/gen)/' \
+  | xargs sed -i \
+      -e 's/Roaster/Author/g' -e 's/roaster/author/g' -e 's/ROASTER/AUTHOR/g' \
+      -e 's/Coffee/Post/g'    -e 's/coffee/post/g'    -e 's/COFFEE/POST/g'
+
+# 4. Generate. The rest of the generated tree cleans up after itself --
+#    `gen-go.sh` deletes and rewrites whole directories.
+$ buf generate --template buf.gen.svc.yaml && ./scripts/gen-service.sh
+$ ./scripts/gen-go.sh && ./scripts/gen-ent.sh
+$ go build ./... && go vet ./... && go test ./...
+
+# 5. The TypeScript half, if you are keeping it.
+$ ./scripts/gen-ui.sh && (cd ui && npm run build)
+```
+
+The plurals come out right on their own — `Roasters` is `Roaster` with an `s`
+on it — so an entity whose plural is not its name plus an `s` wants a pass of
+its own before step 3.
+
+**The rename gives you the right names and the sample's meaning**, which is the
+half that is left:
+
+| where | what is still the sample's |
+| --- | --- |
+| `proto/go_app/*.proto` | the fields. `alias`, `name` and the soft-erasing `date_erased` are a catalogue's; yours are yours |
+| `server/core/*.go` | the rules — the normalizing, what an `Add` completes, what `Erase` cascades to |
+| `proto.svc/go_app/*_svc.ext.proto` | what `List` and `Watch` filter by |
+| `server/watch/*.go` | the same filter again, in Go, for the stream |
+| `internal/ox/client.go` | the `Create…` helpers a test arranges state with |
+| `server/core/core_test.go` | tests about aliases and cascades |
+| `ui/src/` | the page |
+
+Everything else the `sed` touched is one line of a comment or one method name in
+a test — `cmd/config/auth.go`, `go-app.yaml`, `server/frame`, `server/gate`,
+`server/auth`, `internal/grpcx`. There is nothing to think about in those.
+
+### If it does not fit: delete and write one
+
+Keep one of the two as a model while you write the first of your own, and delete
+it after — `server/core/coffee.go` and `server/watch/coffee.go` are the only
+written-out examples of a hand-written `List` and a hand-written `Watch` there
+are.
+
+```sh
+$ git rm proto/go_app/{roaster,coffee}.proto \
+         proto/go_app/{roaster,coffee}_svc.proto \
+         proto.svc/go_app/{roaster,coffee}_svc.{ext,g}.proto \
+         server/core/{roaster,coffee}.go server/core/core_test.go \
+         server/watch/{roaster,coffee}.go server/watch/{roaster,coffee}_test.go \
+         ui/src/useCoffees.ts
+```
+
+Then write yours as in [Adding an entity](#adding-an-entity), run the pipeline,
+and let the compiler find the rest. It is a short list, and it is the same list
+every time:
+
+| | |
+| --- | --- |
+| `server/core/patch.go` | **the one that is not a test.** It names the file descriptors it compiles patch documents against (`go_app.File_go_app_coffee_proto`), so it has to name yours |
+| `internal/ox/client.go` | the `CreateRoaster` / `CreateCoffee` helpers a test arranges state with. Write the equivalent for yours |
+| `server/gate/gate_test.go`, `server/watch/watch_test.go`, `server/gate/roles/roles_test.go` | these test the gate and the watch machinery and only *use* an entity as a fixture. Rewrite them onto yours rather than deleting them — what they cover is not the sample |
+
+What the compiler will not find is a method name inside a string —
+`"/go_app.CoffeeService/Get"` in `internal/grpcx/limit_test.go`, in
+`server/gate/policy.go`'s documentation, in `go-app.yaml`'s commented example.
+`grep -ri coffee` is the second pass, and there is nothing to think about in
+what it turns up.
+
+### Either way: replan the migrations
+
+`migrations/` describes `roaster` and `coffee` tables that no database of yours
+will ever have. **Nothing will tell you.** The bundled configuration is SQLite in
+memory with `db.migrate` on, which puts the ent schema straight into the database
+and never reads `migrations/` at all — so the app runs, the tests pass, and the
+directory is wrong until the day something deploys on PostgreSQL.
+
+While no database that matters has run them, throw them away and plan again:
+
+```sh
+$ rm -f migrations/*.sql migrations/atlas.sum
+$ docker compose up -d db
+$ go run . migrate plan \
+    --dev "postgres://postgres:postgres@localhost:5432/dev?sslmode=disable" init
+> written: 20260808085214_init.sql
+```
+
+Read it, then commit it. After the first deployment this stops being an option
+and every change is another migration; see the README, "Starting over".
+
+### What else you may not need
+
+Each of these is self-contained, and deleting one costs nothing anywhere else:
+
+| | delete it if |
+| --- | --- |
+| `ui/` | there is no browser. Take the `ui` job out of `.github/workflows/ci.yaml`, `ui/**` out of its `paths:`, `buf.gen.ui.yaml` and `scripts/gen-ui.sh` with them |
+| `internal/httpx`'s grpc-web half | same, and six modules go with it — see the README, "The second listener" |
+| `server/gate/roles` | your deployment gets its policy from somewhere else. Nothing wires it in |
+| `server/watch` | nobody subscribes. It is a recorder and an interceptor, not a layer, so it comes out at `cmd/serve.go` |
+| `cmd/greet.go` | it is there to prove the binary runs |
 
 ## Adding an entity
 

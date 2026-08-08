@@ -9,9 +9,13 @@ on:
       # checking too. An app made from one of them has no such branches and
       # can drop this line.
       - kind/**
+    # One list for every job, since `proto/` is what both halves are made
+    # from: a change to an entity is a change to the Go and to the TypeScript
+    # at once, and a filter per job would have to say so twice.
     paths: &paths
       - .github/workflows/ci.yaml
       - buf.gen.svc.yaml
+      - buf.gen.ui.yaml
       - buf.gen.yaml
       - buf.lock
       - buf.yaml
@@ -28,6 +32,7 @@ on:
       - proto.svc/**
       - scripts/**
       - server/**
+      - ui/**
   pull_request:
     branches:
       - main
@@ -125,6 +130,50 @@ jobs:
           # Planning writes a file only if the schema moved without one.
           test -z "$(git status --porcelain migrations/)" \
             || { git status --short migrations/; exit 1; }
+
+  # The same question as `check`, asked of the other half of the contract. The
+  # protos are generated into `ui/src/gen` too, and nothing in the Go job can
+  # tell that a change to an entity stopped there -- a page built against
+  # yesterday's messages compiles perfectly well.
+  #
+  # An app that deletes `ui/` deletes this job with it.
+  ui:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ui
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          # `ui/.nvmrc`, so the version is said once and `nvm use` reads the
+          # same thing -- the way `check` reads Go's out of `go.mod`.
+          node-version-file: ui/.nvmrc
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.66.0"
+          github_token: ${{ github.token }}
+
+      # `ci` and not `install`: it installs what the lock file says and fails
+      # if the lock file and the manifest disagree, which is the check worth
+      # having here.
+      - name: Install
+        run: npm ci
+
+      - name: Generated TypeScript is what the definitions say
+        working-directory: .
+        run: |
+          ./scripts/gen-ui.sh
+          git diff --exit-code
+
+      # After generating, so that the type checking is done against the
+      # messages the protos say rather than against the committed ones.
+      - name: Build
+        run: npm run build
 
   build:
     runs-on: ubuntu-latest
