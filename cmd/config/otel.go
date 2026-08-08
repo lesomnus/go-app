@@ -17,7 +17,12 @@ type OtelConfig struct {
 }
 
 func (c *OtelConfig) Build(ctx context.Context) (context.Context, *otx.Otx, error) {
-	otc := mkot.NewConfig()
+	// Not mkot.NewConfig(): what it builds is thrown away on the next line for
+	// every caller there is, since Otel is a value field of Config and so is
+	// never nil. The registries it would have set fall back to the defaults
+	// anyway, so nothing behaved differently -- it only read as though the
+	// constructor mattered.
+	otc := &mkot.Config{}
 	if c != nil {
 		otc = &c.Config
 	}

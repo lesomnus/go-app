@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding"
+	"errors"
 	"fmt"
 	"maps"
 	"reflect"
@@ -30,7 +31,7 @@ func EnvNames(v any) []string {
 	}
 
 	vs := []string{}
-	walk(root, nil, func(name string, _ reflect.Value) (bool, error) {
+	walk(root, nil, func(_ []string, name string, _ reflect.Value) (bool, error) {
 		vs = append(vs, name)
 		return false, nil
 	})
@@ -61,7 +62,7 @@ func OverrideFromEnv(v any, environ []string) ([]string, error) {
 		return nil, nil
 	}
 
-	_, err = walk(root, nil, func(name string, field reflect.Value) (bool, error) {
+	_, err = walk(root, nil, func(_ []string, name string, field reflect.Value) (bool, error) {
 		v, ok := vs[name]
 		if !ok {
 			return false, nil
@@ -81,6 +82,43 @@ func OverrideFromEnv(v any, environ []string) ([]string, error) {
 	return slices.Sorted(maps.Keys(vs)), nil
 }
 
+// CheckEnvNames refuses a configuration in which two fields answer to one
+// environment variable.
+//
+// The names are made by joining the path with an underscore and folding
+// hyphens into underscores as well, so `a.b_c`, `a-b.c` and `a_b.c` all become
+// <PREFIX>_A_B_C. When that happens [OverrideFromEnv] gives the value to
+// whichever field it reaches first and leaves the other holding whatever the
+// file said -- and says nothing, so the configuration a deployment believes it
+// set is not the one the app is running with.
+//
+// It is a startup error rather than a warning because there is no reading of it
+// that is correct. Nobody writes two fields meaning to have one of them
+// unreachable, and which one that is depends on declaration order, which is not
+// something anybody should have to know.
+func CheckEnvNames(v any) error {
+	root, err := root(v)
+	if err != nil {
+		return err
+	}
+
+	at := map[string]string{}
+	errs := []error{}
+	walk(root, nil, func(path []string, name string, _ reflect.Value) (bool, error) {
+		// Held rather than borrowed: the walk reuses the slice behind it.
+		p := strings.Join(slices.Clone(path), ".")
+		if u, ok := at[name]; ok {
+			errs = append(errs, fmt.Errorf("%s and %s are both read from %s", u, p, name))
+			return false, nil
+		}
+
+		at[name] = p
+		return false, nil
+	})
+
+	return errors.Join(errs...)
+}
+
 // root is what the walk starts at: something that is a struct and that can be
 // written to.
 func root(v any) (reflect.Value, error) {
@@ -93,8 +131,14 @@ func root(v any) (reflect.Value, error) {
 }
 
 // visitor is called with the environment variable name of a field a value can
-// be read into. It reports whether it read one.
-type visitor func(name string, field reflect.Value) (bool, error)
+// be read into, and the path it was named after. It reports whether it read
+// one.
+//
+// The path is carried alongside the name because two paths can fold to one
+// name -- see [CheckEnvNames] -- and a report that could not say which two
+// fields collided would leave the reader to work out the folding rule for
+// themselves.
+type visitor func(path []string, name string, field reflect.Value) (bool, error)
 
 // walk visits every field of the struct `v`, which may be a pointer to one,
 // naming it after the path to it. It reports whether anything was read.
@@ -140,7 +184,8 @@ func walk(v reflect.Value, path []string, visit visitor) (bool, error) {
 			// nothing to the path.
 			one, err = walk(fv, path, visit)
 		case leaf(f.Type):
-			one, err = visit(key(append(path, name)), fv)
+			at := append(path, name)
+			one, err = visit(at, key(at), fv)
 		default:
 			one, err = walk(fv, append(path, name), visit)
 		}

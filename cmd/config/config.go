@@ -58,6 +58,14 @@ func (c *Config) Path() string {
 }
 
 func (c *Config) Evaluate() error {
+	// Before anything else, since it is about the shape of this struct rather
+	// than about what is in it: two fields folding to one environment variable
+	// means one of them is unreachable, and which one depends on declaration
+	// order. See [CheckEnvNames].
+	if err := CheckEnvNames(c); err != nil {
+		return err
+	}
+
 	z.FallbackP(&c.Server.Addr, ":50051")
 	z.FallbackP(&c.Db.Driver, "sqlite3")
 	z.FallbackP(&c.Db.Dsn, "file:go-app.db?_pragma=foreign_keys(1)")

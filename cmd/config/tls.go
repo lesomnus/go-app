@@ -37,8 +37,22 @@ type TLSConfig struct {
 }
 
 // Active reports whether TLS should be used for the server.
+//
+// ClientCAFile counts, and leaving it out was a hole rather than an omission. A
+// configuration that names a client CA and nothing else is one that asked for
+// mutual TLS -- it is exactly what [Config.Evaluate] *demands* for
+// `auth.methods: [mtls]` -- and without it here that configuration was not
+// "active", so [TLSConfig.Credentials] answered with insecure ones. There was no
+// handshake, no certificate was ever presented or verified, and `mtls` answered
+// "nobody said anything" for the life of the process.
+//
+// Which way it failed is what makes it worth saying. Authentication failed
+// closed: nobody was identified, so nothing was served to anybody who had to be.
+// Confidentiality failed **open**: the operator wrote mutual TLS down and got
+// plaintext, and nothing anywhere said so. Counting it here means Credentials
+// refuses for want of a certificate instead, and the server does not start.
 func (c TLSConfig) Active() bool {
-	return c.Enabled || c.CertFile != "" || c.KeyFile != ""
+	return c.Enabled || c.CertFile != "" || c.KeyFile != "" || c.ClientCAFile != ""
 }
 
 // Credentials builds gRPC transport credentials from the TLS configuration.

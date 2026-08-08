@@ -257,3 +257,47 @@ func TestOverrideFromEnvThenEvaluate(t *testing.T) {
 }
 
 var _ yaml.BytesUnmarshaler = (*Whole)(nil)
+
+// TestCheckEnvNames is about a hole rather than a feature.
+//
+// Names are made by joining the path with an underscore and folding hyphens in
+// too, so more than one path can arrive at one name. When that happens the
+// value goes to whichever field the walk reaches first and the other keeps what
+// the file said -- silently, which is the part that matters: the configuration
+// a deployment believes it set is not the one the app runs with.
+func TestCheckEnvNames(t *testing.T) {
+	t.Run("a configuration whose names are its own is fine", func(t *testing.T) {
+		x := require.New(t)
+
+		x.NoError(config.CheckEnvNames(&config.Config{}))
+	})
+
+	t.Run("two fields folding to one name is refused", func(t *testing.T) {
+		x := require.New(t)
+
+		// `a.b_c` and `a-b.c` both become <PREFIX>_A_B_C.
+		type inner struct {
+			C string `yaml:"c"`
+		}
+		v := struct {
+			A struct {
+				BC string `yaml:"b_c"`
+			} `yaml:"a"`
+			AB inner `yaml:"a-b"`
+		}{}
+
+		err := config.CheckEnvNames(&v)
+		x.Error(err)
+		x.Contains(err.Error(), "a.b_c")
+		x.Contains(err.Error(), "a-b.c")
+	})
+
+	t.Run("the app's own configuration is checked when it is evaluated", func(t *testing.T) {
+		x := require.New(t)
+
+		// Which is where it has to be: a name that cannot be reached is not
+		// something to find out about at the first deployment that tried.
+		c := &config.Config{}
+		x.NoError(c.Evaluate())
+	})
+}
