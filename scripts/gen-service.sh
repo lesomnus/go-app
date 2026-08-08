@@ -12,7 +12,13 @@ OUT_DIR="${OUT_DIR:-${__root}/proto}"
 
 # Command used to merge a base proto with its overlay.
 # Override with PROTOBUF_MERGE=protobuf-merge if the binary is on PATH.
-PROTOBUF_MERGE="${PROTOBUF_MERGE:-go run github.com/protobuf-orm/protobuf-merge@latest}"
+#
+# `go tool`, the way every other generator here is reached, and not
+# `go run ...@latest`: the version is then pinned by go.mod like the rest of
+# them. It was `@latest` once, and what that means is that the generation
+# breaks on a day nobody changed anything -- which is what happened when a
+# release of it started requiring a newer Go than go.mod asked for.
+PROTOBUF_MERGE="${PROTOBUF_MERGE:-go tool github.com/protobuf-orm/protobuf-merge}"
 
 # Merge every generated service body with its extension (if any) and emit the
 # result under OUT_DIR, keeping the same package sub-directory layout.
