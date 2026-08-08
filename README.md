@@ -43,16 +43,18 @@ $ git clone --branch kind/server --single-branch --depth 1 \
 $ cd my-app && rm -rf .git && git init && git add -A && git commit -m "from go-app"
 ```
 
-Either way `./scripts/init.sh` is the next thing you run, and it is the same
-command on every branch.
+Either way `go run ./tools/init` is the next thing you run, and it is the same
+command on every branch. `--help` lists what that branch can leave out; this one
+is the base and can leave out nothing.
 
 *Then delete this section: it is about taking the template, and you have.*
 
 ## Quick Start
 
 ```sh
-# Replace all occurrences of "github.com/lesomnus/go-app" with your own module path.
-$ ./scripts/init.sh github.com/your-name/your-app
+# Make it yours: the module path, the binary, the config file and the `GO_APP_`
+# environment prefix. It builds what it changed, and then removes itself.
+$ go run ./tools/init github.com/your-name/your-app
 
 # Build and test the app.
 # Build results will be placed in the `/dist` directory.
