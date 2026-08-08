@@ -59,9 +59,15 @@ echo "App      : $CURRENT_APP_KEBAB / $CURRENT_APP_UPPER  →  $APP_NAME / $APP_
 echo "Proto    : $CURRENT_APP_SNAKE  →  $APP_NAME_SNAKE"
 echo ""
 
-# Find all text source files, excluding this script itself
+# Find all text source files, excluding this script itself.
+#
+# `node_modules` and `dist` are pruned rather than filtered: they are somebody
+# else's files and there are a great many of them, so rewriting inside one is
+# both wrong and slow. `.git` for the same reason, more so.
 _find_files() {
-	find "$__root" -type f ! -path "$__self" \( \
+	find "$__root" \
+		\( -name .git -o -name node_modules -o -name dist \) -prune -o \
+		-type f ! -path "$__self" \( \
 		-name "*.go"        \
 		-o -name "go.mod"   \
 		-o -name "*.proto"  \
@@ -71,10 +77,31 @@ _find_files() {
 		-o -name "*.hcl"    \
 		-o -name "*.json"   \
 		-o -name "*.md"     \
+		-o -name "*.ts"     \
+		-o -name "*.tsx"    \
+		-o -name "*.html"   \
+		-o -name "*.css"    \
 		-o -name "Dockerfile"     \
 		-o -name "Dockerfile.*"   \
 		-o -name ".dockerignore"  \
-	\)
+		\) -print
+}
+
+# Rename every directory called `$1` to `$2`, deepest first.
+_rename_dirs() {
+	if [ "$1" = "$2" ]; then
+		return
+	fi
+
+	while IFS= read -r -d '' dir; do
+		dst="$(dirname "$dir")/$2"
+		if [ "$dir" != "$dst" ]; then
+			mv "$dir" "$dst"
+			echo "Renamed: ${dir#"$__root/"}  →  ${dst#"$__root/"}"
+		fi
+	done < <(find "$__root" \
+		\( -name .git -o -name node_modules -o -name dist \) -prune -o \
+		-depth -type d -name "$1" -print0)
 }
 
 # 1. Full module path (handles Go imports and https://github.com/... URLs via substring)
@@ -102,16 +129,13 @@ for ext in yaml yml; do
 	fi
 done
 
-# 7. Rename proto package directories (proto/go_app, proto.svc/go_app → .../<snake>)
-if [ "$CURRENT_APP_SNAKE" != "$APP_NAME_SNAKE" ]; then
-	while IFS= read -r -d '' dir; do
-		dst="$(dirname "$dir")/${APP_NAME_SNAKE}"
-		if [ "$dir" != "$dst" ]; then
-			mv "$dir" "$dst"
-			echo "Renamed: ${dir#"$__root/"}  →  ${dst#"$__root/"}"
-		fi
-	done < <(find "$__root" -depth -type d -name "$CURRENT_APP_SNAKE" -print0)
-fi
+# 7. Rename the directories named after the app.
+#
+# The snake_case ones are the proto package and the Go package it becomes:
+# proto/go_app, proto.svc/go_app, go_app/, ui/src/gen/go_app. The kebab-case one
+# is the skill, whose directory has to keep matching the `name:` in it.
+_rename_dirs "$CURRENT_APP_SNAKE" "$APP_NAME_SNAKE"
+_rename_dirs "$CURRENT_APP_KEBAB" "$APP_NAME"
 
 # 8. Generate everything that is generated, again.
 #
@@ -145,6 +169,20 @@ if [ "$GENERATE" -eq 1 ]; then
 		echo "  ./scripts/gen-go.sh" >&2
 		echo "  ./scripts/gen-ent.sh" >&2
 		exit 1
+	fi
+
+	# The TypeScript half, which needs the UI's own node_modules -- so a fresh
+	# clone has to install before it can be generated. Saying so is better than
+	# a failure that reads as the rename having gone wrong, and better than
+	# leaving ui/src/gen quietly holding a descriptor the substitutions above
+	# have already broken.
+	if [ -x "$__root/ui/node_modules/.bin/protoc-gen-es" ]; then
+		"$__dir/gen-ui.sh"
+	else
+		echo ""
+		echo "ui/node_modules is not installed, so ui/src/gen was renamed but not"
+		echo "regenerated. Before running the UI:"
+		echo "  cd ui && npm install && cd .. && ./scripts/gen-ui.sh"
 	fi
 
 	# And the check that the whole of the above worked, which is worth the few

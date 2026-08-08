@@ -30,6 +30,13 @@ compiles, and panics on the first init with a slice bounds error a long way from
 anything anybody wrote. `--no-generate` skips it for somebody who has to run the
 generation elsewhere, and says so.
 
+The TypeScript half needs `ui/node_modules`, which a fresh clone does not have,
+so `init.sh` says what to run rather than failing:
+
+```sh
+$ cd ui && npm install && cd .. && ./scripts/gen-ui.sh
+```
+
 One thing it cannot do for you: the app name becomes the alias of the message
 package (`go_app` here), so a local variable of that name shadows it. Pick a
 name and `go build ./...` will say if you picked one this repository uses.
