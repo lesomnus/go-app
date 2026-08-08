@@ -1,0 +1,20 @@
+version: v2
+inputs:
+  - directory: proto
+
+# The messages and the service descriptors, as TypeScript.
+#
+# One plugin and not two: protoc-gen-es emits the service descriptors as well,
+# and Connect's `createClient` takes one of those directly. There is no
+# generated client class to keep in step with anything.
+plugins:
+  - local: ui/node_modules/.bin/protoc-gen-es
+    out: ui/src/gen
+    # The imports too, since the contract reaches outside this repository: an
+    # `Apply` carries a patch document, and a schema declares itself with the
+    # orm options. Without them the generated files import from paths nothing
+    # wrote.
+    include_imports: true
+    opt:
+      - target=ts
+      - import_extension=.js

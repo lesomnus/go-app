@@ -34,6 +34,51 @@ One thing it cannot do for you: the app name becomes the alias of the message
 package (`go_app` here), so a local variable of that name shadows it. Pick a
 name and `go build ./...` will say if you picked one this repository uses.
 
+## The UI
+
+`ui/` is a Vite + React page that talks to the server over **grpc-web**, and it
+is here to be the other end of the contract rather than a design: it lists
+Roasters, watches Coffees, and shows what the server says when it refuses.
+
+```sh
+$ cd ui && npm install
+$ ./scripts/gen-ui.sh                 # the same protos, as TypeScript
+$ cd ui && npm run dev                # http://localhost:5173
+```
+
+It needs the second listener, since a browser cannot speak the transport gRPC
+brings:
+
+```sh
+$ GO_APP_SERVER_HTTP_ADDR=:8080 \
+  GO_APP_SERVER_HTTP_ALLOW_GRPC_WEB=true \
+  GO_APP_SERVER_HTTP_ORIGINS='["http://localhost:5173"]' \
+  GO_APP_SERVER_ALLOW_ANONYMOUS_READS=true \
+  go run . serve --db-migrate
+```
+
+Three things it exists to show:
+
+- **One contract, two languages.** `scripts/gen-ui.sh` runs the same `proto/`
+  through `protoc-gen-es`, so the page and the server are wrong together or not
+  at all. There is no hand-written client and no second schema.
+- **`Watch` is what the list *is*.** The page does not call `List` and then
+  subscribe: it opens the stream, and the first message is everything that
+  matches. What arrives is the row as it is now, so the client keeps the last
+  thing it was told about each id and replaces it — `src/useCoffees.ts` is the
+  whole of that, and it is short because the payload is state and not a delta.
+  A removal is an item with **no value**.
+- **Who is calling is a header.** The subject box at the top becomes
+  `authorization: Plain <subject>`, which the server believes — it is the
+  development handler and the server warns about it at startup. Empty is the
+  anonymous caller, and the page then gets `Unauthenticated` on writes and
+  answers on reads. A real deployment sends a token instead and nothing else
+  about `src/client.ts` changes.
+
+The Vite template's own files are gone — no logo, no counter, no CSS nobody
+asked for. What is left is `index.html`, `main.tsx`, `App.tsx`, the client, the
+hook, and the stylesheet.
+
 ## Configuration
 
 The app reads `go-app.yaml`, or the file `--config` names. What it says can be

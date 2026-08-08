@@ -67,7 +67,7 @@ server:
   #   # page nobody named is refused rather than served. `["*"]` is every page
   #   # on the internet, which is a thing to mean rather than to reach for --
   #   # and it is not the wall and not authentication either way.
-  #   origins: ["http://localhost:5173"]
+  #   origins: ["http://localhost:5173"]   # what `ui` runs on in development
   #   # The heap, the goroutines, and the ability to make the process spend
   #   # thirty seconds profiling itself. Keep it off anywhere a stranger can
   #   # reach.
