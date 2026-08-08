@@ -2,6 +2,52 @@
 
 My flavor of "Hello, World!" for Go app.
 
+## Which branch you want
+
+**There is no server on this one.** `main` is the base every kind is made from:
+configuration, logging, telemetry, the Docker build, and a `greet` command to
+prove it runs. Take it as it is if what you are making is a command.
+
+A service is a branch:
+
+| | |
+| --- | --- |
+| [`kind/server`](../../tree/kind/server) | a gRPC service. Entities declared once as protobuf and generated into messages, an ent schema, migrations and CRUD servers; a layered server stack; authentication and a gate in front of it; `List`, `Watch`, rate limiting, grpc-web, and a React page on the other end of the same protos. |
+| [`kind/server-x`](../../tree/kind/server-x) | the same, with a wall: a Tenant every row belongs to, a predicate in every query saying which of them a caller may read, and an audit trail. |
+
+Read the README of the branch itself; each says what it is and what to do next.
+
+### Taking one
+
+**"Use this template" copies the default branch and no other**, and the default
+branch is this one. So tick **"Include all branches"** when GitHub asks, or the
+new repository will have nothing but what you are reading.
+
+Then, in the copy it made for you, make the kind you want into the branch you
+work on — an app has one, and it is `main`:
+
+```sh
+$ git clone https://github.com/your-name/my-app.git && cd my-app
+$ git reset --hard origin/kind/server     # whichever kind you took
+$ git push --force origin main
+
+# The other kinds are somebody else's demonstration now.
+$ git push origin --delete kind/server kind/server-x
+```
+
+Without the button, the same thing is one clone:
+
+```sh
+$ git clone --branch kind/server --single-branch --depth 1 \
+    https://github.com/lesomnus/go-app.git my-app
+$ cd my-app && rm -rf .git && git init && git add -A && git commit -m "from go-app"
+```
+
+Either way `./scripts/init.sh` is the next thing you run, and it is the same
+command on every branch.
+
+*Then delete this section: it is about taking the template, and you have.*
+
 ## Quick Start
 
 ```sh
